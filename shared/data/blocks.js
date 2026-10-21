@@ -11,6 +11,8 @@ export const BLOCKS = {
   bricks: { name: 'Kamenné cihly', solid: true, hard: 2.5, tool: 'pick', req: 1, drop: 'bricks' },
   workbench: { name: 'Pracovní stůl', solid: true, hard: 1.2, tool: 'axe', drop: 'workbench', special: true },
   chest: { name: 'Truhla', solid: true, hard: 1.2, tool: 'axe', drop: 'chest', special: true },
+  // Trezor: truhla na kód. locked = nedá se vytěžit (prázdný ho sebere ten, kdo zná kód).
+  safe: { name: 'Trezor', solid: true, hard: 1.2, tool: 'pick', drop: 'safe', special: true, facing: true, locked: true },
   campfire: { name: 'Táborák', solid: false, hard: 0.8, tool: 'axe', drop: 'campfire', special: true, light: 20 },
   torch: { name: 'Pochodeň', solid: false, hard: 0.1, drop: 'torch', special: true, light: 8 },
   stove: { name: 'Sporák', solid: true, hard: 2.5, tool: 'pick', req: 1, drop: 'stove', special: true },

@@ -330,3 +330,6 @@ export const SMELT_TIME = 3;
   block('neon_magenta', 'Fialový neon', 'decor', { hard: 0.8, light: 10, lightColor: 0xd04bff });
   R('neon_magenta', 4, [' G ', 'GMG', ' G '], { G: 'glass', M: 'markorite_raw' });
 })();
+
+// Trezor (truhla na kód): snadno vyrobitelný už v batohu – truhla a tři kameny.
+RECIPES.push({ out: 'safe', n: 1, shape: ['SS', 'SC'], key: { S: 'stone', C: 'chest' } });

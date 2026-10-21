@@ -30,6 +30,7 @@ export const ITEMS = {
   campfire: { name: 'Táborák', icon: '🔥', block: 'campfire', stack: 8 },
   workbench: { name: 'Pracovní stůl', icon: '🛠️', block: 'workbench', stack: 8 },
   chest: { name: 'Truhla', icon: '📦', block: 'chest', stack: 8 },
+  safe: { name: 'Trezor', icon: '🔒', block: 'safe', stack: 8 }, // truhla na kód (client/src/machines/safe.js)
   // Markova dimenze
   markwood: { name: 'Markwood', icon: '🪵' },
   mark_planks: { name: 'Markwood prkna', icon: '🟦', block: 'mark_planks' },

@@ -241,12 +241,17 @@ When you add or change a feature, update this file in the same pull request.
   A **search box** (🔍 *Hledat…*) above the book filters it by item name (accents optional, so *zelezo* finds *Železo*);
   it works for recipes, the creative item list, the campfire, the furnace and the stove cookbook, and is cleared when the window closes.
 - **Chest** (*Truhla*, 27 slots).
+- **Safe** (*Trezor*, 27 slots, recipe in the backpack: a chest + 3 stones). The first time it is opened the player
+  makes up a code (4–8 digits, typed twice); after that it opens only with that code (3 wrong tries → a short wait
+  that grows). It can't be mined; whoever knows the code can take an empty safe back (*Sebrat trezor*). The code is kept
+  only as a fingerprint in the safe's `blockMeta` (bits 0–2 rotation, above that the fingerprint). It is a lock for
+  friends, not a bank: anyone with the browser console can still see chest contents in multiplayer.
 - **Farm traps**: spikes (*Bodce*) hurt mobs; loot of mobs killed on spikes goes to a chest nearby.
 - **Mob spawner** blocks in dungeons and fortresses.
 
 *Kód:* block textures `client/src/render/textures.js` (helpers `texgen.js`), materials `client/src/render/materials.js`, 3D icons `client/src/render/icon-render.js`, tool rules (durability, mining speed, attack charge, repair) `shared/tools.js`, wear on this screen `client/src/player/durability.js`,
 cracks `client/src/render/crack.js`, chips and crit stars `client/src/render/chips.js`, tool and combat sounds `client/src/audio/tool-sounds.js`,
-mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
+mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (search box `book-search.js`, safe code `client/src/machines/safe.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
 
 ## 5. Food and cooking
 - **Campfire** (*Táborák*): roast meat and fish, smelt iron, bake sand into glass, clay into tiles.

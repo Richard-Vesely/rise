@@ -258,6 +258,8 @@ function isoBoxes(top, side, boxes) {
   const steel = (x, y) => ((x + y) % 7 ? '#8a96a4' : '#7a8694');
   const steelF = face(steel);
   const edge = (x, y) => x === 0 || y === 0 || x === 15 || y === 15;
+  icon('safe', isoBoxes(face((x, y) => (edge(x, y) ? '#3a424c' : '#4a525c')), face((x, y) => (edge(x, y) ? '#3a424c' : Math.hypot(x - 6.5, y - 7.5) < 2.2 ? '#d8dce4'
+    : x === 11 && y > 5 && y < 11 ? '#d8dce4' : x > 1 && x < 14 && y > 1 && y < 14 ? '#5e6874' : '#4a525c')), FULL));
   icon('coal_generator', isoBoxes(steelF, face((x, y) => (edge(x, y) ? '#5a646e' : y > 3 && y < 9 && y % 2 ? '#2a2a30' : y > 10 && y < 13 && x > 4 && x < 11 ? '#ff7a2a' : steel(x, y))), FULL));
   icon('battery_block', isoBoxes(face((x, y) => (x > 2 && x < 7 && y > 6 && y < 9 ? '#d8783a' : x > 9 && x < 13 && y > 6 && y < 9 ? '#d0d0d0' : '#2e3a2e')),
     face((x, y) => (edge(x, y) ? '#1a241a' : x > 4 && x < 11 && y > 2 && y < 14 && y % 3 ? '#3aff5a' : '#2e3a2e')), FULL));

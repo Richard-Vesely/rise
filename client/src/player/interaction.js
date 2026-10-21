@@ -342,7 +342,7 @@ export function useItem() {
     return;
   }
   // Pravé tlačítko na pracovní stůl nebo táborák otevře jeho okno.
-  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv' };
+  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', safe: 'safe', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv' };
   const held0 = heldStack();
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }

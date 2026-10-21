@@ -76,7 +76,7 @@ export function pickTarget() {
     const b = BLOCKS[bh.type];
     bt = bh.t;
     best = { kind: 'block', key: 'b' + bkey(bh.x, bh.y, bh.z), cell: [bh.x, bh.y, bh.z], normal: bh.normal, type: bh.type, name: b.name, point: [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t],
-      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', computer: 'pravé tlačítko = sednout k počítači' }[bh.type] || '', hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
+      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', safe: 'pravé tlačítko = otevřít kódem · nedá se vytěžit', computer: 'pravé tlačítko = sednout k počítači' }[bh.type] || '', breakable: !b.locked, hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
   }
   const a = d.x * d.x + d.z * d.z;
   for (const t of forestTrees) {

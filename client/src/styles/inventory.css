@@ -54,6 +54,12 @@ body.gfx-low #inventory .mc-panel { background: linear-gradient(160deg, rgb(30, 
 #inventory .book-search:focus-within { box-shadow: inset 0 0 0 1px var(--inv-glow), 0 0 10px rgba(70, 224, 255, 0.35); }
 #inventory .book-search input { flex: 1; min-width: 0; font: 13px var(--ui-font); color: var(--inv-text); background: none; border: 0; outline: none; }
 #inventory .book-search input::placeholder { color: rgba(201, 220, 239, 0.55); }
+/* trezor: zadání kódu */
+#inventory .safe-ui { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
+#inventory .safe-code { width: 120px; padding: 6px 10px; border-radius: 9px; border: 0; outline: none; font: 600 16px var(--ui-font); letter-spacing: 3px;
+  color: var(--inv-text); background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px rgba(130, 210, 255, 0.28); }
+#inventory .safe-code:focus { box-shadow: inset 0 0 0 1px var(--inv-glow), 0 0 10px rgba(70, 224, 255, 0.35); }
+#inventory .safe-code::placeholder { letter-spacing: 0; font-weight: 400; font-size: 13px; color: rgba(201, 220, 239, 0.55); }
 
 /* ---------- políčka ---------- */
 .slot { border-radius: 9px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 45%), var(--slot-bg);

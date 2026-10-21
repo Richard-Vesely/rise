@@ -19,7 +19,7 @@ const TOOL_DESC = {
 const DESC = {
   log: 'Z kmene uděláš prkna (4 kusy).', planks: 'Základ skoro všeho ze dřeva.', stick: 'Rukojeť nástrojů a pochodní.',
   fiber: 'Z trávy. Na pochodně, provázky a luky.', coal: 'Palivo a pochodně. Najdeš ho v kameni.', torch: 'Svítí ve tmě a odhání stínožrouty.',
-  campfire: 'Peče maso a taví rudu. Světlo odhání stínožrouty.', workbench: 'Výroba v mřížce 3×3.', chest: 'Uschová 27 hromádek předmětů.',
+  campfire: 'Peče maso a taví rudu. Světlo odhání stínožrouty.', workbench: 'Výroba v mřížce 3×3.', chest: 'Uschová 27 hromádek předmětů.', safe: 'Truhla na kód: poprvé si kód vymyslíš, pak se otevře jen s ním. Nedá se vytěžit.',
   shard: 'Tři úlomky probudí portál ve svatyni.', essence: 'Z ní se vyrábí stínové brnění.', iron_ore: 'Přetav ji v táboráku nebo v peci.',
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',

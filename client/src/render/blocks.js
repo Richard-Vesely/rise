@@ -280,6 +280,20 @@ export function buildSpecial(type, key) {
     const lock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.05), metal);
     lock.position.set(0, 0.58, 0.45);
     g.add(body, lid, band, lock);
+  } else if (type === 'safe') { // ocelová skříňka, dvířka s číselníkem a klikou vpředu (+z)
+    const steel = new THREE.MeshStandardMaterial({ color: 0x4a525c, metalness: 0.8, roughness: 0.45 });
+    const door = new THREE.MeshStandardMaterial({ color: 0x5e6874, metalness: 0.85, roughness: 0.35 });
+    const shiny = new THREE.MeshStandardMaterial({ color: 0xd8dce4, metalness: 1, roughness: 0.25 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), steel);
+    body.position.y = 0.45;
+    const front = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.04), door);
+    front.position.set(0, 0.45, 0.46);
+    const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 20), shiny);
+    dial.rotation.x = Math.PI / 2;
+    dial.position.set(-0.08, 0.5, 0.49);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.05), shiny);
+    handle.position.set(0.22, 0.45, 0.5);
+    g.add(body, front, dial, handle);
   } else if (type === 'torch') {
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x5a3e26, roughness: 1 }));
     stick.position.y = 0.35;
@@ -433,7 +447,7 @@ export function updateLights(time) {
 }
 
 // 3D ikony bloků a strojů (render/icon-render.js) – až po načtení všech modulů (modely strojů jsou v pozdějších souborech).
-const ICON_3D = ['workbench', 'chest', 'stove', 'furnace', 'adv_bench', 'table', 'chair', 'well', 'spikes', 'spawner', 'coal_generator', 'solar_panel',
+const ICON_3D = ['workbench', 'chest', 'safe', 'stove', 'furnace', 'adv_bench', 'table', 'chair', 'well', 'spikes', 'spawner', 'coal_generator', 'solar_panel',
   'battery_block', 'power_switch', 'electric_lamp', 'bulb_lamp', 'motor_block', 'electric_furnace', 'charger', 'computer', 'printer'];
 export function blockIconList() {
   const items = [];

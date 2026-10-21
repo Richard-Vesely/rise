@@ -178,7 +178,7 @@ export const touchUI = (() => {
       const s = heldStack(), d = s && ITEMS[s.id];
       label(el('tLmb'), target?.kind === 'mob' ? '⚔' : '⛏', target?.kind === 'mob' ? 'Útok' : 'Těžit');
       if (dining) label(el('tRmb'), '🍴', 'Krájet');
-      else if (target?.kind === 'block' && ['workbench', 'campfire', 'chest', 'stove', 'table', 'chair', 'well'].includes(target.type)) label(el('tRmb'), '✋', 'Použít');
+      else if (target?.kind === 'block' && ['workbench', 'campfire', 'chest', 'safe', 'stove', 'table', 'chair', 'well'].includes(target.type)) label(el('tRmb'), '✋', 'Použít');
       else if (d?.food) label(el('tRmb'), '🍖', 'Jíst');
       else if (d?.block) label(el('tRmb'), '🧱', 'Položit');
       else label(el('tRmb'), '✋', 'Použít');
