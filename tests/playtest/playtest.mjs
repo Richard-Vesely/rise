@@ -166,6 +166,7 @@ try {
   check('tools: a mined block wears the pickaxe by 1 and shows a durability bar', r.w === 1 && r.bar && r.stone === 1, JSON.stringify(r));
   r = await ev((k) => {
     const g = window.game; g.inv.slots[0].w = 58;
+    g.mobs.length = 0; // jinak může poslední ránu schytat tvor: krumpáč se rozbije o něj a kámen holou rukou nepadne
     g.blocks.set(k, 'cobble'); g.rebuildBlocks(); T.step(8);
     const [x, y, z] = k.split(',').map(Number);
     T.aim(x + 0.5, y + 0.5, z + 0.5);
