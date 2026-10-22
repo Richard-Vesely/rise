@@ -440,3 +440,13 @@ body.touch #netbox { z-index: 5; }
 .repair-note { color: #8fe8ff; }
 #bars .wrap.hit { animation: heartHit 0.45s ease-out; }
 @keyframes heartHit { 0% { filter: brightness(2.2) drop-shadow(0 0 6px #ff3030); transform: scale(1.06); } 100% { filter: none; transform: none; } }
+
+/* aréna: tabulka bodů (client/src/player/arena.js) */
+#arenaScore { position: fixed; top: 58px; left: 18px; min-width: 150px; padding: 8px 12px; background: var(--panel); border-radius: 4px; color: #eee; font-size: 12.5px; pointer-events: none; z-index: 3; }
+#arenaScore .t { font: 700 13px 'Cinzel', serif; color: var(--gold); margin-bottom: 4px; }
+#arenaScore table { border-collapse: collapse; width: 100%; }
+#arenaScore th { font-weight: 400; color: #9aa; text-align: left; padding: 0 6px 2px 0; }
+#arenaScore td { padding: 1px 6px 1px 0; }
+#arenaScore td:nth-child(n+3), #arenaScore th:nth-child(n+3) { text-align: right; }
+#arenaScore tr.me td { color: var(--cyan); font-weight: 700; }
+body.touch #arenaScore { top: 46px; }

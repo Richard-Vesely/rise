@@ -13,6 +13,7 @@ import { Sound } from '../audio/sound.js';
 import { BOOT } from '../game/boot.js';
 import { mobLife, poseMob, viewOf } from '../mobs/mobs.js';
 import { receiveGift } from '../pc/papers-world.js';
+import { arenaKill, renderScore } from '../player/arena.js';
 import { refreshSpecial } from '../player/eating.js';
 import { swapHeld } from '../player/interaction.js';
 import { addItem, countItem, heldStack, removeItem } from '../player/inventory.js';
@@ -106,6 +107,8 @@ export function onHostMsg(msg) {
       break;
     }
     case 'toast': toast(msg[1]); break;
+    case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
+    case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl
     case 'chat': chatLine(msg[1], msg[2]); break;
     case 'join': sysLine(`${msg[1]} se připojil`); break;
     case 'leave': sysLine(`${msg[1]} odešel`); break;

@@ -73,6 +73,7 @@ export function accept(conn) {
     conn.on('close', () => dropPlayer(P.pid));
     conn.on('error', () => dropPlayer(P.pid));
     conn.send(['welcome', { pid: P.pid, name, perm: P.perm, world: worldState(), spawn: room.local ? room.local.spawn() : [1.5, 0.95, 15.5], max: room.maxPlayers }]);
+    if (NET.pvp) conn.send(['score', scoreList()]); // aréna: aktuální tabulka bodů
     broadcast(['join', name], P.pid);
     room.onSys(`${name} se připojil`);
     room.onLog(`připojil se ${name} (${others.size} ${others.size === 1 ? 'hráč' : 'hráči'})`);
@@ -112,7 +113,9 @@ function onClientMsg(P, msg) {
       const q = msg[1];
       if (!q || typeof q !== 'object') return;
       if (!P.pose) room.onChange();
+      const wasAlive = P.pose?.alive !== false;
       P.pose = q;
+      if (NET.pvp && wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl
       if (typeof q.ui === 'string') {
         if (!isBusy(q.ui)) NET.kvT = 0; // hráč právě otevřel truhlu / stroj: hned mu poslat aktuální stav
         uiBusy.set(q.ui, performance.now() + 1200);
@@ -178,10 +181,27 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
   const now = performance.now() / 1000;
   if (now - (T.hurtAt || -9) < PVP.invuln) return false;
   T.hurtAt = now;
+  T.lastHit = { by: from === 'host' ? NET.name : A.name, t: now }; // komu připsat bod, když zraněný padne
   const n = clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
   const dx = -Math.sin(y) * k, dz = -Math.cos(y) * k;
   if (to === 'host') NET.hurtLocal?.(n, dx, dz); else sendTo(to, ['dmg', n, dx, dz]);
   return true;
+}
+// ---------- aréna: body za vyřazení (počítají se od startu serveru; klíč = jméno hráče)
+export const scores = new Map(); // jméno -> { k: vyřazení soupeřů, d: pády }
+const KILL_WINDOW = 10; // s: pád do 10 s po zásahu od hráče se počítá jako jeho vyřazení
+/** Tabulka [[jméno, body, pády]…], nejlepší první. */
+export const scoreList = () => [...scores].map(([n, s]) => [n, s.k, s.d]).sort((a, b) => b[1] - a[1] || a[2] - b[2] || a[0].localeCompare(b[0]));
+const scoreOf = (name) => { if (!scores.has(name)) scores.set(name, { k: 0, d: 0 }); return scores.get(name); };
+/** Hráč P padl: bod tomu, kdo ho zasáhl naposledy (do KILL_WINDOW s), všem hlášení a nová tabulka. */
+export function arenaDeath(P) {
+  const hit = P.lastHit, killer = hit && performance.now() / 1000 - hit.t < KILL_WINDOW && hit.by !== P.name ? hit.by : null;
+  P.lastHit = null;
+  scoreOf(P.name).d++;
+  if (killer) scoreOf(killer).k++;
+  room.onLog(killer ? `aréna: ${killer} vyřadil ${P.name}` : `aréna: ${P.name} padl`);
+  broadcast(['kill', killer, P.name]);
+  broadcast(['score', scoreList()]);
 }
 export function setPerm(P, on) {
   P.perm = on;

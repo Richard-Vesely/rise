@@ -6,6 +6,7 @@ import { updateGroundItems } from '../shared/sim/ground-items.js';
 import { updateCrops, updateFires, updateFurnaces, updateStoves } from '../shared/sim/machines.js';
 import { updateMobs, updateSpawners, updateSpawns } from '../shared/sim/mobs.js';
 import { updatePower } from '../shared/sim/power.js';
+import { ensureArena } from '../shared/world/arena.js';
 import { loadWorld } from '../shared/world/save.js';
 
 /**
@@ -22,6 +23,7 @@ import { loadWorld } from '../shared/world/save.js';
 export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, code, log, onChange = () => {} }) {
   Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp });
   loadWorld(world);
+  if (pvp && NET.quiet(() => ensureArena())) log('Postavena aréna (svět se souboji hráčů).');
   startRoom({ maxPlayers, onLog: log, onChange });
 }
 

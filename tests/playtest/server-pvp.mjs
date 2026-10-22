@@ -49,6 +49,12 @@ try {
   await join(B, 'Bára');
   for (const p of [A, B]) await p.evaluate(() => { T.tpg = (x, z) => T.tp(x, z, window.game.groundHeight(x, z)); });
   check('both join the pvp world', await A.evaluate(() => window.game.NET.pvp === true) && await B.evaluate(() => window.game.NET.pvp === true));
+  // aréna: výbava, místo v aréně, tabulka bodů
+  const kit = await A.evaluate(() => { const g = window.game; return { inv: g.inv.slots.slice(0, 5).map((s) => s && `${s.id}×${s.n}`), armor: g.armor.map((a) => a?.id), d: Math.hypot(g.player.pos.x + 40, g.player.pos.z), floor: g.blocks.get(`-40,${Math.floor(g.player.pos.y) - 1},0`) }; });
+  check('joining the arena gives the kit and the iron armor', kit.inv.join() === 'iron_sword×1,bow×1,arrow×32,planks×32,meat×8' && kit.armor.every((a) => a?.startsWith('iron_')), JSON.stringify(kit));
+  check('…and puts the player inside the arena on its floor', kit.d < 12 && kit.floor === 'bricks', JSON.stringify(kit));
+  check('the score table is shown', await until(A, () => /Aréna/.test(document.getElementById('arenaScore')?.textContent || '')));
+  for (const p of [A, B]) await p.evaluate(() => window.game.armor.fill(null)); // zásahy se měří bez brnění
   // Bára stojí 2,5 m před Ájou, obě na zemi, Bára bez brnění a s plným zdravím
   await B.evaluate(() => { T.tpg(20.5, 37.5); window.game.player.hp = 100; });
   await A.evaluate(() => { T.tpg(20.5, 40); T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword'); });
@@ -79,6 +85,16 @@ try {
   await sleep(500);
   const hp2 = await B.evaluate(() => window.game.player.hp);
   check('a full arrow from 12 m hurts Bára by 25 (10 × 2.5)', hp1 - hp2 === 25, JSON.stringify({ hp1, hp2, shot }));
+  // vyřazení: Bára má 5 zdraví, Ája ji udeří; bod pro Áju, Bára se vrátí do arény s novou výbavou
+  await sleep(600);
+  await B.evaluate(() => { T.tpg(20.5, 37.5); window.game.player.hp = 5; window.game.inv.slots[0] = null; });
+  await A.evaluate(() => { T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword'); T.tpg(20.5, 40); });
+  await until(A, () => [...window.game.others.values()].some((P) => P.pose && Math.abs(P.pose.z - 37.5) < 0.5));
+  await aimAtB(A);
+  await A.evaluate(() => { const g = window.game; g.input.lmb = true; T.step(8); g.input.lmb = false; T.step(1, 0.0001); });
+  check('Ája knocks Bára out and gets a point', await until(A, () => [...document.querySelectorAll('#arenaScore tr')].some((r) => r.textContent === '1.Ája10')), await A.evaluate(() => document.getElementById('arenaScore')?.textContent));
+  check('everyone sees the knock-out in the feed', await until(B, () => document.getElementById('feed').textContent.includes('⚔ Ája vyřadil(a) hráče Bára')), await B.evaluate(() => document.getElementById('feed').textContent));
+  check('Bára is back in the arena with a fresh kit', await until(B, () => { const g = window.game; return g.player.alive && g.player.hp === 100 && g.inv.slots[0]?.id === 'iron_sword' && Math.hypot(g.player.pos.x + 40, g.player.pos.z) < 12; }, null, 8000));
 } catch (e) {
   check('test ran without exception', false, e.stack || e);
   console.log('server log:', srv.log().split('\n').slice(-15).join(' | '));

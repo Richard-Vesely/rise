@@ -374,6 +374,13 @@ attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit
   sword 15, full arrow 25 of 100 hp; armor protects as against mobs). The host checks every hit: reach 7 m (arrows 90 m),
   0.45 s invulnerability after a hit, no hits on or by dead players or players in creative mode. Other worlds have no fights.
   *Kód:* rules `hitPlayer` in `shared/net/room.js`, the player's side `client/src/player/pvp.js`.
+- **Arena** (every `:pvp` world): the server builds it once when the world starts, 40 m west of the shrine: a round brick floor
+  (radius 13) with a 4-block wall, 8 cover pillars and torches; trees and boulders inside are gone. Joining and every respawn
+  put you on a free spot in the arena with the kit (iron sword, bow, 32 arrows, 32 planks, 8 meat, full iron armor) and full
+  health; the backpack is replaced. A knock-out gives a point to the player who last hit you (within 10 s); everyone gets a feed
+  line (*⚔ Ája vyřadil(a) hráče Bára*) and the score table (top left: player, points, falls). Scores count from the server start.
+  The world button in the menu says *Aréna: bojuj mečem a lukem, sbírej body*.
+  *Kód:* building `shared/world/arena.js` (from `server/sim.js`), points `arenaDeath` in `shared/net/room.js`, kit, respawn and table `client/src/player/arena.js`.
 - **Pause menu** (Esc): code + copy, player list, host can allow creative for one player or everyone, and kick.
 - **Chat** (T), only to players in the same world.
 - Everyone sees other players in **their own suit** (*Můj oblek*, sent in the position as `lk`), with a modern

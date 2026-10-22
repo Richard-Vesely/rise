@@ -214,3 +214,39 @@ test('pvp world: players can hit each other there (reach, invulnerability, creat
     for (const p of [a, b, c, d]) await p.close();
   } finally { await stop(srv); }
 });
+
+test('arena (pvp world): built once, kill credit to the last hitter, scores for everyone', { timeout: 60000 }, async () => {
+  const { ARENA, arenaFloor } = await import('../../shared/world/arena.js');
+  const srv = await startServer({ DATA_DIR: tmp('louka-arena-'), WORLDS: 'arena:Aréna:pvp' });
+  try {
+    assert.match(srv.out(), /Postavena aréna/);
+    const a = player(srv.port, 'Ája', '', { v: 2, world: 'arena' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'arena' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const blocks = new Map(a.welcome.world.blocks);
+    const F = arenaFloor();
+    assert.equal(blocks.get(`${ARENA.x},${F},${ARENA.z}`), 'bricks', 'the arena floor is in the world');
+    assert.equal(blocks.get(`${ARENA.x + ARENA.r + 1},${F + 2},${ARENA.z}`), 'bricks', 'and its wall');
+    assert.ok(await b.waitFor((m) => m[0] === 'score'), 'a new player gets the score table');
+    for (const [p, x] of [[a, ARENA.x], [b, ARENA.x + 2]]) p.send(['pose', pose(x, ARENA.z)]);
+    await sleep(300);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg'));
+    b.send(['pose', { ...pose(ARENA.x + 2, ARENA.z), alive: false, hp: 0 }]);
+    assert.ok(await a.waitFor((m) => m[0] === 'kill' && m[1] === 'Ája' && m[2] === 'Bára'), 'everyone hears who knocked out whom');
+    const sc = await a.waitFor((m) => m[0] === 'score' && m[1].length === 2);
+    assert.deepEqual(sc[1], [['Ája', 1, 0], ['Bára', 0, 1]], 'one point for Ája, one fall for Bára');
+    b.send(['pose', pose(ARENA.x + 2, ARENA.z)]); // oživená
+    await sleep(300);
+    b.send(['pose', { ...pose(ARENA.x + 2, ARENA.z), alive: false, hp: 0 }]); // spadla sama, nikdo ji nezasáhl
+    assert.ok(await a.waitFor((m) => m[0] === 'kill' && m[1] === null && m[2] === 'Bára'), 'a fall without a hit gives nobody a point');
+    assert.ok(await a.waitFor((m) => m[0] === 'score' && m[1][1]?.[2] === 2), 'but counts as a fall');
+    for (const p of [a, b]) await p.close();
+  } finally { await stop(srv); }
+  // po restartu se aréna nestaví znovu
+  const dir = tmp('louka-arena2-');
+  let s2 = await startServer({ DATA_DIR: dir, WORLDS: 'arena:Aréna:pvp', SAVE_SECONDS: '1' });
+  await sleep(1500);
+  await stop(s2);
+  s2 = await startServer({ DATA_DIR: dir, WORLDS: 'arena:Aréna:pvp' });
+  try { assert.doesNotMatch(s2.out(), /Postavena aréna/, 'the arena is built only once per world'); } finally { await stop(s2); }
+});

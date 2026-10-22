@@ -1,5 +1,6 @@
 // Přežití: zranění, smrt, hlad; sbírání úlomků.
 import '../dining/dining.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
+import { NET } from '../../../shared/net/net.js';
 import { mobs, removeMob } from '../../../shared/sim/mobs.js';
 import { bkey, blocks, removed } from '../../../shared/world/state.js';
 import { shrineOf, terrainH, volcanoDist } from '../../../shared/world/terrain.js';
@@ -15,6 +16,7 @@ import { armorPoints, fullSet } from '../ui/inventory-ui.js';
 import { exitVehicle } from '../vehicles/car.js';
 import { hurtPulse } from './camera-feel.js';
 import { wearArmor } from './durability.js';
+import { arenaReset } from './arena.js';
 import { addItem } from './inventory.js';
 import { creative, player } from './player.js';
 
@@ -50,6 +52,7 @@ function die() {
   player.hp = 0;
   $('fade').style.opacity = 1;
   setTimeout(() => {
+    if (NET.pvp) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
     const home = shrineOf(player.pos.x);
     player.pos.set(home.x, 0.45, home.z + 14);
     player.vel.set(0, 0, 0);

@@ -171,7 +171,7 @@ function renderWorlds(list, first = false) {
     top.className = 'wb-top';
     name.textContent = w.name;
     count.textContent = full ? 'plný' : `${w.players}/${w.max} hráčů`;
-    what.textContent = w.creative ? 'Stav bez omezení, všechno máš hned' : 'Přežij a stav spolu s ostatními z kroužku';
+    what.textContent = w.pvp ? 'Aréna: bojuj mečem a lukem, sbírej body' : w.creative ? 'Stav bez omezení, všechno máš hned' : 'Přežij a stav spolu s ostatními z kroužku';
     top.append(name, count);
     b.append(top, what);
     b.addEventListener('click', () => joinWorld(w.id));
