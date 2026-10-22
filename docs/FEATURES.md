@@ -50,6 +50,12 @@ When you add or change a feature, update this file in the same pull request.
   *Hotovo* (Enter / Esc work too). Every new name starts in its own colour. The suit is saved in the browser per
   player name (`rise-obleky`) and, on the club server, in the player's profile, so it comes back on any computer.
   In the game a toast says *Nový oblek je na tobě!*
+- **Heroes in the Hytale style** (graphic update): three more choices in *Můj oblek* without a helmet: *Mág* (long robe with gold
+  ornaments, a glowing gem, wild hair), *Rytíř* (mail shirt, tabard, metal pauldrons, short cape) and *Hraničář* (leather vest,
+  hood on the back, quiver, scarf). They have a pixel face with blinking eyes, ears and a haircut; the picker then offers *Vlasy*
+  (5 colours), *Pleť* (8 tones) and *Oči a drahokam* (the 4 light colours). The same costume slots are reused (visor = hair,
+  emblem = skin), so saves and the pose text `lk` stay the same. A helmet hides the hair. Code: `heroHead`, `HAIR` and
+  `SUIT_EXTRAS` in `client/src/render/character.js`.
 - **Intro screen** on the very first start; **Návod** (H) is a long in-game help text that explains every system.
 - **Tips** (*Rada*, 14 steps) guide a new player: chop a tree, craft, build, find shards, wake the shrine…
 
@@ -248,6 +254,11 @@ When you add or change a feature, update this file in the same pull request.
   friends, not a bank: anyone with the browser console can still see chest contents in multiplayer.
 - **Farm traps**: spikes (*Bodce*) hurt mobs; loot of mobs killed on spikes goes to a chest nearby.
 - **Mob spawner** blocks in dungeons and fortresses.
+- **Graphic update (Hytale style)**: every hit while mining makes the block jolt (the crack shell swells for 130 ms), knocks out
+  a handful of bigger chips and a puff of dust in the block's colours; a broken block also throws 5–7 big chunks that bounce and
+  lie for 1–2 s plus a dust cloud. Item icons in windows and the hotbar get a thicker dark outline, light from above and lit top
+  and left edges (`client/src/ui/icon-style.js`; 3D block icons and items in hand stay as they are). Animals have big Hytale eyes
+  (white, coloured iris, pupil, highlight) turned half forward and a 15–20 % bigger head; the Markoman is a purple knight hero.
 
 *Kód:* block textures `client/src/render/textures.js` (helpers `texgen.js`), materials `client/src/render/materials.js`, 3D icons `client/src/render/icon-render.js`, tool rules (durability, mining speed, attack charge, repair) `shared/tools.js`, wear on this screen `client/src/player/durability.js`,
 cracks `client/src/render/crack.js`, chips and crit stars `client/src/render/chips.js`, tool and combat sounds `client/src/audio/tool-sounds.js`,

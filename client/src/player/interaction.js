@@ -22,7 +22,7 @@ import { openPC } from '../pc/computer.js';
 import { dropSpotsAt, takeSpot, useDocs, withPaper } from '../pc/papers-world.js';
 import { blockMat, rebuildBlocks } from '../render/blocks.js';
 import { breakCount, emitChips, paletteOf } from '../render/chips.js';
-import { crackable, showCracks } from '../render/crack.js';
+import { crackHit, crackable, showCracks } from '../render/crack.js';
 import { rebuildForest } from '../render/forest.js';
 import { cutGrass } from '../render/grass.js';
 import { startSwing } from '../render/held-item.js';
@@ -99,15 +99,26 @@ const hitPoint = (t) => t.point || t.at || (t.cell ? t.cell.map((v) => v + 0.5) 
 // Každých 0,2 s při těžbě: drobky z místa úderu a úder podle materiálu (audio/sfx.js; u stromu občas spadne list)
 function mineTick(t, heldId) {
   const at = hitPoint(t), n = t.normal || [0, 1, 0];
-  emitChips([at[0] + n[0] * 0.06, at[1] + n[1] * 0.06, at[2] + n[2] * 0.06], chipColors(t), 2 + ((Math.random() * 3) | 0), { speed: 1.2, up: 1.6, size: [0.035, 0.07], life: [0.25, 0.7], spread: 0.08, dir: n.map((v) => v * 0.5) });
+  const out = [at[0] + n[0] * 0.06, at[1] + n[1] * 0.06, at[2] + n[2] * 0.06], cols = chipColors(t);
+  // Hytale: každý úder vyrazí hrst kostiček materiálu a obláček prachu a blok sebou cukne
+  emitChips(out, cols, 3 + ((Math.random() * 3) | 0), { speed: 1.6, up: 2, size: [0.045, 0.1], life: [0.35, 0.9], spread: 0.1, dir: n.map((v) => v * 0.8) });
+  debris.emit(...out, dust(cols), 3, 0.5, 0.4);
+  crackHit();
   sfxAt(t.at || at, () => Sound.blockHit(targetMaterial(t), ITEMS[heldId]?.tool));
   if (t.kind === 'tree' && !t.tree.mark && Math.random() < 0.6) debris.emit(t.tree.x + (Math.random() - 0.5) * 2, t.tree.y + t.tree.trunkH, t.tree.z + (Math.random() - 0.5) * 2, [0.22, 0.45, 0.12], 2, 0.6, 0.2);
 }
 // Rozbití: hromada úlomků (64 na vysoké grafice, 16 na nízké); zvuk materiálu hraje každá větev breakTarget
 function breakFx(t, at) {
   if (t.kind === 'grass') emitChips(at, chipColors(t), Math.ceil(breakCount() / 4), { speed: 1.4, up: 2, size: [0.025, 0.045], life: [0.3, 0.8], spread: 0.3 }); // jen pár stébel
-  else emitChips(at, chipColors(t), breakCount(), { speed: 2.4, up: 2.4, spread: t.kind === 'tree' ? 0.6 : 0.45 });
+  else {
+    const cols = chipColors(t);
+    emitChips(at, cols, breakCount(), { speed: 2.4, up: 2.4, spread: t.kind === 'tree' ? 0.6 : 0.45 });
+    emitChips(at, cols, 5 + ((Math.random() * 3) | 0), { speed: 2, up: 3, size: [0.13, 0.22], life: [1.2, 2], spread: 0.3 }); // velké kusy, poskočí a chvíli leží
+    debris.emit(at[0], at[1], at[2], dust(cols), 14, 1.4, 0.9); // obláček prachu
+  }
 }
+// Prach: barva materiálu, zesvětlená do šeda
+const dust = (cols) => { const c = Array.isArray(cols?.[0]) ? cols[0] : [0.6, 0.55, 0.5]; return c.map((v) => v * 0.55 + 0.35); };
 
 // Útok: nabití úderu roste od posledního máchnutí (proužek pod zaměřovačem).
 let atkSince = 9, prevLmb = false, wasCharged = true;

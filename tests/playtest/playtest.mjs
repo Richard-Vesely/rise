@@ -47,7 +47,7 @@ try {
   const cos = await ev(() => ({ suits: [...document.querySelectorAll('#costume .cos-suit')].map((b) => b.textContent), who: document.querySelector('#costume .cos-head span').textContent, dots: document.querySelectorAll('#costume .cos-dot').length }));
   await page.click('#costume .cos-suit[data-s="pilot"]');
   await page.click('#costume [data-k="c"] .cos-dot[data-i="9"]');
-  check('menu: Můj oblek shows 7 suits with Czech names for this player', cos.suits.length === 7 && cos.suits.includes('Průzkumník') && cos.suits.includes('Nebeský') && cos.who === 'Tester' && cos.dots > 20 && (await page.textContent('#costume .cos-desc')).startsWith('Kombinéza'), JSON.stringify(cos));
+  check('menu: Můj oblek shows 10 suits (7 suits + 3 heroes) with Czech names for this player', cos.suits.length === 10 && cos.suits.includes('Průzkumník') && cos.suits.includes('Nebeský') && cos.suits.includes('Mág') && cos.who === 'Tester' && cos.dots > 20 && (await page.textContent('#costume .cos-desc')).startsWith('Kombinéza'), JSON.stringify(cos));
   await page.click('#costume [data-act="ok"]');
   const saved = await ev(() => ({ ...JSON.parse(localStorage.getItem('rise-obleky') || '{}').Tester, closed: !document.getElementById('costume') }));
   check('menu: the chosen costume is saved per player name', saved?.s === 'pilot' && saved.c === 9 && saved.t > 0 && saved.closed, JSON.stringify(saved));

@@ -44,7 +44,7 @@ function furTextures(kind) {
 }
 
 // ============================================================ stavebnice
-function kit(g) {
+function kit(g, irisHex = 0x4a3020) {
   const flash = [];
   const mat = (o, kind) => {
     const t = kind ? furTextures(kind) : null;
@@ -55,18 +55,24 @@ function kit(g) {
   const box = (parent, w, h, d, m, x, y, z, r = 0.04) => { const me = new THREE.Mesh(rbox(w, h, d, r), m); me.position.set(x, y, z); me.castShadow = true; parent.add(me); return me; };
   const pivot = (parent, x, y, z) => { const p = new THREE.Group(); p.position.set(x, y, z); parent.add(p); return p; };
   const eyes = [];
-  // oko: tmavá lesklá kulička s bílým odleskem (nebo svítící oko u nepřátel)
+  // oko ve stylu Hytale: velké bělmo, barevná duhovka, zornička a odlesk (nebo svítící oko u nepřátel)
   const eyeBlack = new THREE.MeshStandardMaterial({ color: 0x120c0a, roughness: 0.12 }), shine = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const white = new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.35 }), iris = new THREE.MeshStandardMaterial({ color: irisHex, roughness: 0.2 });
   const eyeGroups = new Map();
   const eye = (parent, x, y, z, size = 0.05, glow = null, side = 0) => {
     let eg = eyeGroups.get(parent);
     if (!eg) { eg = new THREE.Group(); eg.position.y = y; parent.add(eg); eyeGroups.set(parent, eg); eyes.push(eg); } // obě oči mrkají spolu
     const e = new THREE.Group();
     e.position.set(x, y - eg.position.y, z);
-    if (side) e.rotation.y = -side * Math.PI / 2; // oko na boku hlavy kouká ven
-    const ball = new THREE.Mesh(rbox(size, size, size * 0.5, size * 0.2), glow || eyeBlack);
-    e.add(ball);
-    if (!glow) { const c = new THREE.Mesh(rbox(size * 0.32, size * 0.32, 0.004, 0.002), shine); c.position.set(-size * 0.2, size * 0.2, -size * 0.27); e.add(c); }
+    if (side) { e.rotation.y = -side * 0.95; e.position.z -= size * 0.35; } // oko na rohu hlavy: kouká šikmo dopředu a je vidět i zepředu (jako v Hytale)
+    if (glow) e.add(new THREE.Mesh(rbox(size, size, size * 0.5, size * 0.2), glow));
+    else {
+      const s = size * 1.35, add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); e.add(me); };
+      add(rbox(s * 1.05, s * 1.2, s * 0.4, s * 0.12), white, 0, 0, -s * 0.05); // bělmo
+      add(rbox(s * 0.72, s * 0.86, 0.012, s * 0.1), iris, s * 0.04, -s * 0.06, -s * 0.26); // duhovka
+      add(rbox(s * 0.36, s * 0.5, 0.014, s * 0.06), eyeBlack, s * 0.05, -s * 0.07, -s * 0.272); // zornička
+      add(rbox(s * 0.22, s * 0.22, 0.004, 0.002), shine, -s * 0.12, s * 0.16, -s * 0.284); // odlesk
+    }
     e.updateMatrix();
     for (const c of [...e.children]) { c.applyMatrix4(e.matrix); eg.add(c); } // díly oka rovnou do skupiny očí
     return e;
@@ -82,12 +88,14 @@ function kit(g) {
 }
 const glowMat = (hex, k = 2.4) => { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(k), fog: false }); m.userData.glow = true; return m; };
 
+// Barva duhovky (zvířata bez svítících očí)
+const IRIS = { sheep: 0x9a7a3a, cow: 0x5a3420, chicken: 0xe08a20, deer: 0x3a2412, boar: 0x7a4a1c };
 /**
  * Model tvora: { group, body, head, legs, arms, tail, ears, wings, eyes, flash (materiály pro zčervenání), kind }.
  * @param {string} type
  */
 export function buildMobModel(type) {
-  const g = new THREE.Group(), K = kit(g), legs = [], ears = [], wings = [];
+  const g = new THREE.Group(), K = kit(g, IRIS[type]), legs = [], ears = [], wings = [];
   const { mat, box, pivot, eye, leg } = K;
   let body, head = null, tail = null, kind = 'quad', extra = {};
   if (type === 'sheep') {
@@ -196,7 +204,7 @@ export function buildMobModel(type) {
   } else if (type === 'markoman') {
     // Bojovník Markovy dimenze: postava v obleku strážce se železnou zbrojí a mečem, oči svítí purpurově.
     kind = 'biped';
-    const R = buildCharacter({ s: 'guard', c: 9, l: 3, v: 3, e: 7 }, { shadow: false });
+    const R = buildCharacter({ s: 'knight', c: 10, l: 3, v: 3, e: 7 }, { shadow: false }); // rytíř v purpuru: bledá pleť, černé vlasy, fialové oči
     setCharacterArmor(R, ['iron_helmet', 'iron_chestplate', 'iron_leggings', 'iron_boots']);
     const sw = new THREE.Group();
     const blade = new THREE.Mesh(rbox(0.07, 0.78, 0.02, 0.01), armorMat(3));
@@ -263,6 +271,7 @@ export function buildMobModel(type) {
   }
   if (kind === 'blob') mergeStatic(g); else if (!extra.rig) skinRig(g); // jedno kreslení na materiál
   if (type === 'golem') g.scale.setScalar(1.1);
+  if (head && kind !== 'blob' && !extra.rig && type !== 'golem') head.scale.setScalar(type === 'chicken' ? 1.2 : 1.15); // větší hlava: roztomilejší poměry jako v Hytale
   const shadow = blobShadow(type === 'golem' ? 1.25 : type === 'cow' ? 0.95 : type === 'chicken' ? 0.36 : type === 'markoman' ? 0.48 : 0.72);
   return { group: g, body, head, legs, ears, wings, tail, eyes: K.eyes, flash: K.flash, kind, shadow, bodyY: body.position.y, arms: extra.arms || [], rig: extra.rig, crystal: extra.crystal, big: type === 'golem', headRest: head?.rotation.x || 0 };
 }
