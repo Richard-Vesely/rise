@@ -58,7 +58,7 @@ DATA_DIR=/opt/louka/server/data
 STATIC_DIR=/opt/louka/dist
 MAX_PLAYERS=8
 ALLOW_CREATIVE=0
-# Víc světů na jednom serveru (id:jméno[:creative], oddělené čárkou). Bez WORLDS je jeden "Hlavní svět".
+# Víc světů na jednom serveru (id:jméno[:creative][:pvp], oddělené čárkou; pvp = souboje hráčů). Bez WORLDS je jeden "Hlavní svět".
 # Každý svět má složku DATA_DIR/<id>/ (world.json + backups/). Po změně: systemctl restart louka
 #WORLDS="svet:Hlavní svět,kreativ:Kreativní svět:creative"
 # Správa hráčů na https://<doména>/admin (seznam hráčů, reset PINu). Bez hesla je stránka vypnutá.
@@ -71,6 +71,11 @@ echo "== Služba louka"
 cp deploy/louka.service /etc/systemd/system/louka.service
 systemctl daemon-reload
 systemctl enable --now louka
+
+echo "== Automatická aktualizace (každých 5 minut, když nikdo nehraje)"
+cp deploy/louka-update.service deploy/louka-update.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now louka-update.timer
 
 echo "== Caddy pro $DOMAIN"
 sed "s/hry.example.cz/$DOMAIN/" deploy/Caddyfile > /etc/caddy/Caddyfile

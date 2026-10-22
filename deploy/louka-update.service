@@ -1,0 +1,10 @@
+# Automatická aktualizace serveru Říše z GitHubu (deploy/auto-update.sh), spouští ji louka-update.timer.
+# Log: journalctl -u louka-update
+[Unit]
+Description=Říše – automatická aktualizace z GitHubu
+After=network-online.target louka.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/louka/deploy/auto-update.sh

@@ -97,7 +97,9 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
 
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
   `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking; the host passes the pose on unchanged), `['pk', gid]` pick up,
-  `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
+  `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (only in a
+  `pvp` world: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
+  `['dmg', dmg × 2.5, dx, dz]`; `hitPlayer` in `shared/net/room.js`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
 - Host → client: `['welcome', { pid, name, perm, world, spawn, max }]`, `['full']`, `['join'|'leave', name]`, `['ops', ops]`,
   `['kv', changes]` (2×/s), `['pl', [[pid, name, pose, perm]…]]` (12×/s), `['mobs', dayTime, day, [[nid, type, x, y, z, ry, hp, flash, dead, eggs, milk]…]]` (5×/s),
   `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['chat', name, text]`, `['gift', docId, from]`,
@@ -109,7 +111,8 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   a world or with an unknown one, on a server with several worlds, gets `['worlds', [{ id, name, creative, players, max }…]]`
   and can send `hello` again with a chosen `world`. An old client (no `v`) and every client on a
   one-world server join the first world. The welcome then also has `worldInfo: { id, name, creative, first }`
-  (added by `server/world-worker.js`; the browser host doesn't send it). `GET /worlds` returns the same list over HTTP
+  (added by `server/world-worker.js`; the browser host doesn't send it). It also has `pvp` (players can hurt each other,
+  world option `:pvp` in `WORLDS`; the client sets `NET.pvp` from it). `GET /worlds` entries have `pvp` too. `GET /worlds` returns the same list over HTTP
   (no password, `Access-Control-Allow-Origin: *`): the main menu shows a button per world from it and sends the
   chosen `world` in the first `hello` (the password comes from `localStorage` `rise-heslo`, per server address).
 - **Player profiles** (Node server only, `server/profiles.js`): after the password and the world, the hello must carry the
@@ -159,7 +162,7 @@ npm run dev                     # the game: open http://localhost:5173 (Hrát s�
 npm test                        # unit tests + the Node server over WebSocket (fast)
 npm run build                   # build into dist/
 npm run playtest                # menu + single player in a real browser (50+ checks), then the inventory tricks (27 checks); needs the build
-npm run test:server             # Node server + 2 browsers: join, edits, mobs, pickup, chat, restart; then player profiles (name + PIN, backpack on the server, admin page)
+npm run test:server             # Node server + 2 browsers: join, edits, mobs, pickup, chat, restart; then player profiles (name + PIN, backpack on the server, admin page); then a pvp world (sword and arrow hits)
 npm run test:worlds             # Node server with 2 worlds + 2 browsers: world buttons, password once, isolation, creative, saves per world
 npm run test:peer               # browser host + browser client over PeerJS (needs internet)
 npm start                       # the server on http://localhost:8787 (serves dist/)

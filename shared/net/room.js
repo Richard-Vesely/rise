@@ -133,6 +133,7 @@ function onClientMsg(P, msg) {
       try { hurtMob(m, clamp(Number(msg[2]) || 1, 0, 20), Number(msg[3]) || 0, clamp(Number(msg[4]) || 1, 0, 2)); } finally { NET.killer = null; }
       break;
     }
+    case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp)
     case 'mu': { // slepice (vejce) a kráva (mléko)
       const m = mobs.find((x) => x.nid === msg[1] && !x.dead);
       if (!m) return;
@@ -149,6 +150,38 @@ function onClientMsg(P, msg) {
     }
     case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
   }
+}
+// ---------- souboje hráčů (jen svět s volbou pvp): hostitel zkontroluje zásah a pošle zraněnému 'dmg'
+export const PVP = { mult: 2.5, invuln: 0.45, reach: 7, range: 90 }; // zranění ×mult (meč a šíp jsou laděné na tvory), dosah ruky / šípu v m
+const hostP = { pose: null, hurtAt: 0 };
+/** Hráč podle pid ('host' = hráč u obrazovky hostitele v prohlížeči; na serveru není): { pose, hurtAt }. */
+function playerOf(pid) {
+  if (pid !== 'host') return others.get(pid);
+  if (!room.local) return null;
+  hostP.pose = room.local.pose();
+  return hostP;
+}
+/**
+ * Zásah hráče jiným hráčem. Vrací true, když platí.
+ * @param {string} from kdo útočí (pid)
+ * @param {string} to koho zasáhl (pid)
+ * @param {number} dmg zranění jako u tvora (meč 3–13, šíp 1–10), hostitel ho násobí PVP.mult
+ * @param {number} yaw kam útočník míří (odhod zasaženého)
+ * @param {number} kb síla odhodu 0–2
+ * @param {boolean} ranged šíp (větší dosah) nebo úder zblízka
+ */
+export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
+  if (!NET.pvp || from === to) return false;
+  const A = playerOf(from), T = playerOf(to), a = A?.pose, t = T?.pose;
+  if (!a || !t || a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
+  if (Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
+  const now = performance.now() / 1000;
+  if (now - (T.hurtAt || -9) < PVP.invuln) return false;
+  T.hurtAt = now;
+  const n = clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
+  const dx = -Math.sin(y) * k, dz = -Math.cos(y) * k;
+  if (to === 'host') NET.hurtLocal?.(n, dx, dz); else sendTo(to, ['dmg', n, dx, dz]);
+  return true;
 }
 export function setPerm(P, on) {
   P.perm = on;

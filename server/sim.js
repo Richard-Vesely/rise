@@ -14,12 +14,13 @@ import { loadWorld } from '../shared/world/save.js';
  * @param {object|null} o.world uložený svět (worldState()) nebo null = nový svět
  * @param {number} o.maxPlayers kolik hráčů najednou
  * @param {boolean} o.allowCreative smí všichni hráči kreativní režim?
+ * @param {boolean} [o.pvp] můžou se hráči navzájem zranit?
  * @param {string} o.code jak se server jmenuje v menu hráčů (adresa)
  * @param {(msg: string) => void} o.log
  * @param {() => void} [o.onChange] změnil se seznam hráčů
  */
-export function setupWorld({ world, maxPlayers, allowCreative, code, log, onChange = () => {} }) {
-  Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative });
+export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, code, log, onChange = () => {} }) {
+  Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp });
   loadWorld(world);
   startRoom({ maxPlayers, onLog: log, onChange });
 }

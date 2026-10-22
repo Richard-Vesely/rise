@@ -13,7 +13,7 @@
     "playtest": "node tests/playtest/playtest.mjs dist && node tests/playtest/inventory.mjs dist",
     "playtest:inv": "node tests/playtest/inventory.mjs dist",
     "test:peer": "node tests/playtest/peer.mjs",
-    "test:server": "node tests/playtest/server-mp.mjs && node tests/playtest/server-profiles.mjs",
+    "test:server": "node tests/playtest/server-mp.mjs && node tests/playtest/server-profiles.mjs && node tests/playtest/server-pvp.mjs",
     "test:worlds": "node tests/playtest/server-worlds.mjs",
     "test:all": "npm test && npm run build && npm run playtest && npm run test:server && npm run test:worlds && npm run test:peer",
     "test:load": "node tests/load/bots.mjs 8 60",

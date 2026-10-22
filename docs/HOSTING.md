@@ -139,6 +139,11 @@ sudo bash /opt/louka/deploy/update.sh       # git pull (code + dist branch), npm
 ```
 Connected players see *"Spojení se přerušilo. Zkus se připojit znovu."* and join again (their backpack is on the server).
 
+**Automatic updates** (`louka-update.timer`, installed by `setup-vps.sh`): every 5 minutes `deploy/auto-update.sh` checks
+GitHub. It updates only to a tested version (the `dist-<branch>` build of the newest code, so a merge waits until CI is
+green) and only when nobody is playing; between 4:00 and 4:59 Prague time it updates even with players online.
+Log: `journalctl -u louka-update`. Off: `systemctl disable --now louka-update.timer`.
+
 ### 5. Data and backups
 Every world has its own folder `/opt/louka/server/data/<id>/` (e.g. `svet/`, `kreativ/`):
 - `<id>/world.json`: the whole world (saved every 30 s and on shutdown, written atomically).
@@ -201,8 +206,9 @@ sudo nano /etc/louka.env
 sudo systemctl restart louka
 curl -s http://127.0.0.1:8787/worlds        # [{"id":"svet","name":"Hlavní svět",...},{"id":"kreativ",...}]
 ```
-- Format: `id:Name[:creative]`, worlds separated by commas. The **id** is the folder name and the `?world=` link
-  (small letters, digits, `-`, `_`); the **name** is what the kids see (Czech is fine); `:creative` = creative mode for everyone.
+- Format: `id:Name[:creative][:pvp]`, worlds separated by commas. The **id** is the folder name and the `?world=` link
+  (small letters, digits, `-`, `_`); the **name** is what the kids see (Czech is fine); `:creative` = creative mode for everyone;
+  `:pvp` = players can hurt each other with swords and arrows (only in that world), e.g. `arena:Aréna:pvp`.
 - **Keep the main world first.** Old game pages (before this version) always join the first world, and it is the
   world that took over the old data.
 - **Rename** a world: change only the name (`svet:Velká říše`), the id stays and so do its files and the players' backpacks.

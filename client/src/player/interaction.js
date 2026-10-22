@@ -36,11 +36,13 @@ import { planeSpot } from '../vehicles/plane.js';
 import { useRod } from '../world/fishing.js';
 import { usePortal } from '../world/shrine.js';
 import { placedAny } from '../world/world-state.js';
+import { cancelDraw, updateArrows, updateBow } from './bow.js';
+import { hitPlayer } from './pvp.js';
 import { sitOn, startEating, useTable } from './eating.js';
 import { hitKick, hitStop } from './camera-feel.js';
 import { wearHeld } from './durability.js';
 import { addItem, addStack, consumeSelected, heldStack, inv } from './inventory.js';
-import { creative, input, player, playerIntersects } from './player.js';
+import { creative, input, isLocked, player, playerIntersects } from './player.js';
 import { pickTarget } from './targeting.js';
 
 // ============================================================ těžba, útok, pokládání
@@ -110,13 +112,15 @@ function breakFx(t, at) {
 // Útok: nabití úderu roste od posledního máchnutí (proužek pod zaměřovačem).
 let atkSince = 9, prevLmb = false, wasCharged = true;
 export let atkCharge = 1;
-function attackMob(m, heldId) {
+// Úder tvora, nebo ve světě se souboji jiného hráče (target.kind 'player', pvp.js)
+function attackMob(t, heldId) {
   const charge = atkCharge;
   const r = attackResult(heldId, charge, { falling: player.vel.y < -0.5, onGround: player.onGround, sprinting: player.sprinting });
   atkSince = 0;
   wasCharged = false;
   startSwing(0.28, charge);
-  if (!hitMob(m, r.dmg, player.yaw, r.kb, { crit: r.crit, charge })) { toolSound('whoosh', charge * 0.5); return; } // tvor je ještě chvíli nezranitelný
+  const hit = t.kind === 'player' ? hitPlayer(t.player, r.dmg, player.yaw, r.kb, false, charge) : hitMob(t.mob, r.dmg, player.yaw, r.kb, { crit: r.crit, charge });
+  if (!hit) { toolSound('whoosh', charge * 0.5); return; } // tvor je ještě chvíli nezranitelný
   wearHeld(useCost(heldId, 'hit'));
   hitKick(0.35 + 0.65 * charge);
   if (charge > 0.9) hitStop(r.crit ? 0.07 : 0.045);
@@ -130,6 +134,8 @@ function renderAttackMeter(aimMob) {
   el.firstChild.style.width = `${(atkCharge * 100).toFixed(1)}%`;
 }
 
+// Uvolněná myš (inventář, pauza): rozpracované natahování luku se zruší, ať po návratu nevystřelí samo.
+document.addEventListener('pointerlockchange', () => { if (!isLocked()) cancelDraw(); });
 export function updateInteraction(dt) {
   target = withPaper(pickTarget()); // papíry a rámečky ve světě (14e)
   const held = heldStack(), heldId = held?.id ?? null;
@@ -154,16 +160,17 @@ export function updateInteraction(dt) {
   if (atkCharge >= 1 && !wasCharged) { wasCharged = true; if (ITEMS[heldId]?.tool === 'sword' || ITEMS[heldId]?.tool === 'axe') toolSound('charged'); }
   const fresh = input.lmb && !prevLmb;
   prevLmb = input.lmb;
-  if (input.lmb && target?.kind === 'mob') {
+  const foe = target?.kind === 'mob' || target?.kind === 'player';
+  if (input.lmb && foe) {
     // klik = úder hned (slabší, když není nabitý), držení = úder vždy, když se nabije
-    if ((fresh && atkSince > 0.1) || atkCharge >= 1) attackMob(target.mob, heldId);
+    if ((fresh && atkSince > 0.1) || atkCharge >= 1) attackMob(target, heldId);
     mining.key = null;
     mining.p = 0;
-  } else if (creative && input.lmb && target && target.kind !== 'mob' && target.breakable !== false) {
+  } else if (creative && input.lmb && target && !foe && target.breakable !== false) {
     if (swingCd <= 0) { startSwing(0.2); swingCd = 0.2; breakTarget(target); }
     mining.key = null;
     mining.p = 0;
-  } else if (input.lmb && target && target.kind !== 'mob' && target.breakable !== false) {
+  } else if (input.lmb && target && !foe && target.breakable !== false) {
     if (mining.key !== target.key) { mining.key = target.key; mining.p = 0; mining.tick = 0; }
     if (lacksTool(target.req, heldId)) {
       warn = `Potřebuješ ${target.reqName || (target.req.tier > 1 ? 'kamenný krumpáč' : 'krumpáč')}`;
@@ -196,8 +203,12 @@ export function updateInteraction(dt) {
     mining.key = null;
     mining.p = 0;
   }
-  if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
-  if (input.rmb) pillarPlace();
+  updateArrows(dt);
+  if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
+  else {
+    if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
+    if (input.rmb) pillarPlace();
+  }
 
   const label = $('targetLabel');
   label.innerHTML = warn ? `<span class="warn">${warn}</span>` : target ? `${target.name}${target.hint ? `<small>${target.hint}</small>` : ''}` : '';
@@ -205,7 +216,7 @@ export function updateInteraction(dt) {
   const pr = $('progress'), ring = mining.p > 0 && !crackable(target);
   pr.style.opacity = ring ? 1 : 0;
   if (ring) pr.style.background = `conic-gradient(rgba(140,240,255,0.95) ${mining.p * 360}deg, rgba(255,255,255,0.14) 0deg)`;
-  renderAttackMeter(target?.kind === 'mob');
+  renderAttackMeter(foe);
 }
 /** Stav těžby a útoku (pro testy a ladění). */
 export const mineState = () => ({ key: mining.key, p: mining.p, time: mining.time, pause: Math.max(0, mining.pause), charge: atkCharge });

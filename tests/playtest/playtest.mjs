@@ -196,6 +196,21 @@ try {
     return { shown, cursor, grid, sword };
   });
   check('tools: two worn swords repair into one in the crafting grid', r.shown && r.cursor?.w === 88 && r.grid.every((s) => !s) && r.sword?.w === 88, JSON.stringify(r));
+  r = await ev(() => { // luk: plně natažený šíp zraní kance za 10, spotřebuje jeden šíp a opotřebuje luk
+    const g = window.game; T.clearInv(); T.give('bow', 1); T.give('arrow', 5); T.hold('bow');
+    g.mobs.length = 0; T.tpg(-40, 30); T.step(5);
+    const p = g.player.pos;
+    g.spawnMob('boar', p.x, p.z - 8);
+    const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp;
+    const aim = () => T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z);
+    g.input.rmb = true;
+    for (let i = 0; i < 25; i++) { aim(); T.step(1); } // 1,25 s > doba natažení (1 s)
+    const drawn = g.player.draw;
+    g.input.rmb = false; T.step(1, 0.016);
+    for (let i = 0; i < 30; i++) T.step(1, 0.016);
+    return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
+  });
+  check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);

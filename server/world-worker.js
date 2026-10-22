@@ -11,11 +11,11 @@ import { ME_MAX_BYTES, cleanMe } from './me.js';
 import { loadWorldFile, saveWorldFile } from './persist.js';
 import { setupWorld, stepWorld } from './sim.js';
 
-/** @type {{ id: string, name: string, creative: boolean, first: boolean, dir: string|null, maxPlayers: number, tickHz: number, saveEveryMs: number }} */
+/** @type {{ id: string, name: string, creative: boolean, pvp: boolean, first: boolean, dir: string|null, maxPlayers: number, tickHz: number, saveEveryMs: number }} */
 const W = workerData;
 const post = (m) => parentPort.postMessage(m);
 const log = (text) => post({ t: 'log', text });
-const info = { id: W.id, name: W.name, creative: W.creative, first: W.first };
+const info = { id: W.id, name: W.name, creative: W.creative, pvp: W.pvp, first: W.first };
 
 // ---------- svět a místnost
 const saved = W.dir ? loadWorldFile(W.dir, log) : null;
@@ -23,7 +23,7 @@ const world = saved?.world ?? null;
 /** @type {Record<string, object>} id profilu -> stav hráče v tomhle světě (batoh, pozice, zdraví…) */
 const players = saved?.players ?? {};
 const stats = () => post({ t: 'stats', players: others.size, ...tickStats(), heapMB: Math.round(process.memoryUsage().heapUsed / 1048576) });
-setupWorld({ world, maxPlayers: W.maxPlayers, allowCreative: W.creative, code: 'server', log, onChange: stats });
+setupWorld({ world, maxPlayers: W.maxPlayers, allowCreative: W.creative, pvp: W.pvp, code: 'server', log, onChange: stats });
 
 // ---------- spojení hráčů: stejné funkce jako spojení PeerJS (shared/net/room.js je používá stejně)
 const conns = new Map(); // cid -> { handlers, shut, profile }

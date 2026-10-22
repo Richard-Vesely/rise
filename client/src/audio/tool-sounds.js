@@ -21,6 +21,19 @@ export function toolSound(name, strength = 1) {
     case 'whoosh': // máchnutí do vzduchu (síla podle nabití)
       S.burst({ dur: 0.16 + 0.08 * strength, f0: 450 * p, f1: (1600 + 1400 * strength) * p, q: 1.3, vol: 0.1 + 0.14 * strength, attack: 0.04 });
       break;
+    case 'bowDraw': // natahování luku: vrzání tětivy
+      S.burst({ dur: 0.45, f0: 300 * p, f1: 900 * p, q: 6, vol: 0.06, attack: 0.2 });
+      S.tone(180 * p, 0.4, 0.03, 'sawtooth', 0, 240 * p, { attack: 0.2 });
+      break;
+    case 'bowShoot': // výstřel: brnknutí tětivy a svist šípu (síla podle natažení)
+      S.tone(110 * p, 0.18, 0.2, 'triangle', 0, 70);
+      S.burst({ dur: 0.05, f0: 2400 * p, f1: 900, q: 1, vol: 0.2 });
+      S.burst({ dur: 0.25 + 0.15 * strength, f0: 1800 * p, f1: 600 * p, q: 1.5, vol: 0.06 + 0.1 * strength, delay: 0.03 });
+      break;
+    case 'arrowHit': // šíp se zabodl do země nebo do bloku
+      S.burst({ dur: 0.06, f0: 900 * p, f1: 300, type: 'lowpass', q: 1, vol: 0.25 });
+      S.tone(240 * p, 0.12, 0.08, 'triangle', 0, 180);
+      break;
     case 'hit': // zásah tvora: tupý úder (silnější podle nabití)
       S.burst({ dur: 0.13, f0: 1600 * p, f1: 220, type: 'lowpass', q: 1, vol: 0.3 + 0.3 * strength });
       S.tone(150 * p, 0.15, 0.18 + 0.2 * strength, 'square', 0, 55);

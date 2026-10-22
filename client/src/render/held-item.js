@@ -12,6 +12,7 @@ import { loadCostume } from '../menu/costume.js';
 import { heldStack } from '../player/inventory.js';
 import { player } from '../player/player.js';
 import { blockMat } from './blocks.js';
+import { bowModel } from './bow-model.js';
 import { buildFPArm, disposeCharacter, suitPalette } from './character.js';
 import { ICONS } from './icons.js';
 import { camera } from './renderer.js';
@@ -99,6 +100,10 @@ export function buildHeld(id) { // používají ho i postavičky ostatních hrá
     mesh(new THREE.SphereGeometry(0.034, 12, 8), d.tier >= 3 ? goldMat : handleMat, 0, -0.2);
   } else if (d.tool === 'axe' || d.tool === 'pick' || d.tool === 'shovel') {
     toolModel(d, mesh);
+  } else if (d.bow) {
+    const b = bowModel();
+    g.add(b);
+    g.userData.pull = b.userData.pull;
   } else if (d.block && blockMat(d.block)) {
     mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), blockMat(d.block), 0, 0.15).rotation.set(0.3, 0.6, 0);
   } else if (id === 'torch') {
@@ -213,6 +218,15 @@ export function updateSwing(dt, moving) {
     const e = player.eating, k = Math.min(1, e.t * 5);
     p[0] = lerp(p[0], 0.06, k); p[1] = lerp(p[1], -0.26, k) + Math.abs(Math.sin(e.t * 9)) * 0.04 * k; p[2] = lerp(p[2], -0.38, k);
     r[0] = lerp(r[0], 0.5, k); r[1] = lerp(r[1], 0, k); r[2] = lerp(r[2], 0.15, k);
+  }
+  // luk: natahování přenese luk před oči a natáhne tětivu (player.draw 0–1, player/bow.js)
+  const k = player.draw || 0, pull = holder.children[0]?.userData.pull;
+  if (pull) pull(k);
+  if (k > 0) {
+    const e = Math.min(1, k * 4);
+    p[0] = lerp(p[0], 0.05, e); p[1] = lerp(p[1], -0.1, e); p[2] = lerp(p[2], -0.5, e);
+    r[0] = lerp(r[0], 0, e); r[1] = lerp(r[1], 0.08, e); r[2] = lerp(r[2], -0.2, e);
+    p[0] += Math.sin(performance.now() / 40) * 0.0025 * k; // plně natažený se trochu chvěje
   }
   // vytažení předmětu: ruka vyjede zespodu
   if (equipT < 1) {

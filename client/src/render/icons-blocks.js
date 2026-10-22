@@ -260,6 +260,19 @@ function isoBoxes(top, side, boxes) {
   const edge = (x, y) => x === 0 || y === 0 || x === 15 || y === 15;
   icon('safe', isoBoxes(face((x, y) => (edge(x, y) ? '#3a424c' : '#4a525c')), face((x, y) => (edge(x, y) ? '#3a424c' : Math.hypot(x - 6.5, y - 7.5) < 2.2 ? '#d8dce4'
     : x === 11 && y > 5 && y < 11 ? '#d8dce4' : x > 1 && x < 14 && y > 1 && y < 14 ? '#5e6874' : '#4a525c')), FULL));
+  // Luk (oblouk kolem bodu 12,12, tětiva po úhlopříčce) a šíp
+  icon('bow', face((x, y) => {
+    const d = Math.hypot(x - 12, y - 12), s = x + y;
+    if (d > 10.3 && d < 12.1 && s <= 15) return Math.hypot(x - 4, y - 4) < 1.8 ? '#3a2614' : d < 10.9 || d > 11.6 ? '#5a3a1e' : '#9a6a38';
+    return Math.abs(s - 15) < 0.6 && x >= 1 && x <= 14 ? '#e8e2d0' : null;
+  }));
+  icon('arrow', face((x, y) => {
+    const s = x + y;
+    if (Math.abs(s - 15) > 1.6) return null;
+    if (x >= 11 && y <= 4) return s >= 14 && s <= 16 ? '#c8ccd4' : null;
+    if (x <= 4) return Math.abs(s - 15) <= 0.6 ? '#7a5a36' : '#e8e8e8';
+    return Math.abs(s - 15) <= 0.6 ? '#9a7448' : null;
+  }));
   icon('coal_generator', isoBoxes(steelF, face((x, y) => (edge(x, y) ? '#5a646e' : y > 3 && y < 9 && y % 2 ? '#2a2a30' : y > 10 && y < 13 && x > 4 && x < 11 ? '#ff7a2a' : steel(x, y))), FULL));
   icon('battery_block', isoBoxes(face((x, y) => (x > 2 && x < 7 && y > 6 && y < 9 ? '#d8783a' : x > 9 && x < 13 && y > 6 && y < 9 ? '#d0d0d0' : '#2e3a2e')),
     face((x, y) => (edge(x, y) ? '#1a241a' : x > 4 && x < 11 && y > 2 && y < 14 && y % 3 ? '#3aff5a' : '#2e3a2e')), FULL));

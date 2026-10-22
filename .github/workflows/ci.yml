@@ -43,6 +43,10 @@ jobs:
         env:
           PLAYTEST_QUALITY: low
         run: node tests/playtest/server-profiles.mjs playtest-profiles
+      - name: Multiplayer – pvp world (sword and arrow hits between 2 browsers)
+        env:
+          PLAYTEST_QUALITY: low
+        run: node tests/playtest/server-pvp.mjs playtest-pvp
       - name: Multiplayer – two worlds on one Node server + 2 browsers
         env:
           PLAYTEST_QUALITY: low

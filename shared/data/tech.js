@@ -333,3 +333,8 @@ export const SMELT_TIME = 3;
 
 // Trezor (truhla na kód): snadno vyrobitelný už v batohu – truhla a tři kameny.
 RECIPES.push({ out: 'safe', n: 1, shape: ['SS', 'SC'], key: { S: 'stone', C: 'chest' } });
+// Luk a šípy (client/src/player/bow.js)
+RECIPES.push(
+  { out: 'bow', n: 1, shape: [' TF', 'T F', ' TF'], key: { T: 'stick', F: 'fiber' }, cat: 'tools' },
+  { out: 'arrow', n: 4, shape: ['K', 'T', 'F'], key: { K: 'stone', T: 'stick', F: 'fiber' }, cat: 'tools' },
+);

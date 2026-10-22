@@ -6,7 +6,7 @@
 //   ROOM_PASSWORD   heslo, které hráči zadají při připojení (prázdné = bez hesla)
 //   DATA_DIR        kam ukládat světy (výchozí server/data; každý svět ve své složce DATA_DIR/<id>/)
 //   STATIC_DIR      složka se sestavenou hrou, kterou server taky posílá (výchozí dist; "" = neposílat)
-//   WORLDS          světy na serveru: "svet:Hlavní svět,kreativ:Kreativní svět:creative" (id:jméno[:creative])
+//   WORLDS          světy na serveru: "svet:Hlavní svět,kreativ:Kreativní svět:creative" (id:jméno[:creative][:pvp])
 //                   (bez WORLDS je jeden svět "svet" = Hlavní svět)
 //   MAX_PLAYERS     kolik hráčů najednou v jednom světě (výchozí 8)
 //   ALLOW_CREATIVE  1 = všichni smí kreativní režim (výchozí 0; jen když WORLDS není nastavené)

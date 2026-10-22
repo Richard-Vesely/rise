@@ -1,0 +1,12 @@
+# Každých 5 minut zkusí aktualizovat server Říše (aktualizuje, jen když je nová otestovaná verze a nikdo nehraje).
+# Instalace: deploy/setup-vps.sh (nebo ručně: cp deploy/louka-update.* /etc/systemd/system/ && systemctl enable --now louka-update.timer)
+# Vypnout: systemctl disable --now louka-update.timer
+[Unit]
+Description=Říše – automatická aktualizace každých 5 minut
+
+[Timer]
+OnCalendar=*:0/5
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

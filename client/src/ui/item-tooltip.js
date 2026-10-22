@@ -23,6 +23,7 @@ const DESC = {
   shard: 'Tři úlomky probudí portál ve svatyni.', essence: 'Z ní se vyrábí stínové brnění.', iron_ore: 'Přetav ji v táboráku nebo v peci.',
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',
+  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
 };
 // V kolika receptech je předmět surovinou
 const USED_IN = new Map();

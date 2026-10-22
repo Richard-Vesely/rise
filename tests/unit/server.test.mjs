@@ -15,12 +15,13 @@ test('server: password, welcome, shared edits, mobs, save and restart', { timeou
     await bad.ready;
     assert.ok(await bad.waitFor((m) => m[0] === 'denied'), 'wrong password is denied');
 
-    const a = player(srv.port, 'Ája', 'tajne'), b = player(srv.port, 'Bára', 'tajne');
+    const a = player(srv.port, 'Ája', 'tajne');
     await a.ready;
     assert.ok(await a.waitFor((m) => m[0] === 'welcome'), 'welcome for Ája');
     assert.equal(a.welcome.name, 'Ája');
     assert.ok(Array.isArray(a.welcome.world.blocks) && typeof a.welcome.world.dayTime === 'number', 'welcome carries the world');
     assert.deepEqual(a.welcome.spawn, [1.5, 0.95, 15.5]);
+    const b = player(srv.port, 'Bára', 'tajne'); // až po Ájině welcome, jinak může Bára přijít první a Ája ji neuslyší přicházet
     await b.ready;
     assert.ok(await b.waitFor((m) => m[0] === 'welcome'));
     assert.ok(await a.waitFor((m) => m[0] === 'join' && m[1] === 'Bára'), 'Ája hears that Bára joined');

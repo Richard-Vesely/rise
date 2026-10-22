@@ -5,6 +5,7 @@ export const NET = {
   host: false, client: false, name: 'Hráč',
   ready: false, silent: 0, ops: [], mobN: 0, uidN: 0, killer: null,
   perm: true, // smí hráč používat kreativní režim?
+  pvp: false, // můžou se hráči v tomhle světě navzájem zranit? (svět s volbou pvp na serveru; pravidla: hitPlayer v shared/net/room.js)
   uidPrefix: 'h', // začátek jedinečných id (vyhozené předměty, dokumenty, auta…)
   // Změna světa: ve hře pro více hráčů se rozešle ostatním (při přehrávání cizí změny se neposílá).
   op(o) { if (this.mode !== 'sp' && this.ready && !this.silent) this.ops.push(o); },

@@ -14,6 +14,7 @@ import { camera } from '../render/renderer.js';
 import { rayVehicle, vehDim } from '../vehicles/car.js';
 import { shrineActive } from '../world/shrine.js';
 import { countItem } from './inventory.js';
+import { rayPlayer } from './pvp.js';
 
 // ============================================================ míření (co je před hráčem)
 export const rayO = new THREE.Vector3(), rayD = new THREE.Vector3();
@@ -113,6 +114,9 @@ export function pickTarget() {
       : ['crawler', 'markoman', 'golem', 'wolf'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
     best = { kind: 'mob', mob: m, name: m.def.name, hint };
   }
+  // Ostatní hráči (jen ve světě se souboji, pvp.js)
+  const ph = rayPlayer(sphere);
+  if (ph && ph.t < bt) { bt = ph.t; best = { kind: 'player', player: ph.player, name: ph.player.name, hint: 'hráč · souboj' }; }
   // Auto
   const vh = rayVehicle(o, d, bt);
   if (vh) {
