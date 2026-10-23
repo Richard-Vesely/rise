@@ -8,14 +8,14 @@ import { lerp, smoothstep, wrapAngle } from '../../../shared/util.js';
 import { WALK } from '../../../shared/world/constants.js';
 import { toolSound } from '../audio/tool-sounds.js';
 import { loadCostume } from '../menu/costume.js';
-import { heldStack } from '../player/inventory.js';
+import { heldStack, inv } from '../player/inventory.js';
 import { player } from '../player/player.js';
 import { blockMat } from './blocks.js';
 import { bowModel } from './bow-model.js';
-import { addOutline, chunkyVoxels, hoeModel, rodModel } from './held-models.js';
+import { addOutline, chunkyVoxels, hoeModel, rodModel, shieldModel } from './held-models.js';
 import { buildFPArm, disposeCharacter, suitPalette } from './character.js';
 import { ICONS } from './icons.js';
-import { camera } from './renderer.js';
+import { camera, scene } from './renderer.js';
 import { glowTex } from './sky.js';
 
 // ============================================================ předmět v ruce
@@ -106,6 +106,8 @@ export function buildHeld(id) { // používají ho i postavičky ostatních hrá
     rodModel(mesh);
   } else if (id === 'hoe') {
     hoeModel(mesh, handleMat, gripMat);
+  } else if (d.shield) {
+    shieldModel(mesh);
   } else if (d.bow) {
     const b = bowModel();
     g.add(b);
@@ -235,6 +237,7 @@ export function updateSwing(dt, moving) {
     r[0] = lerp(r[0], 0, e); r[1] = lerp(r[1], 0.08, e); r[2] = lerp(r[2], -0.2, e);
     p[0] += Math.sin(performance.now() / 40) * 0.0025 * k; // plně natažený se trochu chvěje
   }
+  if (player.blocking === 'main') { p[0] = 0.12; p[1] = -0.2; p[2] = -0.46; r[0] = 0.05; r[1] = -0.35; r[2] = 0; } // štít v hlavní ruce před tělem
   // vytažení předmětu: ruka vyjede zespodu
   if (equipT < 1) {
     equipT = Math.min(1, equipT + dt / 0.2);
@@ -261,4 +264,44 @@ export function updateSwing(dt, moving) {
   p[1] -= hurtT * 0.05; r[2] += hurtT * 0.15;
   holder.position.set(p[0], p[1], p[2]);
   holder.rotation.set(r[0], r[1], r[2]);
+  updateOffhand(dt, sway, d);
+}
+
+// ============================================================ druhá ruka (levá): předmět z inv.off, štít se při krytí zvedne před tělo
+const offHolder = new THREE.Group();
+let offId, offGrip = null, offModels = {}, guardK = 0, torchLight = null;
+const ARM_HOLD_L = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-0.3, -0.72, 0.62).normalize());
+function buildOffGrip() {
+  if (offGrip) { offGrip.parent?.remove(offGrip); disposeCharacter(offGrip); }
+  offGrip = buildFPArm(loadCostume(NET.name));
+  offGrip.scale.set(-0.72, 0.72, 0.72); // zrcadlově: levá ruka
+  offGrip.quaternion.copy(ARM_HOLD_L);
+  offGrip.position.set(0, -0.035, 0.015);
+}
+addEventListener('rise-costume', () => { offId = undefined; offGrip = null; });
+function updateOffhand(dt, sway, d) {
+  if (!offHolder.parent) camera.add(offHolder);
+  const s = inv.off[0], id = s ? s.id : null;
+  if (id !== offId) {
+    offId = id;
+    offHolder.clear();
+    if (id && ITEMS[id] && ICONS[id]) {
+      if (!offGrip) buildOffGrip();
+      offHolder.add(offModels[id] ||= buildHeld(id), offGrip);
+    }
+  }
+  offHolder.visible = !!id && !player.eating;
+  // klid vlevo dole, při krytí štítem před tělem (štít v hlavní ruce: hlavní ruka se zvedne sama, swing)
+  guardK = lerp(guardK, player.blocking === 'off' ? 1 : 0, 1 - Math.exp(-dt * 14));
+  const k = smoothstep(0, 1, guardK);
+  offHolder.position.set(lerp(-0.34, -0.22, k) - Math.sin(d) * 0.018 * sway, lerp(-0.38, -0.27, k) - Math.abs(Math.cos(d)) * 0.022 * sway, lerp(-0.62, -0.46, k));
+  offHolder.rotation.set(lerp(-0.3, 0.05, k), lerp(-0.15, 0.5, k), lerp(0.4, 0.05, k));
+  // pochodeň v kterékoli ruce svítí kolem hráče
+  const torch = id === 'torch' || heldId === 'torch';
+  if (torch && !torchLight) { torchLight = new THREE.PointLight(0xffa04a, 0, 11, 1.6); scene.add(torchLight); }
+  if (torchLight) {
+    torchLight.intensity = lerp(torchLight.intensity, torch ? 9 * GLOW * (0.92 + Math.sin(performance.now() / 90) * 0.04 + Math.sin(performance.now() / 37) * 0.03) : 0, 1 - Math.exp(-dt * 10));
+    torchLight.position.set(camera.position.x, camera.position.y - 0.3, camera.position.z);
+    torchLight.visible = torchLight.intensity > 0.05;
+  }
 }

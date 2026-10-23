@@ -30,6 +30,7 @@ import { dropHeld } from '../world/ground-items.js';
 import { shrineColliders } from '../world/shrine.js';
 import { resetUseCd, target } from './interaction.js';
 import { inv } from './inventory.js';
+import { swapHands } from './offhand.js';
 
 // ============================================================ hráč a ovládání
 const canvas = renderer.domElement;
@@ -97,7 +98,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyG' && !e.repeat && !invOpen && (isLocked() || game.testMode)) { dropHeld(e.shiftKey); return; }
   // Auto: F nastoupit / vystoupit, L světla, B klakson, V kamera (první / třetí osoba)
   if (e.code === 'KeyF' && !e.repeat && !invOpen && (isLocked() || game.testMode)) {
-    if (player.vehicle) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id);
+    if (player.vehicle) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id); else swapHands(); // jinak F = prohodit ruce (offhand.js)
     return;
   }
   if (player.vehicle && !e.repeat && !invOpen) {

@@ -18,7 +18,7 @@ let saveWarned = false;
 export function saveGame() {
   if (resetting || NET.leaving) return;
   // hráč: batoh, pozice, zdraví… (klient na cizím serveru ukládá jen tohle)
-  const me = { inv: inv.slots, pos: player.pos.toArray(), yaw: player.yaw, hp: Math.max(player.hp, 1), hunger: player.hunger, crafted, placedAny, creative, flying: player.flying, flyT: player.flyT || 0, armor, look: loadCostume(NET.name) }; // look = oblek (jen vzhled)
+  const me = { inv: inv.slots, pos: player.pos.toArray(), yaw: player.yaw, hp: Math.max(player.hp, 1), hunger: player.hunger, crafted, placedAny, creative, flying: player.flying, flyT: player.flyT || 0, armor, off: inv.off[0], look: loadCostume(NET.name) }; // look = oblek (jen vzhled), off = druhá ruka
   if (PROFILE) { if (BOOT.conn?.open) BOOT.conn.send(['me', me]); return; } // server kroužku: hráč se ukládá na serveru
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(NET.client ? me : { ...me, ...worldState(), ...(NET.host ? NET.hostSave() : {}) }));

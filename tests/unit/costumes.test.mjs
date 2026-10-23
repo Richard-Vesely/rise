@@ -50,6 +50,9 @@ test('costumes: data, defaults per name, cleaning and the short text in the posi
 test('player state: the costume (look) is optional and cleaned', () => {
   const base = { inv: Array(36).fill(null), armor: [null, null, null, null], pos: [1, 2, 3], yaw: 0, hp: 100, hunger: 100, crafted: {}, placedAny: {}, creative: false, flying: false, flyT: 0 };
   assert.equal('look' in cleanMe(base), false, 'old clients without a costume still save');
+  assert.equal(cleanMe(base).off, null, 'old clients without a second hand still save (empty second hand)');
+  assert.deepEqual(cleanMe({ ...base, off: { id: 'shield', n: 1, w: 5 } }).off, { id: 'shield', n: 1, w: 5 }, 'the second hand is saved on the server');
+  assert.equal(cleanMe({ ...base, off: { id: 'neexistuje', n: 1 } }).off, null, 'an unknown item in the second hand is dropped');
   assert.deepEqual(cleanMe({ ...base, look: { s: 'pilot', c: 2, l: 1, v: 0, e: 3, t: 5 } }).look, { s: 'pilot', c: 2, l: 1, v: 0, e: 3, t: 5 });
   const odd = cleanMe({ ...base, look: { s: '<script>', c: 1e9, junk: 'x'.repeat(50) } }).look;
   assert.ok(Object.hasOwn(SUITS, odd.s) && !('junk' in odd), 'a bad costume is cleaned, not stored as is');

@@ -38,6 +38,7 @@ import { usePortal } from '../world/shrine.js';
 import { placedAny } from '../world/world-state.js';
 import { cancelDraw, updateArrows, updateBow } from './bow.js';
 import { hitPlayer } from './pvp.js';
+import { placesFromOff, updateShield, withOffInHand } from './offhand.js';
 import { sitOn, startEating, useTable } from './eating.js';
 import { hitKick, hitStop } from './camera-feel.js';
 import { wearHeld } from './durability.js';
@@ -215,10 +216,13 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
+  if (updateBow(dt, target)) player.blocking = null; // luk v ruce: pravé tlačítko natahuje (bow.js)
+  else if (updateShield(target)) { /* štít: pravé tlačítko kryje (offhand.js) */ }
   else {
-    if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
-    if (input.rmb) pillarPlace();
+    // blok ve druhé ruce: položí se, když hlavní ruka nemá co dělat (offhand.js)
+    const off = placesFromOff() && !(target?.kind === 'block' && BLOCKS[target.type]?.special) && target?.kind !== 'vehicle' && target?.kind !== 'mob';
+    if (input.rmb && useCd <= 0) { useCd = off || ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; if (off) withOffInHand(useItem); else useItem(); }
+    if (input.rmb) { if (off) withOffInHand(pillarPlace); else pillarPlace(); }
   }
 
   const label = $('targetLabel');

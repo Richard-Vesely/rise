@@ -338,3 +338,5 @@ RECIPES.push(
   { out: 'bow', n: 1, shape: [' TF', 'T F', ' TF'], key: { T: 'stick', F: 'fiber' }, cat: 'tools' },
   { out: 'arrow', n: 4, shape: ['K', 'T', 'F'], key: { K: 'stone', T: 'stick', F: 'fiber' }, cat: 'tools' },
 );
+// Štít do druhé ruky (client/src/player/offhand.js)
+RECIPES.push({ out: 'shield', n: 1, shape: ['PIP', 'PPP', ' P '], key: { P: 'planks', I: 'iron' }, cat: 'tools' });

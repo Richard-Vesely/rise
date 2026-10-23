@@ -14,7 +14,7 @@ import { Sound } from '../audio/sound.js';
 import { dining } from '../dining/dining.js';
 import { BOOT } from '../game/boot.js';
 import { loadCostume, saveCostume } from '../menu/costume.js';
-import { heldStack } from '../player/inventory.js';
+import { heldStack, inv } from '../player/inventory.js';
 import { creative, input, isLocked, player } from '../player/player.js';
 import { animateCharacter, buildCharacter, disposeCharacter, setCharacterArmor } from '../render/character.js';
 import { buildHeld, holder, swingT } from '../render/held-item.js';
@@ -93,6 +93,22 @@ function setHeld(R, id) {
   m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   R.hand.add(m);
 }
+// druhá ruka postavičky (levá) a krytí štítem: ruka se štítem zvednutá před tělem
+function setOffHeld(R, id) {
+  R.offHeld = id;
+  const hand = R.armL.hand;
+  hand.clear();
+  if (!id || !ITEMS[id] || !ICONS[id]) return;
+  const m = buildHeld(id);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(0, -0.02, -0.02);
+  m.scale.multiplyScalar(0.95);
+  hand.add(m);
+}
+function guardPose(R, which) {
+  const a = which === 2 ? R.armL : R.armR, sx = which === 2 ? 1 : -1;
+  a.sh.rotation.x = 1.25; a.sh.rotation.z = sx * 0.55; a.elbow.rotation.x = 0.7;
+}
 // průměrná barva ikony předmětu (drobky při jídle)
 const iconCol = {};
 function iconColor(id) {
@@ -149,6 +165,7 @@ export function updateAvatars(dt) {
     if (!A.init || Math.hypot(pos.x - tx, pos.z - tz) > 12) { pos.set(tx, ty, tz); A.anim.bodyYaw = q.yaw; A.init = true; }
     else pos.lerp(new THREE.Vector3(tx, ty, tz), k);
     if (q.held !== A.held) setHeld(A, q.held);
+    if ((q.oh || null) !== (A.offHeld ?? null)) setOffHeld(A, q.oh || null);
     const ar = (q.ar || []).map((id) => (id && ITEMS[id]?.armor ? id : null));
     if (ar.join('|') !== A.armorKey) setCharacterArmor(A, ar);
     const hp = typeof q.hp === 'number' ? q.hp : 100, hurt = hp < (A.lastHp ?? hp) - 0.5;
@@ -159,7 +176,7 @@ export function updateAvatars(dt) {
     A.tag.material.opacity = clamp((48 - d) / 16, 0, 1);
     const s = { speed: Math.min(q.mv || 0, 12), yaw: q.yaw, pitch: q.pitch || 0, run: (q.mv || 0) > 6, sneak: !!q.sn, fly: !!q.fly || !!q.flyT, sit: !!q.sit,
       swing: !!q.sw, eat: !!q.eat, held: q.held, y: q.y, hurt };
-    if (A.group.visible) { animateCharacter(A, s, dt); effects(A, s, pos, dt); }
+    if (A.group.visible) { animateCharacter(A, s, dt); effects(A, s, pos, dt); if (q.bl) guardPose(A, q.bl); }
   }
 }
 
@@ -233,5 +250,6 @@ export function myPose() {
     veh: (() => { const v = vehicles.get(player.vehicle); return v ? { id: player.vehicle, x: r2(v.x), y: r2(v.y), z: r2(v.z), yaw: r2(v.yaw), pitch: r2(v.pitch || 0), roll: r2(v.roll || 0), spd: r2(v.spd), steer: r2(v.steer), thr: r2(v.thr || 0), lights: v.lights ? 1 : 0 } : null; })(), hn: hornN,
     ar: armor.map((a) => a?.id || null), sit: player.sitting ? 1 : 0, fly: player.flying ? 1 : 0, flyT: player.flyT > 0 ? 1 : 0, alive: player.alive, cr: creative ? 1 : 0, set: fullSet(), hp: Math.round(player.hp),
     lk: myLk, ...(player.sneaking ? { sn: 1 } : {}), ...(NET.pvpOn ? { pv: 1 } : {}), // pv = zapnuté souboje
+    oh: inv.off[0]?.id || null, ...(player.blocking ? { bl: player.blocking === 'off' ? 2 : 1 } : {}), // druhá ruka a krytí štítem (1 hlavní, 2 druhá ruka)
   };
 }

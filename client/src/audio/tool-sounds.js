@@ -30,6 +30,11 @@ export function toolSound(name, strength = 1) {
       S.burst({ dur: 0.05, f0: 2400 * p, f1: 900, q: 1, vol: 0.2 });
       S.burst({ dur: 0.25 + 0.15 * strength, f0: 1800 * p, f1: 600 * p, q: 1.5, vol: 0.06 + 0.1 * strength, delay: 0.03 });
       break;
+    case 'shieldBlock': // úder do štítu: tupé ťuknutí do dřeva a cinknutí lemu
+      S.burst({ dur: 0.09, f0: 700 * p, f1: 200, type: 'lowpass', q: 1, vol: 0.45 });
+      S.tone(160 * p, 0.16, 0.22, 'triangle', 0, 90);
+      S.tone(1900 * p, 0.12, 0.04, 'sine', 0.01);
+      break;
     case 'arrowHit': // šíp se zabodl do země nebo do bloku
       S.burst({ dur: 0.06, f0: 900 * p, f1: 300, type: 'lowpass', q: 1, vol: 0.25 });
       S.tone(240 * p, 0.12, 0.08, 'triangle', 0, 180);

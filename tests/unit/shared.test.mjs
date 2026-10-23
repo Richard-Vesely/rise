@@ -7,9 +7,9 @@ import { naturalAt, topY, V } from '../../shared/world/voxels.js';
 import { structuresNear } from '../../shared/world/structures.js';
 
 test('data tables are complete (counts from Marek\'s version 2778d1b)', () => {
-  // + 5 futuristických bloků (technický a bílý panel, 3 neony; shared/data/tech.js) + trezor + luk a šíp (2 předměty, 2 recepty)
-  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 1 + 2);
-  assert.equal(RECIPES.length, 262 + 5 + 1 + 2);
+  // + 5 futuristických bloků (technický a bílý panel, 3 neony; shared/data/tech.js) + trezor + luk a šíp (2 předměty, 2 recepty) + štít
+  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 1 + 2 + 1);
+  assert.equal(RECIPES.length, 262 + 5 + 1 + 2 + 1);
   assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1);
   assert.equal(KITCHEN.length, 36);
   assert.equal(Object.keys(CROPS).length, 4);

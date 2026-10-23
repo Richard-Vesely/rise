@@ -15,6 +15,7 @@ import { camera, scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
 import { hitPlayer, playerOn } from './pvp.js';
+import { offArrows, takeOffArrow } from './offhand.js';
 import { countItem, heldStack, removeItem } from './inventory.js';
 import { creative, input, player } from './player.js';
 
@@ -37,7 +38,7 @@ export function updateBow(dt, target) {
   if (!drawing) {
     if (!input.rmb) return true;
     if (target?.kind === 'block' && BLOCKS[target.type]?.special) return false; // stoly, truhly, pec… se otevřou normálně
-    if (!creative && !countItem('arrow')) { if (!updateBow.told) toast('Nemáš šípy (vyrob je z kamene, klacku a vlákna)'); updateBow.told = true; return true; }
+    if (!creative && !countItem('arrow') && !offArrows()) { if (!updateBow.told) toast('Nemáš šípy (vyrob je z kamene, klacku a vlákna)'); updateBow.told = true; return true; }
     updateBow.told = false;
     drawing = true; drawT = 0; wasFull = false;
     toolSound('bowDraw');
@@ -55,7 +56,7 @@ export function updateBow(dt, target) {
 
 function shoot(B, k) {
   if (k < 0.1) return; // jen cuknutí: šíp zůstane v toulci
-  if (!creative) { if (!countItem('arrow')) return; removeItem('arrow', 1); }
+  if (!creative && !takeOffArrow()) { if (!countItem('arrow')) return; removeItem('arrow', 1); } // nejdřív šípy ze druhé ruky
   const dir = camera.getWorldDirection(camera.position.clone().set(0, 0, 0));
   const pos = camera.position.clone().addScaledVector(dir, 0.4);
   pos.y -= 0.08;

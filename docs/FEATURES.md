@@ -250,6 +250,14 @@ When you add or change a feature, update this file in the same pull request.
   **workshop** (*Dílna*). ~260 recipes in 12 categories with a recipe book and "only what I can make".
   A **search box** (🔍 *Hledat…*) above the book filters it by item name (accents optional, so *zelezo* finds *Železo*);
   it works for recipes, the creative item list, the campfire, the furnace and the stove cookbook, and is cleared when the window closes.
+- **Second hand** (like Minecraft): one more slot under the armor in the backpack (a shield outline when empty); **F** swaps the
+  item in the hand with the second hand (aiming at a car, F still gets in). Any item can be held there and is shown in the left
+  hand (also to other players, pose `oh`). A **shield** (*Štít*: planks + iron) guards while the right button is held: a hit
+  from the front (about ±70°, mobs, swords and arrows of other players) is stopped and only pushes a little, the shield wears
+  by 1; from behind it doesn't help. A **torch** in either hand lights the area around you. A **block** in the second hand is
+  placed with the right button while the main hand is empty or holds a tool or weapon. The **bow** takes arrows from the
+  second hand first. Saved in the browser and on the server (`off`). Code: `client/src/player/offhand.js`, the left hand in
+  `client/src/render/held-item.js`.
 - **Chest** (*Truhla*, 27 slots).
 - **Safe** (*Trezor*, 27 slots, recipe in the backpack: a chest + 3 stones). The first time it is opened the player
   makes up a code (4–8 digits, typed twice); after that it opens only with that code (3 wrong tries → a short wait

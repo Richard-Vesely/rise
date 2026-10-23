@@ -57,6 +57,18 @@ export function rodModel(mesh) {
   mesh(new THREE.SphereGeometry(0.014, 8, 6), leather, 0.1, 0.075);
 }
 
+// ---------- štít: prkna s železným lemem a puklicí, líc míří dopředu (−Z)
+const plankMat = new THREE.MeshStandardMaterial({ color: 0x9a6a38, roughness: 0.85 });
+const plankDark = new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.9 });
+for (const m of [plankMat, plankDark]) m.userData.shared = true;
+export function shieldModel(mesh) {
+  mesh(new THREE.BoxGeometry(0.44, 0.54, 0.045), plankMat, 0, 0.16);
+  for (const x of [-0.11, 0, 0.11]) mesh(new THREE.BoxGeometry(0.012, 0.52, 0.048), plankDark, x, 0.16); // spáry mezi prkny
+  for (const [w, h, x, y] of [[0.47, 0.035, 0, 0.43], [0.47, 0.035, 0, -0.11], [0.035, 0.57, -0.22, 0.16], [0.035, 0.57, 0.22, 0.16]]) mesh(new THREE.BoxGeometry(w, h, 0.055), metal, x, y); // lem
+  const boss = mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.04, 14), metal, 0, 0.18, -0.04); // puklice
+  boss.rotation.x = Math.PI / 2;
+}
+
 // ---------- motyka: násada s omotávkou a široký kovový list do strany
 const ironMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.35, metalness: 0.9 });
 ironMat.userData.shared = true;

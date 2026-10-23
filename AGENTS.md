@@ -96,7 +96,7 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/net/room.js`, client = `client/src/net/multiplayer.js`.
 
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
-  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on in the Esc menu; the host passes the pose on unchanged), `['pk', gid]` pick up,
+  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on in the Esc menu, `oh` = item id in the second hand, `bl: 1|2` while guarding with a shield in the main / second hand; the host passes the pose on unchanged), `['pk', gid]` pick up,
   `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (in a
   `pvp` world, elsewhere only when both poses have `pv: 1`: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
   `['dmg', dmg × 2.5, dx, dz]`; `hitPlayer` in `shared/net/room.js`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
@@ -125,8 +125,8 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   connection then closes; the client asks again. The same profile already in that world: the old connection gets
   `['kick', 'Přihlásil ses jinde.']` and is closed. The welcome also has `me`: that player's saved state in this world
   (`null` = first time; added by `server/world-worker.js`). The client sends `['me', { inv, armor, pos, yaw, hp, hunger,
-  crafted, placedAny, creative, flying, flyT, look }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
-  `cleanCostume`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
+  crafted, placedAny, creative, flying, flyT, look, off }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
+  `cleanCostume`; `off` = the second-hand slot, optional; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
   ≤ 64 KB, 36 + 4 slots, known item ids; a slot is `{ id, n, w? }`, `w` = tool wear) and saves it in `world.json` → `players[profile id]`. The browser host ignores `me`.
 - Each world of the Node server runs in its own `worker_threads` thread, because `shared/` keeps one world in module
   state. Rooms, chat and players are per world; there are no messages between worlds.

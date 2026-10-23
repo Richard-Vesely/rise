@@ -266,6 +266,14 @@ function isoBoxes(top, side, boxes) {
     if (d > 10.3 && d < 12.1 && s <= 15) return Math.hypot(x - 4, y - 4) < 1.8 ? '#3a2614' : d < 10.9 || d > 11.6 ? '#5a3a1e' : '#9a6a38';
     return Math.abs(s - 15) < 0.6 && x >= 1 && x <= 14 ? '#e8e2d0' : null;
   }));
+  icon('shield', face((x, y) => { // dřevěný štít s železným lemem a puklicí
+    const inShape = x >= 2 && x <= 13 && y >= 1 && (y <= 9 || Math.abs(x - 7.5) < 6.5 - (y - 9) * 0.95);
+    if (!inShape) return null;
+    const rim = x === 2 || x === 13 || y === 1 || (y > 9 && Math.abs(Math.abs(x - 7.5) - (6.5 - (y - 9) * 0.95)) < 1);
+    if (rim) return '#9aa0a8';
+    if (Math.hypot(x - 7.5, y - 6.5) < 1.8) return '#c8ccd4';
+    return x % 4 === 1 ? '#6a4a2a' : (x + y) % 5 ? '#9a6a38' : '#8a5e30';
+  }));
   icon('arrow', face((x, y) => {
     const s = x + y;
     if (Math.abs(s - 15) > 1.6) return null;

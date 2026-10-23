@@ -34,7 +34,7 @@ function flags(o) {
  * Zkontroluje a uklidí stav hráče. Vrátí čistou kopii, nebo null (nesmysl: ignorovat).
  * @param {unknown} me
  * @param {number} [bytes] délka zprávy (JSON), když je známá
- * @returns {{ inv: ({id: string, n: number, w?: number}|null)[], armor: ({id: string, n: number, w?: number}|null)[], pos: number[], yaw: number, hp: number, hunger: number, crafted: object, placedAny: object, creative: boolean, flying: boolean, flyT: number, look?: object } | null}
+ * @returns {{ inv: ({id: string, n: number, w?: number}|null)[], armor: ({id: string, n: number, w?: number}|null)[], off: {id: string, n: number, w?: number}|null, pos: number[], yaw: number, hp: number, hunger: number, crafted: object, placedAny: object, creative: boolean, flying: boolean, flyT: number, look?: object } | null}
  */
 export function cleanMe(me, bytes = 0) {
   if (bytes > ME_MAX_BYTES || !me || typeof me !== 'object' || Array.isArray(me)) return null;
@@ -55,6 +55,7 @@ export function cleanMe(me, bytes = 0) {
       creative: me.creative === true,
       flying: me.flying === true,
       flyT: num(me.flyT, 0, 1e5) ? me.flyT : 0,
+      off: slot(me.off ?? null), // druhá ruka (nepovinná; staré prohlížeče ji neposílají)
     };
     if (me.look != null && typeof me.look === 'object') out.look = cleanCostume(me.look); // oblek (jen vzhled), nepovinný
 

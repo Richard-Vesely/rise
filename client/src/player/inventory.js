@@ -8,7 +8,8 @@ import { renderHotbar, renderInventory } from '../ui/inventory-ui.js';
 import { creative } from './player.js';
 
 // ============================================================ inventář
-export const inv = { slots: save?.inv || Array(36).fill(null), sel: 0, cursor: null };
+// off = druhá ruka (štít, pochodeň, bloky… klávesa F prohodí s rukou; offhand.js). Jako pole s jedním políčkem, ať s ním okno umí jako s ostatními.
+export const inv = { slots: save?.inv || Array(36).fill(null), sel: 0, cursor: null, off: [save?.off || null] };
 export const countItem = (id) => inv.slots.reduce((n, s) => n + (s && s.id === id ? s.n : 0), 0);
 export function insertInto(stack, from, to) {
   const max = ITEMS[stack.id].stack;

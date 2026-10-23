@@ -211,6 +211,35 @@ try {
     return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
   });
   check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
+  r = await ev(() => { // druhá ruka: F prohodí, štít kryje zepředu, blok ze druhé ruky se položí, luk bere šípy ze druhé ruky
+    const g = window.game; T.clearInv(); g.inv.off[0] = null; T.give('shield', 1); T.hold('shield'); T.give('iron_sword', 1);
+    T.press('KeyF');
+    const swapped = g.inv.off[0]?.id === 'shield' && !g.inv.slots[0];
+    T.hold('iron_sword'); g.mobs.length = 0; T.tpg(-50, 30); T.step(3);
+    g.player.yaw = 0; g.player.pitch = 0; g.player.hp = 100;
+    g.input.rmb = true; T.step(2);
+    const blocking = g.player.blocking;
+    g.damagePlayer(10, 0, 1); const hpFront = g.player.hp; // útočník před hráčem (hráč kouká k −z)
+    g.damagePlayer(10, 0, -1); const hpBack = g.player.hp; // útočník za zády
+    g.input.rmb = false; T.step(2);
+    const shieldW = g.inv.off[0]?.w, after = g.player.blocking;
+    // blok ze druhé ruky: v ruce meč, ve druhé ruce prkna
+    g.inv.off[0] = { id: 'planks', n: 5 }; g.player.hp = 100;
+    T.step(20); // ať hráč stojí na zemi (ve vzduchu by pravé tlačítko stavělo pod sebe)
+    const p = g.player.pos, x = Math.floor(p.x), z = Math.floor(p.z) - 2, y = g.groundHeight(x + 0.5, z + 0.5);
+    T.aim(x + 0.5, y - 0.05, z + 0.5);
+    g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(2);
+    const planksLeft = g.inv.off[0]?.n, main = g.inv.slots[0]?.id;
+    // šípy ze druhé ruky
+    T.clearInv(); T.give('bow', 1); T.hold('bow'); g.inv.off[0] = { id: 'arrow', n: 3 }; g.player.pitch = 0.2;
+    g.input.rmb = true; T.step(25); g.input.rmb = false; T.step(2);
+    const arrowsOff = g.inv.off[0]?.n;
+    g.inv.off[0] = null;
+    return { swapped, blocking, hpFront, hpBack, shieldW, after, planksLeft, main, arrowsOff };
+  });
+  check('offhand: F moves the shield to the second hand, right button guards: a hit from the front is stopped (the shield wears), from behind not', r.swapped && r.blocking === 'off' && r.hpFront === 100 && r.hpBack === 90 && r.shieldW === 1 && r.after === null, JSON.stringify(r));
+  check('offhand: a block in the second hand is placed while the sword stays in the hand', r.planksLeft === 4 && r.main === 'iron_sword', JSON.stringify(r));
+  check('offhand: the bow takes arrows from the second hand first', r.arrowsOff === 2, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);

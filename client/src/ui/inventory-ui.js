@@ -40,7 +40,7 @@ export const armor = save?.armor || [null, null, null, null]; // helma, brnění
 export const armorPoints = () => armor.reduce((n, s) => n + (s ? ITEMS[s.id].armor.pts : 0), 0);
 // Celá sada speciálního brnění (všechny 4 kusy stejné sady) dává bonus.
 export const fullSet = () => { const s0 = armor[0] && ITEMS[armor[0].id].armor.set; return s0 && armor.every((a) => a && ITEMS[a.id].armor.set === s0) ? s0 : null; };
-export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots })[c]();
+export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, off: () => inv.off, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots })[c]();
 
 export function renderHotbar() { paintHotbar(inv.slots, inv.sel); }
 
@@ -92,6 +92,7 @@ export function renderCraftArea() {
   // Brnění (jen v inventáři): 4 políčka, prázdná ukazují obrys.
   const armorCol = ui.mode !== 'inv' ? '' : `<div class="armor-col">${armor.map((s, i) => s ? slotHTML(s, i, '', 'armor')
     : `<div class="slot ghost" data-c="armor" data-i="${i}" title="${ARMOR_SLOT_NAMES[i]}">${iconImg(`iron_${ARMOR_SLOTS[i]}`)}</div>`).join('')}
+    ${inv.off[0] ? slotHTML(inv.off[0], 0, 'offhand', 'off') : `<div class="slot ghost offhand" data-c="off" data-i="0" title="Druhá ruka (F prohodí s rukou)">${iconImg('shield')}</div>`}
     <div class="armor-pts">🛡 ${armorPoints()}</div><button class="mc-btn cos-open" id="costumeBtn" title="Můj oblek (O)">Oblek</button></div>`;
   area.innerHTML = `<div class="mc-title">${ui.mode === 'adv' ? 'Dílna (pokročilý pracovní stůl)' : ui.mode === 'bench' ? 'Pracovní stůl' : 'Brnění a výroba'}</div>
     <div class="craft-ui">${armorCol}

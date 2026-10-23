@@ -17,12 +17,14 @@ import { exitVehicle } from '../vehicles/car.js';
 import { hurtPulse } from './camera-feel.js';
 import { wearArmor } from './durability.js';
 import { arenaReset } from './arena.js';
+import { shieldBlocks } from './offhand.js';
 import { addItem } from './inventory.js';
 import { creative, player } from './player.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
   if (!player.alive || creative) return;
+  if (shieldBlocks(dx, dz)) { player.vel.x += dx * 1.5; player.vel.z += dz * 1.5; player.shake = 0.05; return; } // štít zepředu: jen kousek odhodí (offhand.js)
   if (dx || dz) { // brnění tlumí útoky a přitom se opotřebuje
     const raw = amount;
     amount *= 1 - Math.min(0.8, armorPoints() * 0.035);
