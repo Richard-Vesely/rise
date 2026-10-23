@@ -153,8 +153,8 @@ export function updateAvatars(dt) {
     if (ar.join('|') !== A.armorKey) setCharacterArmor(A, ar);
     const hp = typeof q.hp === 'number' ? q.hp : 100, hurt = hp < (A.lastHp ?? hp) - 0.5;
     A.lastHp = hp;
-    const T = A.tag.userData.tag, hpStep = Math.ceil(hp / 5) * 5;
-    if (T.hp !== hpStep) { T.hp = hpStep; drawTag(T); }
+    const T = A.tag.userData.tag, hpStep = Math.ceil(hp / 5) * 5, tagName = (q.pv && !NET.pvp ? '⚔ ' : '') + P.name; // ⚔ = má zapnuté souboje
+    if (T.hp !== hpStep || T.name !== tagName) { T.hp = hpStep; T.name = tagName; drawTag(T); }
     const d = Math.hypot(pos.x - camera.position.x, pos.z - camera.position.z);
     A.tag.material.opacity = clamp((48 - d) / 16, 0, 1);
     const s = { speed: Math.min(q.mv || 0, 12), yaw: q.yaw, pitch: q.pitch || 0, run: (q.mv || 0) > 6, sneak: !!q.sn, fly: !!q.fly || !!q.flyT, sit: !!q.sit,
@@ -232,6 +232,6 @@ export function myPose() {
     mv: r2(Math.hypot(player.vel.x, player.vel.z)), sw: swingT >= 0 || (input.lmb && isLocked()) ? 1 : 0, eat: player.eating || dining ? 1 : 0,
     veh: (() => { const v = vehicles.get(player.vehicle); return v ? { id: player.vehicle, x: r2(v.x), y: r2(v.y), z: r2(v.z), yaw: r2(v.yaw), pitch: r2(v.pitch || 0), roll: r2(v.roll || 0), spd: r2(v.spd), steer: r2(v.steer), thr: r2(v.thr || 0), lights: v.lights ? 1 : 0 } : null; })(), hn: hornN,
     ar: armor.map((a) => a?.id || null), sit: player.sitting ? 1 : 0, fly: player.flying ? 1 : 0, flyT: player.flyT > 0 ? 1 : 0, alive: player.alive, cr: creative ? 1 : 0, set: fullSet(), hp: Math.round(player.hp),
-    lk: myLk, ...(player.sneaking ? { sn: 1 } : {}),
+    lk: myLk, ...(player.sneaking ? { sn: 1 } : {}), ...(NET.pvpOn ? { pv: 1 } : {}), // pv = zapnuté souboje
   };
 }

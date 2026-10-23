@@ -31,7 +31,7 @@ import { chatLine, leaveGame, renderPause, sysLine } from './mp-ui.js';
 // (shared/net/room.js, změny světa: shared/net/ops.js). Tady je strana připojeného hráče a obrázky ke změnám.
 const puppets = new Map(); // klient: tvorové podle hostitele (nid -> tvor)
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp });
+Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp, pvpOn: (() => { try { return localStorage.getItem('rise-souboje') === '1'; } catch { return false; } })() });
 
 // ---------- zprávy
 export function toHost(msg) { if (BOOT.conn?.open) BOOT.conn.send(msg); }

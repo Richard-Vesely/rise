@@ -389,6 +389,9 @@ attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit
   sword 15, full arrow 25 of 100 hp; armor protects as against mobs). The host checks every hit: reach 7 m (arrows 90 m),
   0.45 s invulnerability after a hit, no hits on or by dead players or players in creative mode. Other worlds have no fights.
   *Kód:* rules `hitPlayer` in `shared/net/room.js`, the player's side `client/src/player/pvp.js`.
+- **Fights by choice** (every other world): the Esc menu has *⚔ Souboje s ostatními*; two players can hurt each other only when
+  both have it on (the pose carries `pv: 1`, the host checks both). Their name tags show ⚔. The choice is remembered in the
+  browser (`rise-souboje`). In the arena fights are always on.
 - **Arena** (every `:pvp` world): the server builds it once when the world starts, 40 m west of the shrine: a round brick floor
   (radius 13) with a 4-block wall, 8 cover pillars and torches; trees and boulders inside are gone. Joining and every respawn
   put you on a free spot in the arena with the kit (iron sword, bow, 32 arrows, 32 planks, 8 meat, full iron armor) and full

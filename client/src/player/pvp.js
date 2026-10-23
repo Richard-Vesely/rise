@@ -1,4 +1,4 @@
-// Souboje hráčů na straně hráče (jen ve světě s volbou pvp, NET.pvp): kde jsou ostatní hráči (zaměření mečem,
+// Souboje hráčů na straně hráče (ve světě s volbou pvp, NET.pvp, se všemi; jinde jen se zapnutými souboji u obou, NET.pvpOn a pose.pv): kde jsou ostatní hráči (zaměření mečem,
 // zásah šípem) a poslání zásahu hostiteli. Jestli zásah platí, rozhoduje hostitel (hitPlayer v shared/net/room.js).
 // Bez vedlejších účinků při načtení.
 import { NET } from '../../../shared/net/net.js';
@@ -13,11 +13,11 @@ const hurtAt = new Map(); // pid -> kdy jsme ho naposledy zasáhli (ať se nepos
 
 /** Ostatní hráči, do kterých se dá v tomhle světě bojovat: { pid, name, x, y, z }. */
 export function pvpPlayers() {
-  if (!NET.pvp) return [];
+  if (!NET.pvp && !NET.pvpOn) return [];
   const list = [];
   for (const P of others.values()) {
     const q = P.pose;
-    if (!q || q.alive === false || q.cr || q.veh) continue;
+    if (!q || q.alive === false || q.cr || q.veh || (!NET.pvp && !q.pv)) continue;
     list.push({ pid: P.pid, name: P.name, x: q.x, y: q.y, z: q.z });
   }
   return list;
