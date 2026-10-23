@@ -60,6 +60,7 @@ const groundMat = new THREE.ShaderMaterial({
     varying vec4 vWa, vWb;
     varying float vLava;
     ${NOISE_GLSL}
+    ${TERRAIN_GLSL}
     ${SHADOW_PARS_GLSL}
     ${AMBIENT_GLSL}
     ${POINT_GLSL}
@@ -78,6 +79,7 @@ const groundMat = new THREE.ShaderMaterial({
       vec3 near = biomeSoil(vWa, vWb, soil, biomeGround(vWa, vWb, vec3(0.0), fine) / max(0.001, vWa.z + vWb.x + vWb.z + vWa.y + vWa.w + vWb.y + vWb.w));
       vec3 col = mix(near, far, smoothstep(8.0, 45.0, length(p - uCam.xz)));
       col = foliage(col);
+      col = mix(col, vec3(0.5, 0.41, 0.24) * (0.88 + fine * 0.24), beachK(p, vWorld.y)); // písek u moře a na dně
       vec3 n = normalize(vN);
       // břeh rybníka: pás tmavé mokré hlíny nad hladinou (okraj zvlněný šumem)
       float shore = 0.0;

@@ -70,6 +70,27 @@ function biomeHeight(h0, x, z, w) {
   return w[0] * h0 + w[1] * (h0 * 1.15 + 0.6) + w[2] * (h0 * 0.45 + dune) + w[3] * (h0 * 1.3 + Math.sin(x * 0.043 + 0.4) * Math.sin(z * 0.051 + 1.2) * 2.2)
     + w[4] * (h0 * 0.55 + 0.8) + w[5] * (h0 * 0.7 + 0.4) + w[6] * (h0 * 0.9 + cone) + w[7] * (h0 * 0.8 + 0.5);
 }
+// ============================================================ oceány
+// Dál než OCEAN_START od domovské svatyně jsou velká moře (pomalé vlny s vlnovou délkou kolem 1,5 km, stejný výpočet v JS i GLSL).
+// Dno klesá asi 9 m pod hladinu SEA, u břehu vzniknou písečné pláže; z moře tu a tam vystoupí ostrov.
+export const SEA = -2.5, OCEAN_START = 520;
+// Oceány má jen svět vytvořený s nimi (uloží se jako `oceans` ve světě, shared/world/save.js): starým světům by moře zatopilo
+// nebo podemlelo stavby, takže jejich terén zůstává přesně jako dřív. V grafice to samé říká uniform uOceans (glsl.js).
+export const WORLD_GEN = { oceans: false };
+/** Jak moc je bod v moři (0 = pevnina, 1 = otevřené moře). */
+export function oceanK(x, z) {
+  if (!WORLD_GEN.oceans || isMark(x)) return 0;
+  const ring = smoothstep(OCEAN_START, OCEAN_START + 260, shrineDist(x, z));
+  if (ring <= 0) return 0;
+  const n = Math.sin(x * 0.00071 + 0.7) * Math.cos(z * 0.00063 - 1.3) * 0.65 + Math.sin((x * 0.6 - z) * 0.00042 + 2.1) * 0.35;
+  return smoothstep(0.18, 0.44, n) * ring;
+}
+function oceanH(h, x, z, o) {
+  const isl = Math.max(0, Math.sin(x * 0.0047 + 1.0) * Math.sin(z * 0.0053 + 2.0) - 0.72) * 60; // ostrovy
+  return h + (SEA - 9 + h * 0.25 + isl - h) * o;
+}
+/** Pláž: písek u moře a na mořském dně (0–1). */
+export const beachK = (x, z, h) => Math.min(1, oceanK(x, z) * 5) * smoothstep(SEA + 2.6, SEA + 1.0, h);
 export function terrainH(x, z) {
   let h = Math.sin(x * 0.011 + 1.3) * Math.cos(z * 0.013 - 0.7) * 6.0
           + Math.sin(x * 0.027 + z * 0.018) * 2.4
@@ -78,6 +99,8 @@ export function terrainH(x, z) {
   if (isMark(x)) h = h * 1.6 + Math.sin(x * 0.0045 + z * 0.006) * 5.0;
   const w = biomeWeights(x, z);
   h = biomeHeight(h, x, z, w);
+  const o = oceanK(x, z);
+  if (o > 0) h = oceanH(h, x, z, o);
   return h * smoothstep(16, 70, shrineDist(x, z)) - pondDip(x, z) * (1 - w[6]); // v sopce rybníky nejsou
 }
 export const forest = (x, z) => 0.5 + 0.5 * (Math.sin(x * 0.0081 + 0.4) * Math.cos(z * 0.0093 + 1.1) * 0.75 + Math.sin(x * 0.023 - z * 0.017) * 0.3);

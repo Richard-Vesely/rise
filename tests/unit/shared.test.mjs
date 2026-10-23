@@ -68,3 +68,28 @@ test('every module in shared/ imports in Node (no DOM, no Three.js)', async () =
   for (const f of files) await import(pathToFileURL(f).href);
   assert.equal(typeof globalThis.document, 'undefined');
 });
+
+test('oceans: only in worlds created with them; seas with beaches far from home, water to swim in', async () => {
+  const { WORLD_GEN, oceanK, beachK, SEA, OCEAN_START } = await import('../../shared/world/terrain.js');
+  const { waterAt } = await import('../../shared/world/nature.js');
+  const { loadWorld, worldState } = await import('../../shared/world/save.js');
+  const before = terrainH(3000, -2500);
+  try {
+    WORLD_GEN.oceans = true;
+    assert.equal(oceanK(0, 0), 0, 'no sea near the home shrine');
+    assert.ok(terrainH(0, 0) === 0 && Math.abs(terrainH(100, -50) - 2.356246) < 1e-5, 'home area unchanged');
+    assert.ok(oceanK(740, 0) > 0.9 && terrainH(740, 0) < SEA - 5, 'open sea 740 m east of home');
+    assert.equal(waterAt(740, SEA - 1, 0), SEA, 'you can swim in it');
+    assert.equal(waterAt(740, SEA + 1, 0), null, '…but not above the surface');
+    assert.ok(beachK(740, 0, terrainH(740, 0)) > 0.9, 'the sea floor is sand');
+    let lo = 0, hi = 0;
+    for (let x = -4000; x <= 4000; x += 100) for (let z = -4000; z <= 4000; z += 100) { if (Math.hypot(x, z) < OCEAN_START) continue; if (terrainH(x, z) < SEA) lo++; else hi++; }
+    assert.ok(lo > 0.2 * (lo + hi) && hi > 0.4 * (lo + hi), `big seas and still mostly land (${lo} sea, ${hi} land)`);
+    loadWorld(null);
+    assert.equal(WORLD_GEN.oceans, true, 'a new world gets oceans');
+    assert.equal(worldState().oceans, true, 'and saves it');
+    loadWorld({});
+    assert.equal(WORLD_GEN.oceans, false, 'an old save without the flag keeps its old terrain');
+    assert.equal(terrainH(3000, -2500), before);
+  } finally { WORLD_GEN.oceans = false; }
+});

@@ -28,6 +28,7 @@ camera.rotation.order = 'YXZ';
 scene.add(camera);
 
 export const U = {
+  oceans: { value: 0 }, // svět s oceány (render/water.js podle WORLD_GEN.oceans)
   sunDir: { value: new THREE.Vector3(0, 1, 0) },
   sunColor: { value: new THREE.Vector3(1, 1, 1) },
   ambient: { value: new THREE.Vector3(0.4, 0.5, 0.7) },
@@ -53,7 +54,7 @@ export const U = {
 };
 export const shaderUniforms = (extra = {}) => ({
   ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
-  uSunDir: U.sunDir, uSunColor: U.sunColor, uAmbient: U.ambient, uTime: U.time, uCam: U.cam, uNight: U.night, uWet: U.wet, uWind: U.wind, uTwilight: U.twilight, uHeadPos: U.headPos, uHeadDir: U.headDir, uHeadOn: U.headOn,
+  uOceans: U.oceans, uSunDir: U.sunDir, uSunColor: U.sunColor, uAmbient: U.ambient, uTime: U.time, uCam: U.cam, uNight: U.night, uWet: U.wet, uWind: U.wind, uTwilight: U.twilight, uHeadPos: U.headPos, uHeadDir: U.headDir, uHeadOn: U.headOn,
   uShadowMap: U.shadowMap, uShadowMatrix: U.shadowMatrix, uShadowP: U.shadowP, uShadowStrength: U.shadowStrength, uSkyAmb: U.skyAmb, uGroundAmb: U.groundAmb, uSSS: U.sss, uFoliage: U.foliage, uPL: U.pl, uPLC: U.plColor,
   ...extra,
 });

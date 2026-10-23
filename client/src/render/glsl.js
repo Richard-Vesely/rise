@@ -1,7 +1,8 @@
 // Kousky shaderů: terén a biomy (dvojče JS vzorce v shared/world/terrain.js) a šum trávy.
-import { BIOME_START, MARK_CX, MARK_X, MUSH_CELL, MUSH_R, POND_CELL, VOLC_CELL, VOLC_R } from '../../../shared/world/terrain.js';
+import { BIOME_START, MARK_CX, MARK_X, MUSH_CELL, MUSH_R, OCEAN_START, POND_CELL, SEA, VOLC_CELL, VOLC_R } from '../../../shared/world/terrain.js';
 
 export const TERRAIN_GLSL = /* glsl */`
+  uniform float uOceans; // 1 = svět s oceány (WORLD_GEN.oceans, nastavuje render/water.js)
   float shrineDist(vec2 p) { return length(p - vec2(p.x > ${MARK_X.toFixed(1)} ? ${MARK_CX.toFixed(1)} : 0.0, 0.0)); }
   float hash2i(float fx, float fz) {
     uint h = (uint(int(fx)) * 374761393u) ^ (uint(int(fz)) * 668265263u);
@@ -45,6 +46,15 @@ export const TERRAIN_GLSL = /* glsl */`
     wb = vec4(tundra * k, hot * (1.0 - dry) * (1.0 - wet) * k, vol * ring, mus * ring);
     wa.x = 1.0 - wa.y - wa.z - wa.w - wb.x - wb.y - wb.z - wb.w;
   }
+  // oceány (dvojče oceanK / oceanH / beachK v shared/world/terrain.js)
+  float oceanK(vec2 p) {
+    if (uOceans < 0.5 || p.x > ${MARK_X.toFixed(1)}) return 0.0;
+    float ring = sst(${OCEAN_START.toFixed(1)}, ${(OCEAN_START + 260).toFixed(1)}, shrineDist(p));
+    if (ring <= 0.0) return 0.0;
+    float n = sin(p.x * 0.00071 + 0.7) * cos(p.y * 0.00063 - 1.3) * 0.65 + sin((p.x * 0.6 - p.y) * 0.00042 + 2.1) * 0.35;
+    return sst(0.18, 0.44, n) * ring;
+  }
+  float beachK(vec2 p, float h) { return min(1.0, oceanK(p) * 5.0) * sst(${(SEA + 2.6).toFixed(2)}, ${(SEA + 1.0).toFixed(2)}, h); }
   float terrainHW(vec2 p, vec4 wa, vec4 wb) {
     float h = sin(p.x * 0.011 + 1.3) * cos(p.y * 0.013 - 0.7) * 6.0
             + sin(p.x * 0.027 + p.y * 0.018) * 2.4
@@ -58,6 +68,11 @@ export const TERRAIN_GLSL = /* glsl */`
       float cone = vd < ${VOLC_R.toFixed(1)} ? 30.0 * pow(1.0 - vd / ${VOLC_R.toFixed(1)}, 1.8) - 14.0 * pow(max(0.0, 1.0 - vd / 18.0), 1.5) : 0.0;
       h = wa.x * h + wa.y * (h * 1.15 + 0.6) + wa.z * (h * 0.45 + dune) + wa.w * (h * 1.3 + sin(p.x * 0.043 + 0.4) * sin(p.y * 0.051 + 1.2) * 2.2)
         + wb.x * (h * 0.55 + 0.8) + wb.y * (h * 0.7 + 0.4) + wb.z * (h * 0.9 + cone) + wb.w * (h * 0.8 + 0.5);
+    }
+    float o = oceanK(p);
+    if (o > 0.0) {
+      float isl = max(0.0, sin(p.x * 0.0047 + 1.0) * sin(p.y * 0.0053 + 2.0) - 0.72) * 60.0;
+      h = h + (${(SEA - 9).toFixed(1)} + h * 0.25 + isl - h) * o;
     }
     return h * smoothstep(16.0, 70.0, shrineDist(p)) - pondDip(p) * (1.0 - wb.z);
   }

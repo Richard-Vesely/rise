@@ -100,6 +100,7 @@ function makeGrass(layer) {
         if (uFade.y > 0.0) keep *= smoothstep(uFade.x, uFade.y, dist);
         h *= step(fract(aExtra.x * 7.31), keep);
         h *= smoothstep(9.7, 10.4, shrineDist(wp));
+        h *= 1.0 - beachK(wp, terrainHW(wp, wa, wb)); // na pláži a pod mořem tráva neroste
         h *= 1.0 - smoothstep(0.3, 0.55, texture2D(uCut, wp / ${CUT_WORLD.toFixed(1)}).r); // posekaná tráva
         if (texture2D(uDig, (floor(wp) + 0.5) / ${DIG_N.toFixed(1)}).r > 0.5) h = 0.0;      // vykopaná díra
         if (uWet > 0.01) h *= 1.0 - smoothstep(0.66, 0.74, vnoise(wp * 0.13) * 0.75 + vnoise(wp * 1.7) * 0.3) * smoothstep(0.2, 0.6, uWet); // v louži tráva není

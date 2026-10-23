@@ -28,7 +28,7 @@ function makeRain() {
   geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 4));
   geo.instanceCount = n;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: U.time, uCam: U.cam, uWind: U.wind, uAmbient: U.ambient, uRain: { value: 0 } },
+    uniforms: { uOceans: U.oceans, uTime: U.time, uCam: U.cam, uWind: U.wind, uAmbient: U.ambient, uRain: { value: 0 } },
     // kapky zapisují hloubku: mlha v post-processingu je pak bere jako blízké (jinak by zmizely v mlze pozadí)
     transparent: true, depthWrite: true, fog: false,
     vertexShader: /* glsl */`
@@ -84,7 +84,7 @@ function makeSplashes() {
   geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 4));
   geo.instanceCount = n;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: U.time, uCam: U.cam, uAmbient: U.ambient, uRain: { value: 0 } },
+    uniforms: { uOceans: U.oceans, uTime: U.time, uCam: U.cam, uAmbient: U.ambient, uRain: { value: 0 } },
     transparent: true, depthWrite: false, fog: false,
     vertexShader: /* glsl */`
       uniform float uTime, uRain;

@@ -2,7 +2,7 @@
 import { hash2, smoothstep } from '../util.js';
 import { ROCK_CELL, SHARD_CELL, TREE_CELL } from './constants.js';
 import { removed } from './state.js';
-import { biomeAt, forest, isMark, pondDip, pondOf, shrineDist, terrainH, volcanoDist } from './terrain.js';
+import { SEA, biomeAt, forest, isMark, oceanK, pondDip, pondOf, shrineDist, terrainH, volcanoDist } from './terrain.js';
 
 // ============================================================ úlomky světla (generují se po celém světě)
 export function shardAt(cx, cz) {
@@ -34,7 +34,7 @@ export function treeAt(cx, cz) {
     if (r > TREE_DENSITY[bio]) return null;
     kind = bio === 'desert' ? (hash2(cx + 19, cz + 23) < 0.65 ? 'cactus' : 'deadbush') : TREE_OF_BIOME[bio];
   }
-  if (shrineDist(x, z) < 30 || pondDip(x, z) > 0) return null; // ne ve vodě
+  if (shrineDist(x, z) < 30 || pondDip(x, z) > 0 || atSea(x, z)) return null; // ne ve vodě ani na pláži
   if (bio === 'volcanic' && volcanoDist(x, z) < 22) return null; // ani v kráteru s lávou
   const sh = shardAt(Math.floor(x / SHARD_CELL), Math.floor(z / SHARD_CELL));
   if (sh && (sh.x - x) ** 2 + (sh.z - z) ** 2 < 40) return null;
@@ -46,7 +46,7 @@ export function rockAt(cx, cz) {
   const key = `r${cx},${cz}`;
   const r = hash2(cx + 5000, cz - 3000);
   const x = (cx + hash2(cx, cz + 99) * 0.8) * ROCK_CELL, z = (cz + hash2(cx + 99, cz) * 0.8) * ROCK_CELL;
-  if (removed.has(key) || r > (forest(x, z) < 0.45 ? 0.12 : 0.06) || shrineDist(x, z) < 20 || pondDip(x, z) > 0) return null;
+  if (removed.has(key) || r > (forest(x, z) < 0.45 ? 0.12 : 0.06) || shrineDist(x, z) < 20 || pondDip(x, z) > 0 || atSea(x, z)) return null;
   const iron = hash2(cx - 7, cz + 13) < 0.16;
   const s = (iron ? 0.6 : 0.35) + hash2(cx + 1, cz + 2) ** 2 * 1.3;
   return { key, x, z, s, iron, r };
@@ -78,8 +78,11 @@ export const pondLevel = (p) => {
   }
   return p.level;
 };
-// Je v bodě voda? Vrací výšku hladiny, nebo null.
+// Moře nebo pláž (stromy a balvany tu nerostou)
+const atSea = (x, z) => oceanK(x, z) > 0.03 && terrainH(x, z) < SEA + 1.2;
+// Je v bodě voda? Vrací výšku hladiny, nebo null (rybník nebo moře).
 export function waterAt(x, y, z) {
+  if (y <= SEA + 0.05 && oceanK(x, z) > 0.02 && terrainH(x, z) < SEA) return SEA;
   const p = pondOf(x, z);
   if (!p || shrineDist(p.x, p.z) < 90 || Math.hypot(x - p.x, z - p.z) > p.r) return null;
   const lv = pondLevel(p);
