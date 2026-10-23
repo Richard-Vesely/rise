@@ -167,6 +167,10 @@ When you add or change a feature, update this file in the same pull request.
   (hand to the mouth, crumbs fly), flying (legs back, jets glow and spark), sitting, a short squash when landing,
   red flash when hurt; capes, coat flaps and the halo move on their own. Sneaking is supported by the model (pose
   `sn`) but has no key yet.
+- **Items in hand in the Hytale style** (graphic update): every model in the hand (also in other players' hands) has a dark
+  outline (inverted hull); tool heads and the sword blade are thicker, grips have leather wraps; the *Rybářský prut* is a 3D rod
+  (cork grip, reel, guides) and the *Motyka* a 3D hoe; other items are thick voxels from the icon with a dark outline.
+  Code: `client/src/render/held-models.js`.
 - **First-person hand**: a gloved suit sleeve (your colours, glowing cuff) holds the item. It sways with your steps,
   lags a little behind fast turns, dips and comes back up when you switch items, jolts when you get hurt, and swings
   with the same tool arcs.
