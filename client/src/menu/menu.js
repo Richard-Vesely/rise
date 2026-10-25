@@ -260,7 +260,11 @@ function profileDenied(reason, info, creds) {
 function joinServer(pass, world, creds) {
   const url = club.url;
   let ws;
-  try { ws = new WebSocket(url); } catch { fail(OFFLINE); return; }
+  // ?world=id: server na Cloudflare podle toho pošle spojení rovnou do Durable Objectu světa (cloudflare/router.js);
+  // Node server adresu nečte, svět bere z hello.
+  const target = new URL(url);
+  if (world) target.searchParams.set('world', world);
+  try { ws = new WebSocket(target.href); } catch { fail(OFFLINE); return; }
   let done = false;
   const stop = () => { done = true; clearTimeout(timer); ws.onclose = null; try { ws.close(); } catch {} };
   const end = (text, page) => { if (done) return; stop(); fail(text, page); };

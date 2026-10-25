@@ -67,6 +67,21 @@ test('profiles: create, log in with PIN or token, wrong PIN, throttle, reset', (
   assert.match(backups[0], /^players-\d{4}-\d{2}-\d{2}\.json$/); // (dnešní datum; dřív tu bylo pevné datum, které po půlnoci selhalo)
 });
 
+test('profiles without a file: loaded from `data`, saved through `store` (the Cloudflare Durable Object)', () => {
+  const saved = [];
+  const P = createProfiles(null, { store: (d) => saved.push(JSON.parse(JSON.stringify(d))) });
+  const a = P.login({ name: 'Bára', pin: '4826' });
+  assert.ok(a.ok && a.created);
+  assert.equal(saved.length, 1, 'every change goes to store');
+  assert.equal(saved[0].version, 1);
+  assert.equal(saved[0].players[0].name, 'Bára');
+  assert.ok(!JSON.stringify(saved).includes('4826'), 'the PIN itself is never stored');
+  const Q = createProfiles(null, { data: saved.at(-1), store: () => {} });
+  assert.ok(Q.login({ name: 'bára', pin: '4826' }).ok, 'the same PIN works after loading from data');
+  assert.ok(Q.login({ name: 'Bára', token: a.token }).ok, 'and the remembered token too');
+  assert.equal(Q.login({ name: 'Bára', pin: '0000' }).reason, 'pin');
+});
+
 test('player state: shape, size and known items are checked', () => {
   const ok = cleanMe(meState({ 0: { id: 'stone', n: 5 }, 1: { id: 'doc_h-3-ab12', n: 1 }, 2: { id: 'zmizely_predmet', n: 2 } }));
   assert.deepEqual(ok.inv.slice(0, 3), [{ id: 'stone', n: 5 }, { id: 'doc_h-3-ab12', n: 1 }, null], 'known items and documents stay, unknown ones are dropped');

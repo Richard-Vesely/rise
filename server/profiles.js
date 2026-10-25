@@ -39,24 +39,25 @@ const same = (a, b) => typeof a === 'string' && typeof b === 'string' && a.lengt
  */
 
 /**
- * Úložiště profilů. Bez souboru (file = null) jen v paměti (testy).
+ * Úložiště profilů. Bez souboru (file = null) jen v paměti (testy), nebo jinde přes `data` + `store`
+ * (Cloudflare: Durable Object, cloudflare/router.js).
  * @param {string|null} file cesta k players.json
- * @param {{ log?: (msg: string) => void, now?: () => number }} [o]
+ * @param {{ log?: (msg: string) => void, now?: () => number, data?: { players?: Profile[] } | null, store?: (data: object) => void }} [o]
+ *   data = obsah players.json načtený jinde (místo souboru), store = kam ho uložit (místo souboru)
  */
-export function createProfiles(file, { log = () => {}, now = Date.now } = {}) {
+export function createProfiles(file, { log = () => {}, now = Date.now, data = null, store = null } = {}) {
   /** @type {Map<string, Profile>} */
   const byId = new Map();
   /** @type {Map<string, Profile>} */
   const byName = new Map();
   const fails = new Map(); // jméno|adresa -> { n, until }
-  if (file && fs.existsSync(file)) {
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    for (const p of data.players || []) { byId.set(p.id, p); byName.set(nameKey(p.name), p); }
-  }
+  if (!data && file && fs.existsSync(file)) data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const p of data?.players || []) { byId.set(p.id, p); byName.set(nameKey(p.name), p); }
   const iso = () => new Date(now()).toISOString();
   const save = () => {
-    if (!file) return;
-    try { writeJSON(file, { version: 1, savedAt: iso(), players: [...byId.values()] }, 'players'); } catch (e) { log('Uložení profilů selhalo: ' + e.message); }
+    if (!file && !store) return;
+    const out = { version: 1, savedAt: iso(), players: [...byId.values()] };
+    try { if (store) store(out); else writeJSON(file, out, 'players'); } catch (e) { log('Uložení profilů selhalo: ' + e.message); }
   };
   const newToken = (p) => {
     const t = crypto.randomBytes(24).toString('base64url');

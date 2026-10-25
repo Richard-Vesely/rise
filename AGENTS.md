@@ -34,6 +34,7 @@ shared/               game rules and data, no DOM, no Three.js: runs in the brow
 server/               Node.js server: the same rules + WebSocket + saving to disk
 tests/                unit tests (node:test) and play-tests in a real browser (Playwright)
 deploy/               VPS setup (systemd + Caddy)
+cloudflare/           experiment: the club server on Cloudflare Workers + Durable Objects (cloudflare/README.md); not deployed
 docs/                 features, plan, hosting, known issues, message for the kids
 legacy/index.html     Marek's original single file (reference only, do not edit)
 ```
@@ -117,7 +118,8 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   itself (`vehicles` small map: colour, fuel, `mods` from the garage, `gear`, sail `thr`/`boom`) syncs like other small maps.
 - Ops: `['m', 'blocks'|'blockMeta', key, value|null]`, `['s', 'removed'|'ruinsOpened', key]`, `['r', structure]`, `['v', x, y, z, id]`,
   `['c', x, z, r]` grass cut, `['p']` portal, `['g', gid, id, n, pos, vel, delay, w?]` dropped item (w = tool wear, only for worn tools), `['gx', gid, n]`.
-- WebSocket only (Node server, `server/server.js`): the client first sends `['hello', { name, pass, v: 2, world, pin | token }]`.
+- WebSocket only (Node server, `server/server.js`): the client connects to `/ws?world=<id>` (the Node server ignores the
+  query; the Cloudflare router uses it to pick the world) and first sends `['hello', { name, pass, v: 2, world, pin | token }]`.
   A wrong password gets `['denied', 'password']`. A known `world` id joins that world. A new client (`v: 2`) without
   a world or with an unknown one, on a server with several worlds, gets `['worlds', [{ id, name, creative, players, max }…]]`
   and can send `hello` again with a chosen `world`. An old client (no `v`) and every client on a

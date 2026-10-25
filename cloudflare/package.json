@@ -1,0 +1,16 @@
+{
+  "name": "rise-cloudflare",
+  "private": true,
+  "type": "module",
+  "description": "Říše na Cloudflare (Workers + Durable Objects): router + jeden Worker na svět. Zatím jen pokus, nic se nenasazuje.",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "gen": "node gen-config.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "test:browser": "node test/browser.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "4.150.0",
+    "ws": "8.22.0"
+  }
+}
