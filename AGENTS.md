@@ -103,11 +103,11 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
   `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking; the host passes the pose on unchanged), `['pk', gid]` pick up,
   `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (only in a
-  `pvp` world: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
-  `['dmg', dmg × 2.5, dx, dz]`; `hitPlayer` in `shared/net/room.js`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
+  `pvp` or `pvp-mark` world: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
+  `['dmg', dmg × 2.5, dx, dz]`; in a `pvp-mark` world the host also needs attacker and target in Markova dimenze, `isMark(x)`; `hitPlayer` in `shared/net/room.js`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
 - Host → client: `['welcome', { pid, name, perm, world, spawn, max }]`, `['full']`, `['join'|'leave', name]`, `['ops', ops]`,
   `['kv', changes]` (2×/s), `['pl', [[pid, name, pose, perm]…]]` (12×/s), `['mobs', dayTime, day, [[nid, type, x, y, z, ry, hp, flash, dead, eggs, milk]…]]` (5×/s),
-  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`), `['gift', docId, from]`,
+  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`; in a `pvp-mark` world only `kill` with a killer, no `score`), `['gift', docId, from]`,
   `['kick', reason?]` (the browser host sends no reason; the Node server sends `['kick', 'Přihlásil ses jinde.']` when the same player logs in again in that world).
 - **Vehicles in the pose** (the host passes it on unchanged, `client/src/vehicles/car.js` `vehPose`): the driver sends
   `veh: { id, x, y, z, yaw, pitch, roll, spd, steer, thr, lights }` (or `null`) with optional `bm` (sailboat boom angle),
@@ -123,7 +123,8 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   and can send `hello` again with a chosen `world`. An old client (no `v`) and every client on a
   one-world server join the first world. The welcome then also has `worldInfo: { id, name, creative, first }`
   (added by `server/world-worker.js`; the browser host doesn't send it). It also has `pvp` (players can hurt each other,
-  world option `:pvp` in `WORLDS`; the client sets `NET.pvp` from it). `GET /worlds` entries have `pvp` too. `GET /worlds` returns the same list over HTTP
+  world option `:pvp` in `WORLDS`; the client sets `NET.pvp` from it) and `pvpMark` (fights only in Markova dimenze, no arena,
+  option `:pvp-mark`; `NET.pvpMark`). `GET /worlds` entries have `pvp` and `pvpMark` too. `GET /worlds` returns the same list over HTTP
   (no password, `Access-Control-Allow-Origin: *`): the main menu shows a button per world from it and sends the
   chosen `world` in the first `hello` (the password comes from `localStorage` `rise-heslo`, per server address).
 - **Player profiles** (Node server only, `server/profiles.js`): after the password and the world, the hello must carry the
@@ -178,7 +179,7 @@ npm run dev                     # the game: open http://localhost:5173 (Hrát s�
 npm test                        # unit tests + the Node server over WebSocket (fast)
 npm run build                   # build into dist/
 npm run playtest                # single player in a real browser (70+ checks), inventory tricks (28), vehicles (18); needs the build
-npm run test:server             # Node server + 2 browsers: join, edits, mobs, pickup, chat, restart; then player profiles (name + PIN, backpack on the server, admin page); then a pvp world (sword and arrow hits)
+npm run test:server             # Node server + 2 browsers: join, edits, mobs, pickup, chat, restart; then player profiles (name + PIN, backpack on the server, admin page); then a pvp world (sword and arrow hits) and a pvp-mark world (hits only in Markova dimenze)
 npm run test:worlds             # Node server with 2 worlds + 2 browsers: world buttons, password once, isolation, creative, saves per world
 npm run test:peer               # browser host + browser client over PeerJS (needs internet)
 npm start                       # the server on http://localhost:8787 (serves dist/)

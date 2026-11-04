@@ -484,6 +484,12 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   sword 15, full arrow 25 of 100 hp; armor protects as against mobs). The host checks every hit: reach 7 m (arrows 90 m),
   0.45 s invulnerability after a hit, no hits on or by dead players or players in creative mode. Other worlds have no fights.
   *Kód:* rules `hitPlayer` in `shared/net/room.js`, the player's side `client/src/player/pvp.js`.
+- **Fights only in Markova dimenze** (a world with the `:pvp-mark` option, e.g. `svet:Hlavní svět:pvp-mark`): the same fights,
+  but only when both players are in Markova dimenze (behind the portal, `isMark(x)`); everywhere else the other player is no
+  target and the host ignores the hit. It stays a normal world: no arena, no kit, your own backpack, normal respawn at the
+  shrine, no score table. A knock-out by a player still gets the feed line (*⚔ Ája vyřadil(a) hráče Bára*); a death without a
+  player hit is not announced. The world button says *Přežij a stav spolu, v Markově dimenzi se bojuje*.
+  *Kód:* the same files; the check is in `hitPlayer` (host) and `pvpPlayers` (player).
 - **Arena** (every `:pvp` world): the server builds it once when the world starts, 40 m west of the shrine: a round brick floor
   (radius 13) with a 4-block wall, 8 cover pillars and torches; trees and boulders inside are gone. Joining and every respawn
   put you on a free spot in the arena with the kit (iron sword, bow, 32 arrows, 32 planks, 8 meat, full iron armor) and full
