@@ -1,11 +1,12 @@
 // Terén a biomy: výška povrchu v každém bodě světa (stejný vzorec je v GLSL v client/src/render/glsl.js).
 import { hash2, smoothstep } from '../util.js';
+import { DRAGON_SHRINE, DRAGON_X, dragonHeight, isDragon } from './dragon-land.js';
 
 // Markova dimenze leží daleko na východě světa (x > MARK_X), její svatyně je v bodě (MARK_CX, 0).
 export const MARK_X = 20000, MARK_CX = 40000;
 export const isMark = (x) => x > MARK_X;
 export const SHRINES = [{ x: 0, z: 0, mark: false }, { x: MARK_CX, z: 0, mark: true }];
-export const shrineOf = (x) => SHRINES[isMark(x) ? 1 : 0];
+export const shrineOf = (x) => isDragon(x) ? DRAGON_SHRINE : SHRINES[isMark(x) ? 1 : 0];
 export const shrineDist = (x, z) => { const s = shrineOf(x); return Math.hypot(x - s.x, z - s.z); };
 
 // Terén: stejný vzorec v JavaScriptu (fyzika) i v GLSL (vykreslení). Markova dimenze má divočejší kopce.
@@ -13,6 +14,7 @@ export const shrineDist = (x, z) => { const s = shrineOf(x); return Math.hypot(x
 export const POND_CELL = 130;
 // Malý rybník v buňce (nebo null). Uvnitř jezera a na jeho břehu rybníky nejsou.
 function smallPondOf(x, z) {
+  if (isDragon(x)) return null;
   const cx = Math.floor(x / POND_CELL), cz = Math.floor(z / POND_CELL);
   if (hash2(cx + 31, cz + 913) >= 0.45) return null;
   const p = {
@@ -48,7 +50,7 @@ export function regionOf(x, z, cell, salt, chance) {
   if (hash2(cx + salt, cz - salt * 3) >= chance) return null;
   return { x: (cx + 0.3 + 0.4 * hash2(cx + salt + 1, cz + 7)) * cell, z: (cz + 0.3 + 0.4 * hash2(cx + 7, cz + salt + 1)) * cell };
 }
-export const volcanoOf = (x, z) => (isMark(x) ? null : regionOf(x, z, VOLC_CELL, 71, 0.5));
+export const volcanoOf = (x, z) => (isMark(x) || isDragon(x) ? null : regionOf(x, z, VOLC_CELL, 71, 0.5));
 export const volcanoDist = (x, z) => { const v = volcanoOf(x, z); return v ? Math.hypot(x - v.x, z - v.z) : 1e9; };
 const mushDist = (x, z) => { const v = isMark(x) ? null : regionOf(x, z, MUSH_CELL, 43, 0.45); return v ? Math.hypot(x - v.x, z - v.z) : 1e9; };
 // Váhy biomů v bodě (součet = 1), pořadí jako BIOMES
@@ -56,6 +58,7 @@ const BW = [1, 0, 0, 0, 0, 0, 0, 0];
 export function biomeWeights(x, z, w = BW) {
   w.fill(0);
   w[0] = 1;
+  if (isDragon(x)) { w[0] = 0; w[6] = 1; return w; }
   if (isMark(x)) return w;
   const ring = smoothstep(BIOME_START, BIOME_START + BIOME_BLEND, shrineDist(x, z));
   if (ring <= 0) return w;
@@ -93,6 +96,7 @@ function baseH(x, z, w) {
   return h * smoothstep(16, 70, shrineDist(x, z));
 }
 export function terrainH(x, z) {
+  if (isDragon(x)) return dragonHeight(x, z);
   const w = biomeWeights(x, z);
   const h = baseH(x, z, w) - pondDip(x, z) * (1 - w[6]); // v sopce rybníky nejsou
   const L = lakeOf(x, z);
@@ -108,6 +112,7 @@ export function terrainH(x, z) {
 export const LAKE_CELL = 1000, LAKE_MIN = 500, LAKE_EDGE = 1.45;
 const lakes = new Map();
 export function lakeOf(x, z) {
+  if (isDragon(x)) return null;
   const cx = Math.floor(x / LAKE_CELL), cz = Math.floor(z / LAKE_CELL), key = `l${cx},${cz}`;
   let L = lakes.get(key);
   if (L !== undefined) return L;
@@ -115,7 +120,7 @@ export function lakeOf(x, z) {
   if (hash2(cx + 57, cz + 311) < 0.42) {
     const lx = (cx + 0.25 + 0.5 * hash2(cx + 61, cz + 5)) * LAKE_CELL, lz = (cz + 0.25 + 0.5 * hash2(cx + 5, cz + 61)) * LAKE_CELL;
     const r = 50 + 70 * hash2(cx + 8, cz + 8), e = r * LAKE_EDGE;
-    if (lx + e < MARK_X && Math.hypot(lx, lz) > LAKE_MIN + e && volcanoDist(lx, lz) > VOLC_R * 1.7 + e) {
+    if (lx - e > DRAGON_X && lx + e < MARK_X && Math.hypot(lx, lz) > LAKE_MIN + e && volcanoDist(lx, lz) > VOLC_R * 1.7 + e) {
       const hc = baseH(lx, lz, biomeWeights(lx, lz));
       L = { key, cx, cz, x: lx, z: lz, r, depth: 6 + 2 * hash2(cx + 9, cz + 3), hc, level: hc - 0.12, lake: true };
     }

@@ -98,6 +98,11 @@ When you add or change a feature, update this file in the same pull request.
 - **Light shards** (*Úlomky světla*): glowing crystals with a light beam, scattered far apart. Walk into one to collect it.
 - **Shrine** (*Svatyně*) at the start. Bring **3 shards** and right-click the portal to wake it (*Svatyně se probudila!*).
   The portal leads to the **Mark dimension** (*Markova dimenze*): purple sky, markwood, markorite, markomen, golems.
+- **Země draka**: a second, always-open amber portal 16 m east of the home shrine. It leads to a rocky western
+  dimension (x < −20000, return portal at −40000, 0), with warm fog and a torch-marked path to a large basalt cave
+  72 m north of the return portal. Walk through the return portal to go home; dying here revives you by that portal.
+  The original Mark portal still works independently. The cave uses ordinary saved blocks; no new save format.
+  Code: `shared/world/dragon-land.js`, `dragon-den.js`, terrain + GLSL twin, `client/src/world/dragon-portal.js`, `shrine.js`.
 - **Structures** with chests and loot: ruins, Markoman fortress, watchtower, abandoned camp, dungeon (underground,
   with a spawner), desert pyramid, jungle temple, igloo, cherry pavilion, savanna hut, mushroom house, obsidian altar.
   The compass shows the nearest unexplored one.
@@ -324,6 +329,13 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Stínožrout (shadow-eater) | 10 | night monster, burns at sunrise, avoids light and the shrine; violet veins and a moonlit rim show its outline at night |
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
+| Drak Země draka | 300 | guards the dragon cave; bites for 65 before armor, with 0.35 s warning and 1.15 s between attacks; flies after players at 8.5 m/s up to 140 m from the cave and does not despawn when far away |
+
+The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
+It does not attack creative players or bite through walls. Defeating it awards 8 light shards, 6 gold ingots and
+3 markorite, and marks its cave cleared in the existing `ruinsOpened` set: it stays defeated after saving and reloading.
+Leaving an undefeated dragon and returning can restore its health, as for other monsters.
+Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`.
 
 Monsters stay away from the shrine; light blocks keep shadow-eaters away.
 
