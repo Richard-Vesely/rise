@@ -22,7 +22,7 @@ const WORKER = new URL('./world-worker.js', import.meta.url);
  * @param {string|null} [o.dataDir] kam ukládat světy: dataDir/<id>/world.json (null = neukládat)
  * @param {string|null} [o.staticDir] složka se sestavenou hrou (dist/)
  * @param {number} [o.maxPlayers] kolik hráčů najednou v jednom světě
- * @param {{ id: string, name: string, creative: boolean, pvp?: boolean }[]} [o.worlds] světy (výchozí: jeden "Hlavní svět")
+ * @param {{ id: string, name: string, creative: boolean, pvp?: boolean, pvpMark?: boolean }[]} [o.worlds] světy (výchozí: jeden "Hlavní svět")
  * @param {boolean} [o.allowCreative] kreativní režim pro výchozí svět (když není `worlds`)
  * @param {number} [o.tickHz] kolikrát za sekundu běží svět
  * @param {number} [o.saveEveryMs] jak často ukládat (výchozí 30 s)
@@ -30,7 +30,7 @@ const WORKER = new URL('./world-worker.js', import.meta.url);
  * @param {number} [o.silentMs] po jak dlouhém tichu se spojení zavře (výchozí 30 s)
  */
 export async function startServer({ port = 8787, password = '', dataDir = null, staticDir = null, maxPlayers = 8, worlds, allowCreative = false, tickHz = 20, saveEveryMs = 30_000, adminPassword = '', silentMs = 30_000, log = console.log } = {}) {
-  worlds ||= [{ id: 'svet', name: 'Hlavní svět', creative: allowCreative, pvp: false }];
+  worlds ||= [{ id: 'svet', name: 'Hlavní svět', creative: allowCreative, pvp: false, pvpMark: false }];
   if (dataDir) migrateOldLayout(dataDir, worlds[0].id, log);
   const profiles = createProfiles(profilesFile(dataDir), { log });
   const started = Date.now();
@@ -41,7 +41,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   // ---------- vlákna světů
   function startWorld(w) {
     return new Promise((ok, fail) => {
-      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs } });
+      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs } });
       w.worker = worker;
       worker.on('message', (m) => {
         switch (m.t) {
@@ -49,7 +49,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
           case 'close': w.sockets.get(m.cid)?.close(); break;
           case 'stats': w.stats = m; w.players = m.players; break;
           case 'log': log(`[${w.id}] ${m.text}`); break;
-          case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
+          case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : w.pvpMark ? ' (souboje hráčů v Markově dimenzi)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
           case 'stopped': w.onStopped?.(); break;
         }
       });
@@ -68,7 +68,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   await Promise.all(W.map(startWorld));
 
   // ---------- /health a /worlds
-  const list = () => W.map((w) => ({ id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, players: w.players, max: maxPlayers }));
+  const list = () => W.map((w) => ({ id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, players: w.players, max: maxPlayers }));
   const round = (v) => Math.round(v * 100) / 100;
   const health = () => {
     const mem = process.memoryUsage();
