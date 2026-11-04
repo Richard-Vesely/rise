@@ -484,6 +484,35 @@ try {
   });
   check('sound: engine starts with ambience and music', r.ctx && r.beds >= 0 && (r.music === 'wait' || r.music === 'play'), JSON.stringify(r));
   check('sound: every footstep material is audible and nothing clips', r.quiet > 0.01 && r.loud < 0.95, JSON.stringify(r));
+  r = await ev(async () => {
+    const S = window.game.Sound, samples = [];
+    for (const material of ['grass', 'stone', 'sand', 'water']) samples.push(await S.offline(0.8, s => s.jump(material)));
+    samples.push(await S.offline(0.8, s => s.waterExit()));
+    samples.push(await S.offline(0.8, s => s.swim()));
+    return { quiet: Math.min(...samples.map(s => s.peak)), loud: Math.max(...samples.map(s => s.peak)) };
+  });
+  check('sound: jumping, leaving water and swimming are audible without clipping', r.quiet > 0.005 && r.loud < 0.95, JSON.stringify(r));
+  r = await ev(() => {
+    const g = window.game, S = g.Sound, saved = { jump: S.jump, swim: S.swim, creative: g.creative };
+    let jumps = 0, strokes = 0;
+    S.jump = () => { jumps++; }; S.swim = () => { strokes++; };
+    try {
+      g.keys.clear(); g.setCreative(false); g.player.flyT = 0;
+      T.tpg(6, 70); T.step(4);
+      g.keys.add('Space'); T.step(1); g.keys.delete('Space'); T.step(2);
+      const airborne = !g.player.onGround && g.player.vel.y > 0;
+      const lake = g.nearestLake(6, 70), level = g.pondLevel(lake);
+      T.tp(lake.x, lake.z, level - 1.3); g.player.onGround = false;
+      g.keys.add('KeyW'); T.step(60, 0.025); g.keys.delete('KeyW');
+      const active = strokes;
+      T.step(40, 0.025);
+      return { jumps, airborne, active, idle: strokes - active };
+    } finally {
+      S.jump = saved.jump; S.swim = saved.swim; g.keys.clear();
+      g.setCreative(saved.creative); T.tpg(6, 70); T.step(2);
+    }
+  });
+  check('sound: an actual jump plays once, active swimming strokes and idle water stays quiet', r.jumps === 1 && r.airborne && r.active >= 1 && r.idle === 0, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game, S = g.Sound; T.clearInv(); T.give('planks', 2); T.hold('planks');
     T.tpg(6, 70); T.step(3);

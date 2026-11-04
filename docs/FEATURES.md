@@ -507,7 +507,10 @@ A gentle compressor keeps the mix from clipping.
 - **Footsteps by material** in the rhythm of the walk (heel + toe on hard floors): grass, leaves and crops, dirt, sand
   (grainy), snow (crunch and squeak), wood (hollow knock), stone, metal and machines (ringing), glass, crystal (chime) and
   shallow water (splash). Running steps are louder. **Landing** after a fall thumps, louder the higher the fall.
-  **Water:** jumping or running in splashes, wading deep makes swimming strokes, and with the head under water everything
+  **Jumping** adds a soft material-specific push-off and a short whoosh, once per actual jump.
+  **Water:** entering slowly makes a small splash (a fast fall makes a larger one), leaving water drips from wet boots.
+  Active swimming makes regular strokes even when the feet do not touch the bottom; waiting or flying stays quiet.
+  Loading a save in water and long-distance teleports do not trigger entry/exit splashes. With the head under water everything
   is muffled (low-pass) with bubbles.
 - **Mining, breaking and placing by material**: each hit of the hold-to-break sounds like the block (quieter and lower than
   the final break, plus a pickaxe clink on stone and ores), the break crumbles (glass shatters, crystal rings), placing knocks.
@@ -539,7 +542,7 @@ A gentle compressor keeps the mix from clipping.
 (material and game sound recipes), `voices.js` (animals, birds, insects, thunder), `materials.js` (which material is
 under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hums.js` (machines and fires), `music.js`,
 `soundscape.js` (senses the surroundings each frame, other players, remote edits), `ui-sounds.js` (window sounds),
-`volume.js` (slider values). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
+`volume.js` (slider values), `movement.js` (water entry/exit and swimming cadence). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
 
 ## 12. Controls (summary)
 WASD move · Shift run · Space jump · mouse look · left button mine/attack · right button place/use/eat ·
