@@ -1,5 +1,6 @@
 // Luk: držením pravého tlačítka se natahuje, puštěním vystřelí šíp. Šíp letí obloukem (gravitace),
-// zraní tvora, do kterého narazí (stejná zpráva 'hit' jako úder mečem), a zabodne se do země nebo do bloku,
+// zraní tvora, do kterého narazí (stejná zpráva 'hit' jako úder mečem), ve světě se souboji i hráče (pvp.js),
+// a zabodne se do země nebo do bloku,
 // kde z něj zbude šíp na zemi (jde sebrat). Šípy vidí jen ten, kdo střílí. Bez vedlejších účinků při načtení.
 import { BLOCKS, ITEMS } from '../../../shared/data/index.js';
 import { mobs } from '../../../shared/sim/mobs.js';
@@ -13,6 +14,7 @@ import { sparks } from '../render/particles.js';
 import { camera, scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
+import { hitPlayer, playerOn } from './pvp.js';
 import { countItem, heldStack, removeItem } from './inventory.js';
 import { creative, input, player } from './player.js';
 
@@ -98,9 +100,9 @@ export function updateArrows(dt) {
       const h = dt / steps, from = a.pos.clone();
       a.vel.y -= GRAVITY * h;
       a.pos.addScaledVector(a.vel, h);
-      const m = mobOn(from, a.pos);
-      if (m) {
-        hitMob(m, a.dmg, Math.atan2(-a.vel.x, -a.vel.z), 0.6, { charge: Math.min(1, a.dmg / 6) });
+      const m = mobOn(from, a.pos), pl = !m && playerOn(from, a.pos), yaw = Math.atan2(-a.vel.x, -a.vel.z), charge = Math.min(1, a.dmg / 6);
+      if (m || pl) {
+        if (m) hitMob(m, a.dmg, yaw, 0.6, { charge }); else hitPlayer(pl, a.dmg, yaw, 0.6, true, charge);
         remove(i);
         break;
       }

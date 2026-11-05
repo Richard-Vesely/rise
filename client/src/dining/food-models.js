@@ -3,7 +3,7 @@ import './dine-view.js'; // pořadí spouštění: nejdřív předchozí modul (
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import * as THREE from 'three';
 import { clamp, hash2, lerp, smoothstep } from '../../../shared/util.js';
-import { ICONS } from '../render/icons.js';
+import { ICONS, iconCanvas } from '../render/icons.js';
 import { DINE_BITES, ceramicMat, foodColor, foodG, part } from './dine-view.js';
 
 // ============================================================ realistické 3D modely jídel
@@ -525,7 +525,7 @@ export function iconVoxels(id, px = 0.02) {
   if (!data) {
     let src = ICONS[id].canvas;
     if (src.width !== 16) { // větší ikona (3D ikona bloku): zmenšit na 16×16
-      const c = document.createElement('canvas');
+      const c = iconCanvas();
       c.width = c.height = 16;
       c.getContext('2d').drawImage(src, 0, 0, 16, 16);
       src = c;

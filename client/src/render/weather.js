@@ -3,7 +3,7 @@
 // Modul nemá vedlejší účinky při načtení: modely vytvoří initWeather() ze smyčky hry.
 import * as THREE from 'three';
 import { dayCount, dayTime } from '../../../shared/sim/day.js';
-import { weatherAt } from '../../../shared/sim/weather.js';
+import { weatherAt, windAt } from '../../../shared/sim/weather.js';
 import { Sound } from '../audio/sound.js';
 import { toast } from '../ui/hud.js';
 import { TERRAIN_GLSL } from './glsl.js';
@@ -29,17 +29,18 @@ function makeRain() {
   geo.instanceCount = n;
   const mat = new THREE.ShaderMaterial({
     uniforms: { uTime: U.time, uCam: U.cam, uWind: U.wind, uAmbient: U.ambient, uRain: { value: 0 } },
-    // kapky zapisují hloubku: mlha v post-processingu je pak bere jako blízké (jinak by zmizely v mlze pozadí)
-    transparent: true, depthWrite: true, fog: false,
+    // kapky nezapisují hloubku: jinak by mlha v post-processingu za každou kapkou zmizela a v dálce by visely
+    // ostré tmavé „tyčky“ (pozadí bez oparu)
+    transparent: true, depthWrite: false, fog: false,
     vertexShader: /* glsl */`
       uniform float uTime, uRain;
       uniform vec3 uCam;
       uniform vec4 uWind;
       attribute vec4 aSeed;
-      varying float vA, vT;
+      varying float vA, vT, vX;
       ${TERRAIN_GLSL}
       void main() {
-        vA = 0.0; vT = position.y;
+        vA = 0.0; vT = position.y; vX = position.x * 2.0;
         if (aSeed.w > uRain) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; } // slabý déšť = méně kapek
         float R = ${RAIN_R.toFixed(1)}, H = ${RAIN_H.toFixed(1)};
         vec2 off = aSeed.xy * 2.0 * R;
@@ -51,21 +52,24 @@ function makeRain() {
         vec3 base = vec3(wp.x, y, wp.y);
         vec3 dropDir = -vel;
         float dist = distance(base, uCam);
-        // čárka natočená ke kameře (do strany podle osy kamery), široká aspoň pár pixelů i v dálce
+        // tenká krátká čárka natočená ke kameře: šířka asi pixel (v dálce se místo rozšiřování zprůhlední),
+        // délka jako rozmazání pohybem; vzdálené kapky slábnou dřív, ať nevisí v dálce jako tyčky
         vec3 camRight = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
-        float streak = (0.8 + aSeed.y * 0.5) * (1.0 + dist * 0.03);
-        vec3 p = base + camRight * position.x * (0.012 + dist * 0.0032) + dropDir * position.y * streak;
-        vA = (1.0 - smoothstep(6.0, ${RAIN_R.toFixed(1)}, dist)) * smoothstep(0.4, 1.6, dist);
+        float streak = (0.32 + aSeed.y * 0.3) * (1.0 + dist * 0.018);
+        float w = 0.005 + dist * 0.0011;
+        vec3 p = base + camRight * position.x * w + dropDir * position.y * streak;
+        vA = (1.0 - smoothstep(4.0, 15.0, dist)) * smoothstep(0.5, 1.6, dist) * (0.55 + 0.45 * aSeed.x);
         gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
       }`,
     fragmentShader: /* glsl */`
       uniform vec3 uAmbient;
-      varying float vA, vT;
+      varying float vA, vT, vX;
       void main() {
         if (vA <= 0.0) discard;
-        float a = vA * 0.38 * smoothstep(0.0, 0.5, vT) * (0.6 + 0.4 * vT);
-        if (a < 0.06) discard;
-        gl_FragColor = vec4(uAmbient * 1.9 + 0.06, a);
+        // průhledná kapka: měkké okraje do stran, k oběma koncům se ztrácí (hlava kapky je jasnější)
+        float a = vA * 0.42 * (1.0 - vX * vX) * smoothstep(0.0, 0.35, vT) * (1.0 - smoothstep(0.75, 1.0, vT)) * (0.55 + 0.45 * vT);
+        if (a < 0.02) discard;
+        gl_FragColor = vec4(uAmbient * 1.25 + 0.04, a);
       }`,
   });
   const m = new THREE.Mesh(geo, mat);
@@ -202,7 +206,8 @@ export function updateWeather(dt, clock, under = 0) {
   U.rain.value = W.rain;
   // vítr: poryvy z času, za deště a v bouřce silnější
   const gust = 0.5 + 0.5 * Math.sin(clock * 0.35) * Math.sin(clock * 0.13 + 1);
-  U.wind.value.set(0.94, 0.33, gust, 1 + W.rain * 0.5 + W.storm * 1.1);
+  const wd = windAt(dayCount, dayTime); // směr větru je stejný jako pro plachetnice (shared/sim/weather.js)
+  U.wind.value.set(wd.x, wd.z, gust, 0.6 + wd.speed * 0.08 + W.rain * 0.5 + W.storm * 1.1);
   // hlášky
   if (target.rain > 0.3 && lastRain <= 0.3 && clock > 2) toast(target.storm > 0.5 ? 'Blíží se bouřka – schovej se!' : 'Začíná pršet');
   if (target.rain <= 0.3 && lastRain > 0.3 && clock > 2) toast('Přestalo pršet');

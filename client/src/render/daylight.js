@@ -24,7 +24,6 @@ const DAY_FOG = new THREE.Color(0xc4d3de), NIGHT_FOG = new THREE.Color(0x0b1220)
 const AMB_TINT = new THREE.Vector3(...LK.ambTint).multiplyScalar(LK.amb), SKY_AMB = new THREE.Vector3(...LK.skyAmb), GROUND_AMB = new THREE.Vector3(...LK.groundAmb);
 U.skyAmb.value.copy(SKY_AMB);
 U.groundAmb.value.copy(GROUND_AMB);
-const NIGHT_AMB = new THREE.Vector3(...LK.nightAmb);
 // Viditelné části dne (jen vzhled; pravidla – noc, stínožrouti – dál počítají daylight() ze shared/sim/day.js):
 // sunK = přímé slunce, golden = zlatá hodina (slunce nízko), skyK = světlo oblohy (slábne až dlouho po západu – modrá hodina),
 // twilight = červánky (slunce těsně pod obzorem), starK = hvězdy (až po občanském soumraku), moonK = měsíc.
@@ -35,18 +34,20 @@ export function updateDay(dt) {
   sunDir.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elev * 62), THREE.MathUtils.degToRad(120 + dayTime * 360));
   const v = vis;
   v.elev = elev;
+  // Soumrak 18:00–19:30 (slunce až ~22° pod obzorem): obloha slábne pomalu, červánky drží do ~19:15,
+  // hvězdy se ukážou až po občanském soumraku (~19:00). Svítání je zrcadlově 4:30–6:00.
   v.sunK = smoothstep(-0.03, 0.1, elev);
   v.golden = (1 - smoothstep(0.04, 0.36, elev)) * v.sunK;
-  v.skyK = smoothstep(-0.3, 0.06, elev);
-  v.twilight = (1 - smoothstep(0.02, 0.2, elev)) * smoothstep(-0.32, -0.06, elev);
-  v.starK = 1 - smoothstep(-0.2, -0.09, elev);
-  v.moonK = 1 - smoothstep(-0.12, 0.02, elev);
+  v.skyK = smoothstep(-0.46, 0.04, elev);
+  v.twilight = (1 - smoothstep(0.02, 0.2, elev)) * smoothstep(-0.46, -0.16, elev);
+  v.starK = 1 - smoothstep(-0.4, -0.24, elev);
+  v.moonK = 1 - smoothstep(-0.2, 0.0, elev);
   v.night = 1 - v.skyK;
   const W = weather, over = W.overcast; // zataženo (déšť, bouřka) tlumí slunce a odbarví světlo
   // obloha: slunce pro shader oblohy nikdy nezapadne úplně hluboko, aby zůstala záře u obzoru; červánky přidá shader (sky.js)
   skyU.sunPosition.value.copy(sunDir);
   if (elev < -0.02) skyU.sunPosition.value.y = Math.max(skyU.sunPosition.value.y, -0.02);
-  skyU.skyGain.value = (FX.post ? LK.sky.gain : 1) * lerp(0.35, 1, smoothstep(-0.25, 0.05, elev));
+  skyU.skyGain.value = (FX.post ? LK.sky.gain : 1) * lerp(0.35, 1, smoothstep(-0.4, 0.05, elev));
   skyU.turbidity.value = lerp(LK.sky.turbidity, 9, 1 - smoothstep(0.0, 0.4, elev));
   skyU.uTwilight.value = v.twilight;
   skyU.uNightSky.value = v.night;
@@ -66,7 +67,8 @@ export function updateDay(dt) {
     U.sunColor.value.set(0.62 * k, 0.78 * k, 1.15 * k);
   }
   // okolní světlo oblohy: ve dne asi třetina slunce, za soumraku teplejší, v noci modré (jako na měsíci)
-  U.ambient.value.set(lerp(NIGHT_AMB.x, 0.62, v.skyK), lerp(NIGHT_AMB.y, 0.74, v.skyK), lerp(NIGHT_AMB.z, 1.0, v.skyK))
+  const NA = LK.nightAmb; // (čte se každý snímek: vzhled jde ladit za běhu přes game.LK)
+  U.ambient.value.set(lerp(NA[0], 0.62, v.skyK), lerp(NA[1], 0.74, v.skyK), lerp(NA[2], 1.0, v.skyK))
     .multiplyScalar(lerp(1, 0.82, v.golden)).multiply(AMB_TINT);
   if (v.twilight > 0) U.ambient.value.add(tmpV.set(0.07, 0.04, 0.06).multiplyScalar(v.twilight)); // červánky barví stíny do růžova
   if (over > 0) { const l = (U.ambient.value.x + U.ambient.value.y + U.ambient.value.z) / 3; U.ambient.value.lerp(tmpV.set(l * 0.92, l * 0.97, l * 1.05), over * 0.7).multiplyScalar(1 - 0.25 * over); }
@@ -102,28 +104,46 @@ export function updateDay(dt) {
 
 // Pod zemí je tma: slunce a obloha slábnou podle hloubky, svítí pochodně, táboráky a krystaly. Chladné okolní světlo jeskyně
 // (modrošedé) proti teplému světlu pochodní dělá jeskyni skutečnou a hrany kamene jsou vidět i mimo světla.
-const CAVE_FOG = new THREE.Color(0x0a0d12), CAVE_AMB = new THREE.Color(...LK.caveAmb);
+const CAVE_FOG = new THREE.Color(0x0a0d12), CAVE_AMB = new THREE.Color();
 export let underground = 0;
 let adapt = 1;
 export function applyUnderground(dt = 0.016) {
   const depth = terrainH(player.pos.x, player.pos.z) - (player.pos.y + EYE);
   underground = lerp(underground, smoothstep(1.5, 5, depth), 0.08);
   const u = underground;
+  CAVE_AMB.setRGB(...LK.caveAmb);
   sunLight.intensity *= 1 - 0.97 * u;
-  hemi.intensity *= 1 - 0.6 * u;
+  hemi.intensity *= 1 - 0.7 * u; // ať jsou kolem pochodní vidět teplé kruhy světla
   hemi.color.lerp(CAVE_AMB, u);
   hemi.groundColor.lerp(tmpC.copy(CAVE_AMB).multiplyScalar(0.55), u);
   scene.environmentIntensity *= 1 - 0.9 * u;
   FOG.color.lerp(CAVE_FOG, u);
   FOG.density = lerp(FOG.density, 0.028, u);
   // kamera pod hladinou rybníka
-  post.water = waterLevelAt(camera.position);
-  if (!FX.post) { renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, 1.58 * 0.6, u); post.under = u; return; }
-  // přizpůsobení oka: v noci až +0,8 EV, v jeskyni až +1,2 EV, plynule za ~1,5 s (jako když si oči zvyknou na tmu)
-  const A = LK.adapt, ev = Math.max(post.night * A.night, u * A.cave);
+  const wl = waterAt(camera.position.x, camera.position.y, camera.position.z);
+  post.water = wl !== null ? 1 : 0;
+  post.waterLevel = wl ?? -1e9;
+  if (!FX.post) {
+    renderer.toneMappingExposure = lerp(renderer.toneMappingExposure, 1.58 * 0.6, u); post.under = u;
+    if (post.water) { FOG.color.setRGB(0.03, 0.16, 0.17); FOG.density = 0.16; } // pod vodou krátký modrozelený dohled
+    return;
+  }
+  // přizpůsobení oka: v noci až +0,8 EV, v jeskyni až +1,2 EV, plynule za ~1,5 s (jako když si oči zvyknou na tmu).
+  // Svítí-li blízko pochodně nebo lampy, oko se tolik nepřizpůsobí (jinak by osvětlený kámen zblízka přepálilo do béžova).
+  const A = LK.adapt, near = nearLight(camera.position);
+  const ev = Math.max(post.night * A.night, u * A.cave) * (1 - 0.75 * smoothstep(0.15, 1.6, near));
   adapt += (2 ** ev - adapt) * (1 - Math.exp(-dt / A.speed));
   post.exposure = adapt;
   post.under = u;
 }
-// 1 = oči kamery jsou pod vodou (rybník)
-function waterLevelAt(p) { return waterAt(p.x, p.y, p.z) !== null ? 1 : 0; }
+// Kolik světla pochodní a lamp dopadá na místo (stejný útlum jako v POINT_GLSL), pro přizpůsobení oka
+function nearLight(p) {
+  let sum = 0;
+  for (let i = 0; i < U.pl.value.length; i++) {
+    const l = U.pl.value[i];
+    if (l.w <= 0) continue;
+    const d = Math.max(0.5, Math.hypot(l.x - p.x, l.y - p.y, l.z - p.z)), cut = Math.max(0, 1 - (d / 16) ** 4);
+    sum += l.w * cut * cut / d ** 1.7 * 0.3183;
+  }
+  return sum;
+}

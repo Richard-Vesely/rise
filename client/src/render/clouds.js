@@ -2,6 +2,7 @@
 // Jen se střední a vysokou grafikou (FX.clouds). Hustotu a jas určuje vzhled (LK.clouds).
 import * as THREE from 'three';
 import { FX, LK } from './look.js';
+import { cubeUVDefines, post } from './post.js';
 import { U, camera, scene } from './renderer.js';
 
 let dome = null;
@@ -50,6 +51,9 @@ export function initClouds() {
         col += vec3(1.0, 0.45, 0.35) * uTwilight * (0.25 + 0.35 * mu) * (1.0 - c * 0.4);
         // v noci jsou mraky jen tmavě šedomodré (měsíc)
         col *= mix(1.0, 0.55, uNight);
+        // strop jasu (měkce, se zachovaným odstínem): mrak u slunce nesmí přes práh záře (bloom), jinak má tvrdý svítící okraj
+        float mx = max(max(col.r, col.g), col.b);
+        if (mx > 0.8) col *= (0.8 + (mx - 0.8) / (1.0 + (mx - 0.8) / 0.35)) / mx;
         float a = c * smoothstep(0.01, 0.18, d.y) * mix(0.95, 0.8, uNight);
         gl_FragColor = vec4(col, min(a + uRain * 0.3 * c, 1.0));
       }`,
@@ -65,42 +69,77 @@ export function updateClouds() {
   CU.uCover.value = LK.clouds.cover; CU.uSoft.value = LK.clouds.soft; CU.uBright.value = LK.clouds.bright;
 }
 
-// Vzdálené pásmo hor na obzoru (střední a vysoká): světlejší modravá silueta za krajinou dodá hloubku.
-// Nezapisuje hloubku, takže ji post-processing zahalí oparem jako oblohu; barva jde z barvy mlhy.
-let ridge = null;
-export function initRidge() {
-  if (!FX.ridge || ridge) return;
-  const N = 256, R = 2600, pos = [], idx = [];
+// Vzdálená pásma hor na obzoru (střední a vysoká): dvě siluety za krajinou dodají hloubku – bližší hřeben je o kus tmavší
+// a modřejší, vzdálenější světlejší a skoro v barvě oparu (vzdušná perspektiva). Úpatí obou se ztrácí v oparu údolí.
+// Zapisují hloubku (měsíc a hvězdy jsou za nimi); post-processing je zahalí oparem jako oblohu (vše dál než 2,5 km),
+// barva jde z barvy oblohy těsně nad obzorem v daném směru.
+const ridges = [];
+const RU = { haze: { value: new THREE.Color() }, tint: { value: new THREE.Color() }, env: { value: null }, envOn: { value: 0 }, envGain: { value: 1 } };
+function makeRidge(R, seed, base, amp, far) {
+  const N = 384, pos = [], idx = [], slope = [];
+  const H = (a) => base + amp * (Math.abs(Math.sin(a * 3 + seed)) * (0.6 + 0.4 * Math.sin(a * 7.1 + seed * 2.0)) + 0.36 * Math.sin(a * 17.3 + seed) * Math.sin(a * 5.2) + 0.17 * Math.sin(a * 41.0 + seed * 3.0) + 0.06 * Math.sin(a * 97.0 + seed));
   for (let i = 0; i <= N; i++) {
-    const a = (i / N) * Math.PI * 2;
-    const h = 60 + 70 * Math.abs(Math.sin(a * 3 + 1.3)) * (0.6 + 0.4 * Math.sin(a * 7.1)) + 25 * Math.sin(a * 17.3) * Math.sin(a * 5.2) + 12 * Math.sin(a * 41.0);
+    const a = (i / N) * Math.PI * 2, h = H(a);
     pos.push(Math.cos(a) * R, -40, Math.sin(a) * R, Math.cos(a) * R, h, Math.sin(a) * R);
+    // sklon hřebene (výška na metr podél obzoru): podle něj je svah ke slunci světlejší a odvrácený tmavší
+    const sl = Math.max(-1, Math.min(1, (H(a + 0.002) - H(a - 0.002)) / (0.004 * R) * 2.5));
+    slope.push(sl, sl);
     if (i < N) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('aSlope', new THREE.Float32BufferAttribute(slope, 1));
   g.setIndex(idx);
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uCol: RU.col },
-    side: THREE.DoubleSide, depthWrite: false, fog: false,
+    uniforms: { uHaze: RU.haze, uTint: RU.tint, uNight: U.night, uSunDir: U.sunDir, uEnv: RU.env, uEnvOn: RU.envOn, uEnvGain: RU.envGain, uK: { value: far ? 0.42 : 0.72 }, uTop: { value: base + amp } },
+    side: THREE.DoubleSide, fog: false,
     vertexShader: /* glsl */`
-      varying float vH;
-      void main() { vH = position.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      attribute float aSlope;
+      varying float vH, vSlope;
+      varying vec3 vDir;
+      void main() { vH = position.y; vDir = position; vSlope = aSlope; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */`
-      uniform vec3 uCol;
-      varying float vH;
-      void main() { gl_FragColor = vec4(uCol * (0.92 + 0.12 * smoothstep(-40.0, 150.0, vH)), 1.0); }`,
+      #define ENVMAP_TYPE_CUBE_UV
+      ${cubeUVDefines(1024)}
+      #include <cube_uv_reflection_fragment>
+      uniform vec3 uHaze, uTint;
+      uniform float uK, uTop, uEnvOn, uEnvGain, uNight;
+      uniform vec3 uSunDir;
+      uniform sampler2D uEnv;
+      varying float vH, vSlope;
+      varying vec3 vDir;
+      void main() {
+        // barva oparu = barva oblohy těsně nad obzorem v tomto směru (za soumraku růžová, proti slunci teplejší)
+        vec3 haze = uHaze;
+        if (uEnvOn > 0.5) haze = mix(haze, textureCubeUV(uEnv, normalize(vec3(vDir.x, length(vDir.xz) * 0.06, vDir.z)), 0.6).rgb * uEnvGain, 0.85);
+        // nahoře je vidět hora (tmavší, do modra), dole opar údolí
+        float k = uK * smoothstep(-30.0, uTop * 0.85, vH);
+        vec3 col = mix(haze, haze * uTint, k);
+        // svah natočený ke slunci je světlejší, odvrácený tmavší; v noci jsou hory tmavá silueta
+        vec2 tang = normalize(vec2(-vDir.z, vDir.x));
+        col *= 1.0 + 0.22 * k * clamp(vSlope * dot(tang, normalize(uSunDir.xz + 1e-4)), -1.0, 1.0) * step(0.0, uSunDir.y);
+        gl_FragColor = vec4(col * mix(1.0, 0.5, uNight), 1.0);
+      }`,
   });
-  ridge = new THREE.Mesh(g, mat);
-  ridge.frustumCulled = false;
-  ridge.renderOrder = -1;
-  ridge.userData.sh = 1;
-  scene.add(ridge);
+  const m = new THREE.Mesh(g, mat);
+  m.frustumCulled = false;
+  m.renderOrder = far ? -1.2 : -1.1;
+  m.userData.sh = 1;
+  scene.add(m);
+  ridges.push(m);
 }
-const RU = { col: { value: new THREE.Color() } };
+export function initRidge() {
+  if (!FX.ridge || ridges.length) return;
+  makeRidge(3200, 4.1, 95, 120, true);
+  makeRidge(2600, 1.3, 50, 95, false);
+}
 export function updateRidge(fogColor, under = 0) {
-  if (!ridge) return;
-  ridge.position.set(camera.position.x, 0, camera.position.z);
-  ridge.visible = under < 0.5;
-  RU.col.value.copy(fogColor).multiply(new THREE.Color(0.78, 0.84, 0.95));
+  for (const r of ridges) {
+    r.position.set(camera.position.x, 0, camera.position.z);
+    r.visible = under < 0.5;
+  }
+  RU.haze.value.copy(fogColor).multiply(new THREE.Color(0.9, 0.95, 1.02));
+  RU.tint.value.setRGB(0.36, 0.47, 0.66); // stín hor: modrošedý
+  const env = scene.environment;
+  RU.env.value = env; RU.envOn.value = env?.image?.height === 1024 ? 1 : 0; RU.envGain.value = 1 - 0.45 * post.night;
 }

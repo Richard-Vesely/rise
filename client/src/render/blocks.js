@@ -8,12 +8,14 @@ import { BLOCKS, CROPS, ITEMS, SHAPES } from '../../../shared/data/index.js';
 import { on } from '../../../shared/events.js';
 import { isPowered, markPowerDirty } from '../../../shared/sim/power.js';
 import { solidAt } from '../../../shared/world/collision.js';
-import { blockMeta, blocks, chairRot, crops, tableItems } from '../../../shared/world/state.js';
+import { blockMeta, blocks, chairRot, crops, furnaces, tableItems } from '../../../shared/world/state.js';
+import { torchFlame, torchMeta } from '../../../shared/world/torch.js';
 import { groundHeight, solidVox } from '../../../shared/world/voxels.js';
 import { DINE_STYLE } from '../dining/dine-view.js';
 import { buildFoodInto } from '../dining/food-models.js';
 import { GFX } from '../game/prefs.js';
 import { buildCropModel } from '../machines/kitchen.js';
+import { buildGarageModel } from '../machines/garage-model.js';
 import { buildElecModel, rebuildCables } from '../machines/power.js';
 import { heldStack } from '../player/inventory.js';
 import { player } from '../player/player.js';
@@ -21,6 +23,7 @@ import { dummy, lumpy } from './forest.js';
 import { U, camera, scene } from './renderer.js';
 import { renderIcons } from './icon-render.js';
 import { readyBlockMat, setupBlockMat } from './materials.js';
+import { buildTorchModel } from './torch-model.js';
 import { glowTex } from './sky.js';
 import { acaciaPlanksTex, barkTex, basaltTex, bricksTex, cherryPlanksTex, cobbleTex, concreteTex, copperBlockTex, cutCopperTex, dirtTex, farmlandTex, glassTex, goldBlockTex, graniteTex, ironBlockTex, junglePlanksTex, marblePillarTex, marbleTex, markBarkTex, markPlanksTex, markRingsTex, markdirtTex, mushroomCapTex, mushroomStemTex, obsidianTex, planksTex, polishedBasaltTex, polishedGraniteTex, polishedMarbleTex, polishedStoneTex, quartzPillarTex, quartzTex, ringsTex, rockTex, roofTilesTex, sandTex, sandstoneTex, smoothSandstoneTex, snowTex, steelBlockTex, stoneTilesTex, techPanelTex, whitePanelTex, neonTex, neonMaskTex } from './textures.js';
 
@@ -280,13 +283,9 @@ export function buildSpecial(type, key) {
     const lock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.05), metal);
     lock.position.set(0, 0.58, 0.45);
     g.add(body, lid, band, lock);
-  } else if (type === 'torch') {
-    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x5a3e26, roughness: 1 }));
-    stick.position.y = 0.35;
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.1, 6), new THREE.MeshStandardMaterial({ color: 0x2a1a10, emissive: 0xff6a1a, emissiveIntensity: 1.5 }));
-    head.position.y = 0.72;
-    g.add(stick, head);
-    flame(0.45, 0.82);
+  } else if (type === 'torch') { // stojí, nebo visí na zdi (render/torch-model.js, pravidla shared/world/torch.js)
+    const [x, y, z] = key.split(',').map(Number);
+    buildTorchModel(g, flames, torchMeta(key, x, y, z));
   }
   if (type === 'furnace') { // kamenná pec, otvor vpředu (+z) žhne, když hoří
     const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), blockMats.cobble);
@@ -345,6 +344,7 @@ export function buildSpecial(type, key) {
     flame(0.55, 0.24);
   }
   if (BLOCKS[type].elec) buildElecModel(type, g); // elektrická zařízení (14c)
+  else if (type === 'garage') buildGarageModel(g); // garáž: přelakování a vylepšení vozidel
   return { obj: g, flames };
 }
 
@@ -387,25 +387,32 @@ export function rebuildBlocks() {
   markPowerDirty(); // změna bloků = přepočítat elektrické sítě
 
   for (const [k, type] of blocks) {
-    if (!BLOCKS[type].special || specials.has(k)) continue;
+    if (!BLOCKS[type].special) continue;
+    const old = specials.get(k);
+    if (old && (type !== 'torch' || old.tm === torchMeta(k, old.x, old.y, old.z))) continue;
+    if (old) { scene.remove(old.obj); specials.delete(k); } // pochodeň se přichytila jinak (stará pochodeň, jiný hráč)
     const [x, y, z] = k.split(',').map(Number);
     const { obj, flames } = buildSpecial(type, k);
-    const ry = solidAt(x, y - 1, z) || solidVox(x, y - 1, z) ? y : Math.max(y, groundHeight(x + 0.5, z + 0.5));
+    const tm = type === 'torch' ? torchMeta(k, x, y, z) : 0, gh = groundHeight(x + 0.5, z + 0.5);
+    // pochodeň na zdi visí v buňce, stojící stojí na povrchu terénu, když je v její buňce
+    const ry = tm > 1 ? y : tm ? (gh > y - 0.3 && gh < y + 0.9 ? Math.max(y, gh) : y) : solidAt(x, y - 1, z) || solidVox(x, y - 1, z) ? y : Math.max(y, gh);
     obj.position.set(x + 0.5, ry, z + 0.5);
     if (BLOCKS[type].facing) obj.rotation.y = ((blockMeta.get(k) || 0) & 3) * Math.PI / 2; // pec a dílna čelem k hráči
     scene.add(obj);
-    specials.set(k, { type, x, y, z, ry, obj, flames });
+    const f = tm && torchFlame(tm); // kde hoří plamen (světlo, jiskry, kouř)
+    specials.set(k, { type, x, y, z, ry, obj, flames, ...(tm ? { tm, lp: [x + 0.5 + f[0], ry + f[1], z + 0.5 + f[2]] } : {}) });
   }
   for (const [k, s] of specials) if (!blocks.has(k)) { scene.remove(s.obj); specials.delete(k); }
 }
 
 // Světla pochodní a táboráků: pevný počet světel se přiděluje těm nejbližším.
 // Oheň svítí teplou bílou (asi 3000 K, LK.torch), ne červeně – zelená tráva pod ním zůstane zelená; elektřina chladně bílou.
-const FIRE_COL = new THREE.Color(...LK.torch), ELEC_COL = new THREE.Color(0.86, 0.95, 1.0), GLOWSHROOM_COL = new THREE.Color(0.35, 0.9, 1.0), SPAWNER_COL = new THREE.Color(0.8, 0.35, 1.0), tmpLC = new THREE.Color();
+const FIRE_COL = new THREE.Color(...LK.torch), ELEC_COL = new THREE.Color(0.78, 0.9, 1.08), GLOWSHROOM_COL = new THREE.Color(0.35, 0.9, 1.0), SPAWNER_COL = new THREE.Color(0.8, 0.35, 1.0), tmpLC = new THREE.Color();
 const lightPool = Array.from({ length: GFX.lights }, () => { const l = new THREE.PointLight(FIRE_COL, 0, 16, 1.7); scene.add(l); return l; });
 export function updateLights(time) {
   // elektrická světla svítí jen napájená
-  const list = [...specials.entries()].filter(([k, s]) => BLOCKS[s.type].light && (!BLOCKS[s.type].elec || isPowered(k))).map(([, s]) => s).concat(litBlocks);
+  // hořící pec svítí jako v Minecraftu (o něco slaběji než pochodeň)
+  const list = [...specials.entries()].filter(([k, s]) => (s.type === 'furnace' ? furnaces.get(k)?.burn > 0 : BLOCKS[s.type].light && (!BLOCKS[s.type].elec || isPowered(k)))).map(([, s]) => s).concat(litBlocks);
   const p = player.pos;
   const d2 = (s) => (s.x + 0.5 - p.x) ** 2 + (s.ry - p.y) ** 2 + (s.z + 0.5 - p.z) ** 2;
   list.sort((a, b) => d2(a) - d2(b));
@@ -418,9 +425,10 @@ export function updateLights(time) {
     const s = list[heldTorch ? i - 1 : i];
     if (!s) { l.intensity = 0; return; }
     const elec = BLOCKS[s.type].elec;
-    l.position.set(s.x + 0.5, s.ry + (s.type === 'campfire' ? 0.6 : s.type === 'electric_lamp' ? 1.2 : s.type === 'bulb_lamp' ? 0.45 : 0.85), s.z + 0.5);
+    const fur = s.type === 'furnace', fy = fur ? s.obj.rotation.y : 0; // pec: světlo kousek před otvorem
+    if (s.lp) l.position.set(...s.lp); else l.position.set(s.x + 0.5 + (fur ? Math.sin(fy) * 0.8 : 0), s.ry + (s.type === 'campfire' ? 0.6 : s.type === 'electric_lamp' ? 1.2 : s.type === 'bulb_lamp' ? 0.45 : fur ? 0.4 : 0.85), s.z + 0.5 + (fur ? Math.cos(fy) * 0.8 : 0));
     l.color.copy(BLOCKS[s.type].lightColor ? tmpLC.setHex(BLOCKS[s.type].lightColor) : elec ? ELEC_COL : s.type === 'glowshroom' ? GLOWSHROOM_COL : s.type === 'spawner' ? SPAWNER_COL : FIRE_COL);
-    l.intensity = BLOCKS[s.type].light * (elec || BLOCKS[s.type].lightColor ? 1 : flick); // žárovka a neon neblikají
+    l.intensity = (fur ? 6 : BLOCKS[s.type].light) * (elec || BLOCKS[s.type].lightColor ? 1 : flick); // žárovka a neon neblikají
   });
   // stejná světla dostane i terén a tráva (mají vlastní shader, viz POINT_GLSL v light-glsl.js)
   for (let i = 0; i < U.pl.value.length; i++) {
@@ -429,12 +437,16 @@ export function updateLights(time) {
     U.pl.value[i].set(l.position.x, l.position.y, l.position.z, l.intensity);
     U.plColor.value[i].set(l.color.r, l.color.g, l.color.b);
   }
-  for (const s of list) for (const f of s.flames) f.scale.setScalar(f.userData.base * (0.85 + 0.2 * Math.sin(time * 17 + s.x + f.position.y * 9)));
+  const cp = camera.position;
+  for (const s of list) {
+    const hk = s.lp ? Math.min(1, Math.max(0, (Math.hypot(s.lp[0] - cp.x, s.lp[1] - cp.y, s.lp[2] - cp.z) - 2.5) / 3.5)) : 1; // záře pochodně: zblízka ne
+    for (const f of s.flames) { const sc = f.userData.base * (f.userData.halo ? hk : 1) * (0.85 + 0.2 * Math.sin(time * 17 + s.x + s.z * 0.7 + f.position.y * 9)); f.scale.set(sc, sc * (f.userData.tall || 1), 1); }
+  }
 }
 
 // 3D ikony bloků a strojů (render/icon-render.js) – až po načtení všech modulů (modely strojů jsou v pozdějších souborech).
 const ICON_3D = ['workbench', 'chest', 'stove', 'furnace', 'adv_bench', 'table', 'chair', 'well', 'spikes', 'spawner', 'coal_generator', 'solar_panel',
-  'battery_block', 'power_switch', 'electric_lamp', 'bulb_lamp', 'motor_block', 'electric_furnace', 'charger', 'computer', 'printer'];
+  'battery_block', 'power_switch', 'electric_lamp', 'bulb_lamp', 'motor_block', 'electric_furnace', 'charger', 'computer', 'printer', 'garage'];
 export function blockIconList() {
   const items = [];
   for (const [id, b] of Object.entries(BLOCKS)) {

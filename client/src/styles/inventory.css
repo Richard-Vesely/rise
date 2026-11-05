@@ -155,3 +155,53 @@ body.inv-open #hotName, #inventory[style*="grid"] ~ #hotName { opacity: 0; }
 #feed div { border: 1px solid rgba(130, 210, 255, 0.22); border-radius: 10px; background: linear-gradient(180deg, rgba(26, 40, 62, 0.78), rgba(8, 12, 22, 0.82));
   font: 600 14px var(--ui-font); text-shadow: 0 1px 2px #000; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35); }
 #feed div.chat, #feed div.sys { font-weight: 500; }
+
+/* ---------- hlavní menu, Nastavení a pauza: stejné sklo jako batoh ---------- */
+#menu, #settings, #pause, #menu .px, #settings .px, #pause .px, #menu .menu-link, #settings .mc-note { font-family: var(--ui-font); }
+#settings { background: radial-gradient(ellipse at 50% 45%, rgba(10, 34, 56, 0.35), rgba(2, 5, 12, 0.82)); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#settings .set-panel, #pause .pause-panel { animation: invIn 0.18s ease-out; }
+#menu .mc-panel, #settings .mc-panel, #pause .mc-panel {
+  position: relative; padding: 18px 20px 18px; border: 1px solid var(--inv-edge); border-radius: 16px;
+  background: linear-gradient(160deg, rgba(36, 56, 84, 0.82), rgba(10, 15, 26, 0.9) 55%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 1px rgba(0, 0, 0, 0.35), inset 0 0 50px rgba(70, 224, 255, 0.05);
+  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
+}
+#menu .mc-panel::before, #settings .mc-panel::before, #pause .mc-panel::before { content: ''; position: absolute; left: 22px; right: 22px; top: -1px; height: 2px; border-radius: 2px;
+  pointer-events: none; background: linear-gradient(90deg, transparent, var(--inv-glow), var(--inv-accent), transparent); opacity: 0.8; }
+#settings .mc-title, #pause .mc-title { display: flex; align-items: center; gap: 8px; margin: 0 0 14px 2px; font: 700 15px var(--ui-font); letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--inv-text); text-shadow: 0 0 12px rgba(70, 224, 255, 0.35); }
+#settings .mc-title::before, #pause .mc-title::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--inv-glow); box-shadow: 0 0 8px var(--inv-glow); }
+#menu .mc-btn, #settings .mc-btn, #pause .mc-btn { font: 600 14px var(--ui-font); color: var(--inv-text); padding: 7px 12px; border-radius: 10px; border: 1px solid rgba(130, 210, 255, 0.28);
+  background: linear-gradient(180deg, rgba(62, 94, 134, 0.6), rgba(20, 32, 52, 0.8)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: none; transition: box-shadow 0.12s, border-color 0.12s, background 0.12s, transform 0.12s; }
+#menu .mc-btn:hover, #settings .mc-btn:hover, #pause .mc-btn:hover { border-color: var(--inv-glow); background: linear-gradient(180deg, rgba(72, 124, 176, 0.7), rgba(24, 42, 66, 0.85));
+  box-shadow: 0 0 14px var(--inv-glow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+#menu .mc-btn:active, #settings .mc-btn:active, #pause .mc-btn:active { transform: translateY(1px); }
+#menu .mc-btn.on, #settings .mc-btn.on, #pause .mc-btn.on { border-color: var(--inv-glow); background: linear-gradient(180deg, rgba(38, 170, 204, 0.72), rgba(14, 80, 112, 0.88));
+  box-shadow: 0 0 12px var(--inv-glow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.2); }
+#menu .play-btn, #menu .world-btn { border-radius: 12px; }
+#menu .play-btn b, #menu .world-btn b { font: 700 19px var(--ui-font); letter-spacing: 0.02em; }
+#menu .play-btn small, #menu .world-btn small { color: var(--inv-dim); }
+#menu .menu-label, #settings .set-label { color: #c9dcef; font-size: 14px; }
+#settings .set-label small { color: var(--inv-dim); }
+#settings .set-label b { color: var(--inv-glow); }
+#menu .menu-label input, #pause input { font: 500 16px var(--ui-font); color: var(--inv-text); padding: 9px 11px; border-radius: 10px; border: 1px solid rgba(130, 210, 255, 0.22);
+  background: rgba(4, 10, 20, 0.7); box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5); }
+#menu .menu-label input:focus { border-color: var(--inv-glow); box-shadow: 0 0 0 3px rgba(70, 224, 255, 0.18), inset 0 2px 6px rgba(0, 0, 0, 0.5); }
+#menu .menu-link { color: var(--inv-glow); text-decoration: none; border-bottom: 1px solid rgba(70, 224, 255, 0.35); padding: 4px 2px 2px; }
+#menu .menu-link:hover { color: #fff; border-bottom-color: var(--inv-glow); text-shadow: 0 0 10px var(--inv-glow-soft); }
+#menu .menu-links { color: var(--inv-dim); }
+#menu .menu-msg { border-radius: 10px; color: #ffe1db; background: rgba(120, 30, 40, 0.55); box-shadow: inset 0 0 0 1px rgba(255, 120, 120, 0.35); }
+#menu .menu-who, #menu .menu-busy { color: #c9dcef; }
+#settings .mc-note, #pause .mc-note { color: var(--inv-dim); font-size: 13px; }
+#settings .set-sound { border-top-color: rgba(130, 210, 255, 0.14); }
+#pause .plist { border-radius: 10px; background: rgba(4, 10, 20, 0.55); box-shadow: inset 0 0 0 1px rgba(130, 210, 255, 0.14); }
+#pause .pause-code b { color: var(--inv-glow); }
+/* posuvníky: tenká svítící dráha a kulatý jezdec */
+#settings input[type=range] { -webkit-appearance: none; appearance: none; height: 22px; background: transparent; cursor: pointer; }
+#settings input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, rgba(70, 224, 255, 0.85), rgba(70, 224, 255, 0.2)); }
+#settings input[type=range]::-moz-range-track { height: 4px; border-radius: 4px; background: rgba(70, 224, 255, 0.35); }
+#settings input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%; background: #e8f9ff;
+  border: 2px solid var(--inv-glow); box-shadow: 0 0 10px var(--inv-glow-soft); }
+#settings input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #e8f9ff; border: 2px solid var(--inv-glow); }
+body.gfx-low #menu .mc-panel, body.gfx-low #settings .mc-panel, body.gfx-low #pause .mc-panel, body.gfx-low #settings { backdrop-filter: none; -webkit-backdrop-filter: none; }

@@ -24,11 +24,13 @@ import { TECH, addHolo, addStatus, addStrip, builder, drawHolo, glowMat, mergeSt
 // tím rychleji a jasněji. Bez proudu je kabel tmavý. aPow = 0 bez proudu, jinak 0,3–1 podle zatížení sítě.
 const PULSE = new THREE.Color(TECH.cyan);
 function cableMat(color, roughness) {
-  const m = new THREE.MeshStandardMaterial({ color, metalness: 1, roughness, envMapIntensity: 1.3 });
+  // metalness pod 1: trocha vlastní barvy, aby zlato za soumraku neodráželo jen modrou oblohu
+  const m = new THREE.MeshStandardMaterial({ color, metalness: 0.85, roughness, envMapIntensity: 1.1 });
   m.customProgramCacheKey = () => 'cable';
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = UNI.time;
     sh.uniforms.uPulse = { value: PULSE };
+    sh.uniforms.uMetal = { value: new THREE.Color(color) };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
 attribute float aPow;
@@ -40,23 +42,25 @@ vCW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform float uTime;
-uniform vec3 uPulse;
+uniform vec3 uPulse, uMetal;
 varying float vPow;
 varying vec3 vCW;`)
       .replace('#include <emissivemap_fragment>', `if (vPow > 0.0) {
   float run = fract((vCW.x + vCW.y + vCW.z) * 1.6 - uTime * (0.7 + 2.6 * vPow));
-  totalEmissiveRadiance += uPulse * (0.06 + vPow * 2.4 * smoothstep(0.78, 0.97, run) * (1.0 - smoothstep(0.97, 1.0, run)));
+  totalEmissiveRadiance += uPulse * (vPow * 2.6 * smoothstep(0.86, 0.97, run) * (1.0 - smoothstep(0.97, 1.0, run)));
 }
+// kov jádra je vidět i za soumraku: slabý vlastní lesk v barvě kovu (zlato zůstane zlaté, ne tyrkysové od oblohy)
+totalEmissiveRadiance += uMetal * 0.16;
 #include <emissivemap_fragment>`);
   };
   return m;
 }
-const cableMats = { copper: cableMat(0xd07a42, 0.32), gold: cableMat(0xf0c450, 0.22) };
+const cableMats = { copper: cableMat(0xd07a42, 0.34), gold: cableMat(0xffc63a, 0.26) };
 const sheathMat = new THREE.MeshStandardMaterial({ color: 0x17191e, roughness: 0.7, metalness: 0.2 });
 // uzel: kulatá spojka v tmavé objímce; rameno: kovové jádro
 const cableGeos = {
   c: new THREE.CylinderGeometry(0.085, 0.085, 0.17, 12),
-  a: new THREE.CylinderGeometry(0.05, 0.05, 0.42, 10).rotateZ(Math.PI / 2).translate(0.29, 0, 0),
+  a: new THREE.CylinderGeometry(0.06, 0.06, 0.42, 10).rotateZ(Math.PI / 2).translate(0.29, 0, 0),
   s: new THREE.CylinderGeometry(0.1, 0.1, 0.06, 12),
 };
 const ARM_ROT = [[0, 0, 0], [0, Math.PI, 0], [0, 0, Math.PI / 2], [0, 0, -Math.PI / 2], [0, -Math.PI / 2, 0], [0, Math.PI / 2, 0]];
@@ -270,7 +274,13 @@ export function updatePowerVisuals(dt, time) {
     if (U.status) setStatus(U.status, e.switch ? st?.on !== false : on, time);
     if (U.strips) for (const m of U.strips) m.emissiveIntensity = on ? 1.5 + 0.25 * Math.sin(time * 2.2 + s.x) : 0.08;
     if (U.cells) U.cells.emissiveIntensity = on ? 0.25 + sunLevel * 0.9 : 0;
-    if (U.screen) { drawPCScreen(k, U.screen, st); U.screen.scan.visible = !!(st?.pc && on); if (U.screen.scan.visible) U.screen.scan.material.map.offset.y = -time * 0.2; }
+    if (U.screen) {
+      const net = netOf.get(k), standby = !!net && !st?.pc && net.gens.length + net.solars.length + net.bats.length > 0;
+      drawPCScreen(k, U.screen, st, standby);
+      U.screen.scan.visible = !!(st?.pc && on) || standby;
+      if (U.screen.scan.visible) U.screen.scan.material.map.offset.y = -time * 0.2;
+      if (U.screen.mode === 'standby') U.screen.tex.offset.y = -((time * 0.06) % 1);
+    }
     if (U.sheet) { U.sheet.visible = on; if (on) U.sheet.position.z = 0.24 + ((time * 0.33) % 1) * 0.12; } // list vyjíždí z tiskárny
     if (U.holo) {
       const H = U.holo, show = e.store ? netOf.has(k) : on;
