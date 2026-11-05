@@ -1,9 +1,9 @@
-// Rybníky (voda) a rybaření.
+// Rybníky a jezera (voda) a rybaření.
 import './ground-items.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import * as THREE from 'three';
 import { randInt } from '../../../shared/util.js';
 import { pondLevel, waterAt } from '../../../shared/world/nature.js';
-import { POND_CELL, isMark, pondOf, shrineDist, terrainH } from '../../../shared/world/terrain.js';
+import { LAKE_CELL, POND_CELL, isMark, lakeOf, pondOf, shrineDist, terrainH } from '../../../shared/world/terrain.js';
 import { Sound } from '../audio/sound.js';
 import { useCost } from '../../../shared/tools.js';
 import { wearHeld } from '../player/durability.js';
@@ -16,20 +16,29 @@ import { toast } from '../ui/hud.js';
 
 const waterMat = makeWaterMaterial(), markWaterMat = makeWaterMaterial(true); // vlnky, odrazy a pěna: render/water.js
 const pondMeshes = new Map();
+function addWater(p, wanted) {
+  if (shrineDist(p.x, p.z) < 90) return;
+  wanted.add(p.key);
+  if (pondMeshes.has(p.key)) return;
+  const m = new THREE.Mesh(new THREE.CircleGeometry(p.r, p.lake ? 128 : 48).rotateX(-Math.PI / 2), waterMat);
+  m.position.set(p.x, pondLevel(p), p.z);
+  if (isMark(p.x)) m.material = markWaterMat;
+  decorPond(m, p, pondLevel(p), isMark(p.x)); // rákosí a kameny u břehu, mokrý břeh v terénu
+  scene.add(m);
+  pondMeshes.set(p.key, m);
+}
 export function refreshPonds(px, pz) {
   const R = 260, wanted = new Set();
   for (let cz = Math.floor((pz - R) / POND_CELL); cz <= Math.floor((pz + R) / POND_CELL); cz++)
     for (let cx = Math.floor((px - R) / POND_CELL); cx <= Math.floor((px + R) / POND_CELL); cx++) {
       const p = pondOf((cx + 0.5) * POND_CELL, (cz + 0.5) * POND_CELL);
-      if (!p || shrineDist(p.x, p.z) < 90) continue;
-      wanted.add(p.key);
-      if (pondMeshes.has(p.key)) continue;
-      const m = new THREE.Mesh(new THREE.CircleGeometry(p.r, 48).rotateX(-Math.PI / 2), waterMat);
-      m.position.set(p.x, pondLevel(p), p.z);
-      if (isMark(p.x)) m.material = markWaterMat;
-      decorPond(m, p, pondLevel(p), isMark(p.x)); // rákosí a kameny u břehu, mokrý břeh v terénu
-      scene.add(m);
-      pondMeshes.set(p.key, m);
+      if (p && !p.lake) addWater(p, wanted);
+    }
+  // jezera: větší mřížka, hladina se ukáže už z dálky
+  for (let cz = Math.floor((pz - R - 180) / LAKE_CELL); cz <= Math.floor((pz + R + 180) / LAKE_CELL); cz++)
+    for (let cx = Math.floor((px - R - 180) / LAKE_CELL); cx <= Math.floor((px + R + 180) / LAKE_CELL); cx++) {
+      const L = lakeOf((cx + 0.5) * LAKE_CELL, (cz + 0.5) * LAKE_CELL);
+      if (L && Math.hypot(L.x - px, L.z - pz) < R + L.r) addWater(L, wanted);
     }
   for (const [k, m] of pondMeshes) if (!wanted.has(k)) { scene.remove(m); pondMeshes.delete(k); }
 }
@@ -73,7 +82,7 @@ export function useRod() {
       return;
     }
   }
-  toast('Nahoď prut do vody (rybník)');
+  toast('Nahoď prut do vody (rybník nebo jezero)');
 }
 export function updateFishing(dt) {
   if (!fishing.active) return;

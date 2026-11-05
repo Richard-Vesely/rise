@@ -58,7 +58,7 @@ DATA_DIR=/opt/louka/server/data
 STATIC_DIR=/opt/louka/dist
 MAX_PLAYERS=8
 ALLOW_CREATIVE=0
-# Víc světů na jednom serveru (id:jméno[:creative][:pvp], oddělené čárkou; pvp = souboje hráčů). Bez WORLDS je jeden "Hlavní svět".
+# Víc světů na jednom serveru (id:jméno[:creative], oddělené čárkou). Bez WORLDS je jeden "Hlavní svět".
 # Každý svět má složku DATA_DIR/<id>/ (world.json + backups/). Po změně: systemctl restart louka
 #WORLDS="svet:Hlavní svět,kreativ:Kreativní svět:creative"
 # Správa hráčů na https://<doména>/admin (seznam hráčů, reset PINu). Bez hesla je stránka vypnutá.

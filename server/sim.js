@@ -8,6 +8,7 @@ import { updateMobs, updateSpawners, updateSpawns } from '../shared/sim/mobs.js'
 import { updatePower } from '../shared/sim/power.js';
 import { ensureArena } from '../shared/world/arena.js';
 import { loadWorld } from '../shared/world/save.js';
+import { updateTorches } from '../shared/world/torch.js';
 
 /**
  * Připraví svět a místnost.
@@ -15,13 +16,14 @@ import { loadWorld } from '../shared/world/save.js';
  * @param {object|null} o.world uložený svět (worldState()) nebo null = nový svět
  * @param {number} o.maxPlayers kolik hráčů najednou
  * @param {boolean} o.allowCreative smí všichni hráči kreativní režim?
- * @param {boolean} [o.pvp] můžou se hráči navzájem zranit?
+ * @param {boolean} [o.pvp] můžou se hráči navzájem zranit? (aréna)
+ * @param {boolean} [o.pvpMark] můžou se zranit jen v Markově dimenzi? (bez arény)
  * @param {string} o.code jak se server jmenuje v menu hráčů (adresa)
  * @param {(msg: string) => void} o.log
  * @param {() => void} [o.onChange] změnil se seznam hráčů
  */
-export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, code, log, onChange = () => {} }) {
-  Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp });
+export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, pvpMark = false, code, log, onChange = () => {} }) {
+  Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp, pvpMark });
   loadWorld(world);
   if (pvp && NET.quiet(() => ensureArena())) log('Postavena aréna (svět se souboji hráčů).');
   startRoom({ maxPlayers, onLog: log, onChange });
@@ -40,5 +42,6 @@ export function stepWorld(dt) {
   updatePower(dt, day);
   updateStoves(dt);
   updateCrops(dt);
+  updateTorches(dt);
   updateRoom(dt);
 }

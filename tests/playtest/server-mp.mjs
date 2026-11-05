@@ -6,13 +6,13 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { launch, checker, openPage, waitGame, shot, sleep } from './lib.mjs';
+import { launch, checker, openPage, waitGame, shot, sleep, SLOW } from './lib.mjs';
 
 const out = process.argv[2] || 'playtest-server';
 const { check, results, failed } = checker('server: ');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'louka-mp-'));
 function startServer(pass = 'kroužek') {
-  const child = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ROOM_PASSWORD: pass, SAVE_SECONDS: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ROOM_PASSWORD: pass, SAVE_SECONDS: '1', SILENT_SECONDS: String(30 * SLOW) }, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = '';
   return new Promise((ok, fail) => {
     const t = setTimeout(() => fail(new Error('server did not start: ' + log)), 20000);
@@ -22,7 +22,7 @@ function startServer(pass = 'kroužek') {
   });
 }
 const stop = (s) => new Promise((ok) => { if (s.child.exitCode !== null || s.child.signalCode) return ok(); s.child.stopping = true; s.child.on('exit', ok); s.child.kill(); });
-const until = async (page, fn, arg, timeout = 15000) => { try { await page.waitForFunction(fn, arg, { timeout, polling: 100 }); return true; } catch { return false; } };
+const until = async (page, fn, arg, timeout = 15000) => { try { await page.waitForFunction(fn, arg, { timeout: timeout * SLOW, polling: 100 }); return true; } catch (e) { until.err = String(e?.message || e).slice(0, 160); return false; } };
 
 let srv = await startServer();
 const browser = await launch();
@@ -101,6 +101,18 @@ try {
   // two stacks dropped on the same spot merge into one on the server, everybody sees one stack
   await A.evaluate(() => { const g = window.game, p = g.player.pos, y = g.groundHeight(p.x + 5, p.z); for (const n of [2, 3]) g.spawnGroundItem('dirt', n, { x: p.x + 5, y: y + 0.5, z: p.z }, { x: 0, y: 0, z: 0 }, 5); });
   check('stacks lying together merge on the server (Bára sees one stack of 5)', await until(B, () => { const d = window.game.groundItems.filter((x) => x.id === 'dirt' && x.n > 0); return d.length === 1 && d[0].n === 5; }), await B.evaluate(() => JSON.stringify(window.game.groundItems.map((x) => [x.id, x.n]))));
+  // a block mined by Ája pops out as an item: Bára sees it, Ája picks it up through the server
+  const mk = await A.evaluate(() => {
+    const g = window.game, before = g.countItem('planks'), p = g.player.pos, x = Math.floor(p.x) + 3, z = Math.floor(p.z) + 3, y = Math.floor(g.groundHeight(x + 0.5, z + 0.5)), k = `${x},${y},${z}`;
+    g.blocks.set(k, 'planks'); g.breakTarget({ kind: 'block', type: 'planks', cell: [x, y, z], at: [x + 0.5, y + 0.5, z + 0.5] });
+    return { k, before, bag: g.countItem('planks') - before };
+  });
+  check('a mined block pops out as an item for everyone (not straight into the backpack)', mk.bag === 0 && await until(B, () => window.game.groundItems.some((x) => x.id === 'planks' && x.n === 1)), JSON.stringify(mk));
+  check('…and the miner picks it up through the server', await until(A, (b) => { const g = window.game, it = g.groundItems.find((x) => x.id === 'planks' && x.n > 0); if (it && it.age > it.delay) T.tp(it.pos.x, it.pos.z, it.pos.y); return g.countItem('planks') === b + 1; }, mk.before));
+  // an item thrown into volcano lava burns on the server (the world holder decides), so it is gone for everybody
+  await A.evaluate(() => { const g = window.game; let v = null; for (let cx = 0; cx < 8 && !v; cx++) for (let cz = 0; cz < 8 && !v; cz++) v = g.volcanoOf(cx * 1100 + 550, cz * 1100 + 550); g.spawnGroundItem('log', 4, { x: v.x, y: g.terrainH(v.x, v.z) + 1, z: v.z }, { x: 0, y: 0, z: 0 }, 0, 'lava-test'); });
+  // (Ája only marks it burnt; it disappears at her only when the server says so)
+  check('an item in lava burns on the server and vanishes for everybody', await until(A, () => !window.game.groundItems.some((x) => x.gid === 'lava-test' && x.n > 0)) && await until(B, () => !window.game.groundItems.some((x) => x.gid === 'lava-test' && x.n > 0)));
 
   await B.evaluate(() => { const el = document.getElementById('chatInput'); el.value = 'Ahoj Ájo'; el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); });
   check('chat works through the server', await until(A, () => document.getElementById('feed').textContent.includes('Ahoj Ájo')));
@@ -116,12 +128,34 @@ try {
     return !!S.ctx;
   });
   await A.evaluate(() => { const g = window.game; window.T.tp(14, 48, g.groundHeight(14, 48)); g.player.yaw = 0; });
-  await sleep(500);
   await A.evaluate(() => { window.game.blocks.set('16,3,46', 'planks'); window.game.keys.add('KeyW'); });
-  await sleep(1500);
+  // obě hry krokujeme ručně: na pomalém stroji (softwarové WebGL v CI) proběhne za pár sekund jen pár snímků a kroky by někdy nezazněly
+  for (let i = 0; i < 16; i++) {
+    await A.evaluate(() => window.T.step(2, 0.05));
+    await sleep(80);
+    await B.evaluate(() => window.T.step(2, 0.05));
+  }
   await A.evaluate(() => window.game.keys.delete('KeyW'));
-  await B.evaluate(() => { const g = window.game, m = g.mobs.find((x) => !x.dead); if (m) { window.T.tp(m.pos.x + 2, m.pos.z, m.pos.y); g.mobs.forEach((x) => (x._snd = 0.01)); } });
+  await B.evaluate(() => { const g = window.game, m = g.mobs.find((x) => !x.dead); if (m) { window.T.tp(m.pos.x + 2, m.pos.z, m.pos.y); g.mobs.forEach((x) => (x._snd = 0.01)); window.T.step(4, 0.05); } });
   check('sound: a joined player hears others build and walk, and the animals', heard && await until(B, () => window.__heard.place > 0 && window.__heard.step > 0 && window.__heard.mob > 0, null, 8000), await B.evaluate(() => JSON.stringify(window.__heard)));
+
+  // pochodně: Ája pověsí pochodeň na zeď a jednu postaví na blok; Bára zeď zboří, server pochodeň shodí jako předmět
+  await A.evaluate(() => { const g = window.game; g.blocks.set('8,40,30', 'cobble'); g.blockMeta.set('8,40,31', 4); g.blocks.set('8,40,31', 'torch'); g.blocks.set('9,40,30', 'cobble'); g.blockMeta.set('9,41,30', 1); g.blocks.set('9,41,30', 'torch'); window.T.step(1, 0.0001); });
+  // hru krokujeme i v podmínce (změny se odesílají a modely přestavují v kroku hry), ať kontrola nezávisí na počtu snímků
+  check('torch: a wall torch from Ája hangs on the wall at Bára', await until(B, () => { window.T.step(1, 0.0001); return window.game.blockMeta.get('8,40,31') === 4 && window.game.specials.get('8,40,31')?.tm === 4 && window.game.specials.get('9,41,30')?.tm === 1; }));
+  // každý ze dvou hráčů si zapamatuje, že k němu dorazila vypadlá pochodeň (mohl ji mezitím někdo sebrat)
+  const seenTorch = () => { const g = window.game, push = g.groundItems.push; window.__torchItem = null; g.groundItems.push = function (...a) { for (const it of a) if (it.id === 'torch') window.__torchItem = { n: it.n, y: +it.pos.y.toFixed(1) }; return push.apply(this, a); }; };
+  // diagnostika pro CI: kdy dorazilo shození, kdy poprvé platila která podmínka, kolikrát a jak dlouho běžela kontrola, dlouhé úlohy stránky
+  const torchDiag = () => { const t0 = Date.now(), d = window.__td = { t0, arr: null, calls: 0, stepMax: 0, ok: {}, lt: [] }, f = window.__netOnData; window.__netOnData = (m) => { if (d.arr === null && JSON.stringify(m).includes('"8,40,31",null')) d.arr = Date.now() - t0; return f(m); }; try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (e.duration > 200) d.lt.push([Math.round(e.startTime + performance.timeOrigin - t0), Math.round(e.duration)]); }).observe({ type: 'longtask' }); } catch {} };
+  await A.evaluate(torchDiag); await B.evaluate(torchDiag);
+  await A.evaluate(seenTorch); await B.evaluate(seenTorch);
+  await B.evaluate(() => { window.game.blocks.delete('8,40,30'); window.T.step(1, 0.0001); });
+  const torchState = () => { const g = window.game; return { has: g.blocks.has('8,40,31'), meta: g.blockMeta.get('8,40,31') ?? null, wall: g.blocks.get('8,40,30') ?? null, sp: g.specials.has('8,40,31'), item: window.__torchItem, td: { ...window.__td, now: Date.now() - window.__td.t0, t0: undefined }, items: g.groundItems.filter((x) => x.id === 'torch').map((x) => [x.n, +x.pos.y.toFixed(1)]) }; };
+  const torchGone = () => { const d = window.__td, s0 = performance.now(); window.T.step(1, 0.0001); d.calls++; d.stepMax = Math.max(d.stepMax, Math.round(performance.now() - s0)); const c = { gone: !window.game.blocks.has('8,40,31'), sp: !window.game.specials.has('8,40,31'), item: window.__torchItem?.n === 1 }; for (const k in c) if (c[k] && d.ok[k] === undefined) d.ok[k] = Date.now() - d.t0; return c.gone && c.sp && c.item; };
+  // (dřív tu obě stránky na sekundy zamrzly: 3D model vypadlé pochodně se čte z ikony a čtení z plátna na grafické kartě čeká, viz iconCanvas)
+  const tw = Date.now(), torchB = await until(B, torchGone), twB = Date.now() - tw, torchA = await until(A, torchGone), twA = Date.now() - tw - twB;
+  const torchOk = torchB && torchA;
+  check('torch: Bára removes the wall, the server drops the torch as an item for both', torchOk, JSON.stringify({ waitB: twB, waitA: twA, err: until.err, A: await A.evaluate(torchState), B: await B.evaluate(torchState) }));
 
   // restart: the world is saved every second (SAVE_SECONDS=1) and on shutdown
   await sleep(1500);
@@ -133,6 +167,7 @@ try {
   await waitGame(C, 60000);
   check('a server without a password joins without asking', await C.evaluate(() => window.game.NET.client === true));
   check('after a restart the world is still there (block, chest, digging)', await C.evaluate(() => window.game.blocks.get('4,2,30') === 'bricks' && window.game.chests.get('6,2,30')?.[0]?.id === 'apple' && window.game.getVox(5, -6, 30) === 0));
+  check('after a restart the torch still stands on its block', await C.evaluate(() => window.game.blocks.get('9,41,30') === 'torch' && window.game.blockMeta.get('9,41,30') === 1));
   check('no console errors (Cyril)', C.errors.length === 0, C.errors.slice(0, 3).join(' | '));
 } catch (e) {
   check('test ran without exception', false, e.stack || e);

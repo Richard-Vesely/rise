@@ -88,13 +88,14 @@ export function renderKitchen(area) {
 // Pole: motykou zoráš zem, zasadíš semínka, plodina projde 4 fázemi růstu.
 // Plodina povyrostla (shared/sim/machines.js): nový model.
 on('cropGrew', (k) => { const s = specials.get(k); if (s) { scene.remove(s.obj); specials.delete(k); } });
-export function harvestCrop(type, k) {
+// give(id, n) = kam úroda padá (při těžbě vyskočí jako předměty, client/src/world/ground-items.js dropper)
+export function harvestCrop(type, k, give = addItem) {
   const c = crops.get(k), def = CROPS[type];
   crops.delete(k);
   if (c && c.stage >= 3) {
-    for (const [id, a, b] of def.ripe) { const n = randInt(a, b); if (n) addItem(id, n); }
+    for (const [id, a, b] of def.ripe) { const n = randInt(a, b); if (n) give(id, n); }
     Sound.pickup();
-  } else addItem(def.seed, 1); // nezralá: vrátí se semínko
+  } else give(def.seed, 1); // nezralá: vrátí se semínko
 }
 // Model plodiny podle druhu a fáze růstu (0–3)
 export function buildCropModel(g, type, stage) {

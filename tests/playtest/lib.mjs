@@ -6,6 +6,9 @@ import path from 'node:path';
 
 export const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
 
+/** Slow machine (CPU shared with other work): PLAYTEST_SLOW=3 makes the long waits three times longer. */
+export const SLOW = Math.max(1, Number(process.env.PLAYTEST_SLOW) || 1);
+
 /** Starts Chromium (CHROME_PATH overrides Playwright's own browser). */
 export const launch = () => chromium.launch({ executablePath: process.env.CHROME_PATH || undefined, args: ARGS });
 
@@ -15,6 +18,8 @@ export function serveDir(dir) {
   const root = path.resolve(dir);
   const srv = http.createServer((req, res) => {
     let p = decodeURIComponent(req.url.split('?')[0]);
+    // Chrome žádá ikonu i bez odkazu v HTML; hra vlastní favicon nemá.
+    if (p === '/favicon.ico') { res.writeHead(204); res.end(); return; }
     if (p.endsWith('/')) p += 'index.html';
     const f = path.join(root, p);
     if (!f.startsWith(root)) { res.writeHead(403); res.end(); return; }
@@ -39,7 +44,7 @@ export function checker(prefix = '') {
 }
 
 // Software WebGL is slow: while __skipDraw is true, draw calls are skipped (the game logic still runs).
-function skipDrawScript() {
+export function skipDrawScript() {
   window.__skipDraw = true;
   for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
     if (!C) continue;
@@ -50,14 +55,28 @@ function skipDrawScript() {
   }
 }
 
+// Pointer Lock is only pretended: a real lock in headless Chromium on Windows traps the real desktop cursor
+// (ClipCursor to the viewport size) while the tests run. The game sees the same pointerLockElement + pointerlockchange.
+function fakePointerLockScript() {
+  let locked = null;
+  const changed = () => setTimeout(() => document.dispatchEvent(new Event('pointerlockchange')));
+  Object.defineProperty(Document.prototype, 'pointerLockElement', { configurable: true, get: () => locked });
+  Element.prototype.requestPointerLock = function () { locked = this; changed(); return Promise.resolve(); };
+  Document.prototype.exitPointerLock = function () { if (!locked) return; locked = null; changed(); };
+}
+
 /** Opens a new browser context + page, collects console errors. */
 export async function openPage(browser, url, { label = '', viewport = { width: 1100, height: 680 }, clear = true, ignore = [] } = {}) {
   const ctx = await browser.newContext({ viewport });
+  if (SLOW > 1) ctx.setDefaultTimeout(30000 * SLOW);
   await ctx.addInitScript(skipDrawScript);
+  await ctx.addInitScript(fakePointerLockScript);
   // PLAYTEST_QUALITY=low (CI): méně trávy a stromů, ať je software WebGL na pomalém stroji rychlejší
   if (process.env.PLAYTEST_QUALITY) await ctx.addInitScript((q) => { try { const p = JSON.parse(localStorage.getItem('rise-nastaveni') || '{}'); if (!p.quality) localStorage.setItem('rise-nastaveni', JSON.stringify({ ...p, quality: q })); } catch {} }, process.env.PLAYTEST_QUALITY);
   const page = await ctx.newPage();
   page.errors = [];
+  // Analytika musí být v testech vypnutá: každý pokus o spojení s posthog.com (i *.posthog.com) se zablokuje a test spadne
+  await ctx.route(/^[a-z]+:\/\/([^/?#]*\.)?posthog\.com([/:?#]|$)/i, (r) => { page.errors.push(`${label}PostHog request blocked: ${r.request().url()}`); return r.abort(); });
   const skip = (t) => ignore.some((re) => re.test(t));
   page.on('console', (m) => { if (m.type() === 'error' && !skip(m.text())) page.errors.push(`${label}${m.text()}`); });
   page.on('pageerror', (e) => { if (!skip(String(e))) page.errors.push(`${label}${e}`); });
@@ -71,6 +90,7 @@ export async function openPage(browser, url, { label = '', viewport = { width: 1
 
 /** Waits for the game module and installs the helper object `T` in the page. */
 export async function waitGame(page, timeout = 120000) {
+  timeout *= SLOW;
   await page.waitForFunction(() => window.gameStarted === true, null, { timeout, polling: 100 });
   await page.evaluate(() => {
     const g = window.game;
@@ -90,6 +110,14 @@ export async function waitGame(page, timeout = 120000) {
       count: (id) => g.countItem(id),
       clearInv() { g.inv.slots.fill(null); g.inv.cursor = null; },
       mineUntil(fn, max = 600) { g.input.lmb = true; let n = 0; while (!fn() && n < max) { this.step(1); n++; } g.input.lmb = false; this.step(1, 0.0001); return n; },
+      // Vytěžené bloky vyskočí jako předměty: dojdi (teleportem) ke každému do 8 m, počkej na sebrání a vrať se.
+      collect(max = 160) {
+        const p0 = g.player.pos.clone(), near = () => g.groundItems.find((x) => x.n > 0 && !x.burnt && Math.hypot(x.pos.x - p0.x, x.pos.z - p0.z) < 8);
+        let n = 0;
+        for (let it = near(); it && n < max; it = near(), n++) { if (it.age > it.delay) this.tp(it.pos.x, it.pos.z, it.pos.y + 0.05); this.step(1); }
+        this.tp(p0.x, p0.z, p0.y);
+        return n;
+      },
       text: (id) => document.getElementById(id)?.textContent ?? '',
       key(code, down = true) { window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code })); },
       press(code) { this.key(code, true); this.key(code, false); },

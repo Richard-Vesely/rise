@@ -35,6 +35,10 @@ jobs:
         env:
           PLAYTEST_QUALITY: low
         run: node tests/playtest/inventory.mjs dist playtest-inv
+      - name: Play-test – vehicles (lakes, bike, boats and wind, seaplane, garage, nitro, passenger)
+        env:
+          PLAYTEST_QUALITY: low
+        run: node tests/playtest/vehicles.mjs dist playtest-veh
       - name: Multiplayer – Node server + 2 browsers
         env:
           PLAYTEST_QUALITY: low

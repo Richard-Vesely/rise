@@ -13,7 +13,8 @@ import { chatOpen, openChat, pauseOpen } from '../net/mp-ui.js';
 import { resetUseCd, target } from '../player/interaction.js';
 import { heldStack, inv } from '../player/inventory.js';
 import { creative, guideOpen, input, isLocked, keys, lockPointer, player, setResetting, toggleGuide, unlockPointer } from '../player/player.js';
-import { enterVehicle, exitVehicle, honk, toggleCarCam } from '../vehicles/car.js';
+import { enterVehicle, exitVehicle, honk, setGear, toggleCarCam, useNitro } from '../vehicles/car.js';
+import { isBoat, isPlane, kindOf } from '../vehicles/kinds.js';
 import { dropHeld } from '../world/ground-items.js';
 import { $ } from './dom.js';
 import { toast } from './hud.js';
@@ -44,7 +45,9 @@ export const touchUI = (() => {
       <div class="tbtn small" data-act="menu"><span>⏸</span><small>${MP ? 'Menu' : 'Pauza'}</small></div>
     </div>
     <div class="tcar">
-      <div class="tbtn small" data-act="vhorn"><span>📯</span><small>Klakson</small></div>
+      <div class="tbtn small" data-act="vgear" id="tGear"><span>⚙</span><small>Převod</small></div>
+      <div class="tbtn small" data-act="vnitro" id="tNitro"><span>🔥</span><small>Nitro</small></div>
+      <div class="tbtn small" data-act="vhorn" id="tHorn"><span>📯</span><small>Klakson</small></div>
       <div class="tbtn small" data-act="vlights"><span>💡</span><small>Světla</small></div>
       <div class="tbtn small" data-act="vcam"><span>🎥</span><small>Kamera</small></div>
       <div class="tbtn small" data-act="vexit"><span>🚪</span><small>Vystoupit</small></div>
@@ -96,6 +99,8 @@ export const touchUI = (() => {
     else if (a === 'vhorn') honk();
     else if (a === 'vcam') { toggleCarCam(); player.yaw = 0; }
     else if (a === 'vlights') key('KeyL', true);
+    else if (a === 'vnitro') useNitro();
+    else if (a === 'vgear') { const v = vehicles.get(player.vehicle); if (v?.type === 'bike') setGear(v, (v.gear || 2) % 3 + 1); }
   }
   root.addEventListener('touchstart', (e) => {
     e.preventDefault();
@@ -167,10 +172,15 @@ export const touchUI = (() => {
       el('tSprint').hidden = flying;
       const wantShift = flying || player.vehicle ? [...held.values()].some((b) => b.id === 'tDown') : sprint;
       if (wantShift) keys.add('ShiftLeft'); else keys.delete('ShiftLeft');
-      root.classList.toggle('incar', !!player.vehicle);
-      el('tEnter').hidden = !!player.vehicle || target?.kind !== 'vehicle';
-      const inPlane = vehicles.get(player.vehicle)?.type === 'plane';
+      root.classList.toggle('incar', !!player.vehicle || !!player.riding);
+      root.classList.toggle('riding', !!player.riding); // spolujezdec: jen Kamera a Vystoupit
+      el('tEnter').hidden = !!player.vehicle || !!player.riding || target?.kind !== 'vehicle';
+      const vt = vehicles.get(player.vehicle)?.type, inPlane = isPlane(vt);
       root.classList.toggle('inplane', inPlane);
+      root.classList.toggle('inboat', isBoat(vt));
+      el('tGear').hidden = vt !== 'bike';
+      el('tNitro').hidden = !vt || !kindOf(vt).mods.includes('nitro');
+      label(el('tHorn'), vt === 'bike' ? '🔔' : '📯', vt === 'bike' ? 'Zvonek' : isBoat(vt) ? 'Houkačka' : 'Klakson');
       if (inPlane) { label(el('tJump'), '⇧', 'Plyn +'); label(el('tDown'), '⇩', 'Plyn −'); el('tDown').hidden = false; }
       else if (player.vehicle) label(el('tJump'), '■', 'Brzda');
       if ((labelT -= dt) > 0) return;

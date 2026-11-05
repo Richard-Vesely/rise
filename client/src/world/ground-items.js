@@ -3,21 +3,25 @@ import '../render/dimension.js'; // pořadí spouštění: nejdřív předchozí
 import * as THREE from 'three';
 import { ITEMS } from '../../../shared/data/index.js';
 import { stackModels } from '../../../shared/inventory.js';
+import { on } from '../../../shared/events.js';
 import { NET } from '../../../shared/net/net.js';
-import { groundItems, spawnGroundItem, updateGroundItems } from '../../../shared/sim/ground-items.js';
+import { THROW_DELAY, groundItems, popGroundItem, spawnGroundItem, updateGroundItems } from '../../../shared/sim/ground-items.js';
 import { PH } from '../../../shared/world/constants.js';
+import { Sound } from '../audio/sound.js';
 import { uiSound } from '../audio/ui-sound.js';
 import { iconVoxels } from '../dining/food-models.js';
 import { addItem, heldStack, inv } from '../player/inventory.js';
-import { player } from '../player/player.js';
+import { creative, player } from '../player/player.js';
 import { blockMat } from '../render/blocks.js';
+import { debris, sparks } from '../render/particles.js';
 import { camera, scene } from '../render/renderer.js';
 import { feed } from '../ui/hud.js';
 import { renderHotbar } from '../ui/inventory-ui.js';
 
-// ============================================================ předměty ležící na zemi (vyhazování klávesou Q / G)
-// Vyhozený předmět letí ve směru pohledu, dopadne, pohupuje se a točí. Když jdeš blízko, přitáhne se k tobě (magnet),
-// při sebrání vletí do hráče, zmenší se a ozve se „plip". Víc kusů = víc 3D kousků (1, 2–16, 17–32, 33–48, 49+).
+// ============================================================ předměty ležící na zemi (vyhazování klávesou Q / G, vytěžené bloky)
+// Vyhozený předmět letí ve směru pohledu, vytěžený blok vyskočí z místa, kde byl. Dopadne, pohupuje se a točí.
+// Když jdeš blízko, přitáhne se k tobě (magnet), při sebrání vletí do hráče, zmenší se a ozve se „plip".
+// Víc kusů = víc 3D kousků (1, 2–16, 17–32, 33–48, 49+). Ve vodě plave, v lávě shoří.
 const SHADOW_GEO = new THREE.CircleGeometry(0.17, 18).rotateX(-Math.PI / 2);
 const SHADOW_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false });
 const OFFS = [[0, 0, 0], [0.07, 0.04, -0.05], [-0.06, 0.08, 0.05], [0.05, 0.12, 0.07], [-0.05, 0.16, -0.07]];
@@ -48,7 +52,10 @@ let lastT = performance.now();
 export function syncGroundItemViews() {
   const now = performance.now(), dt = Math.min(0.1, (now - lastT) / 1000);
   lastT = now;
+  let shown = 0;
   for (const it of groundItems) {
+    if (it.burnt) continue; // shořel v lávě (zmizí, až to potvrdí ten, kdo drží svět)
+    shown++;
     let v = itemViews.get(it);
     const k = stackModels(it.n);
     if (v && v.k !== k && it.n > 0) { disposeView(v); v = null; }
@@ -61,8 +68,8 @@ export function syncGroundItemViews() {
     v.g.rotation.y = it.spin;
     v.sh.position.set(it.pos.x, it.pos.y + 0.015, it.pos.z);
   }
-  if (itemViews.size > groundItems.length) { // některý předmět zmizel: sebraný hráčem u této obrazovky letí do něj
-    const alive = new Set(groundItems);
+  if (itemViews.size > shown) { // některý předmět zmizel: sebraný hráčem u této obrazovky letí do něj
+    const alive = new Set(groundItems.filter((it) => !it.burnt));
     for (const [it, v] of itemViews) {
       if (alive.has(it)) continue;
       itemViews.delete(it);
@@ -94,16 +101,37 @@ export function throwItem(id, n, w = 0) {
   const dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
   const pos = camera.position.clone().addScaledVector(dir, 0.5).add(new THREE.Vector3(0, -0.3, 0));
-  spawnGroundItem(id, n, pos, dir.multiplyScalar(5.5).add(new THREE.Vector3(0, 2, 0)), 1.2, undefined, w);
+  spawnGroundItem(id, n, pos, dir.multiplyScalar(5.5).add(new THREE.Vector3(0, 2, 0)), THROW_DELAY, undefined, w);
   uiSound.toss();
   feed(id, `−${n} ${ITEMS[id].name}`);
 }
+/** Vytěžený blok (nebo obsah rozbité truhly) vyskočí jako malý předmět s náhodným poskokem (pravidlo v shared/sim/ground-items.js). */
+export const popItem = popGroundItem;
+/**
+ * Kam padá, co vytěžíš: drop(id, n) = vytěžený blok (v kreativním režimu nic, jako v Minecraftu),
+ * contents(slot) = obsah rozbité truhly, pece nebo stolu (vypadne vždycky, i s opotřebením nástroje).
+ */
+export const dropper = (x, y, z) => ({
+  drop: (id, n) => { if (!creative) popItem(id, n, x, y, z); },
+  contents: (s) => popItem(s.id, s.n, x, y, z, s.w || 0),
+});
+// Předmět spadl do vody: šplouchnutí; shořel v lávě: jiskry, kouř a syčení (pravidla: shared/sim/ground-items.js)
+on('itemSplash', (it) => {
+  debris.emit(it.pos.x, it.pos.y + 0.1, it.pos.z, [0.75, 0.88, 1], 8, 1.5, 2.5);
+  Sound.at(it.pos.x, it.pos.y, it.pos.z, () => Sound.splash(0.35));
+});
+on('itemBurn', (it) => {
+  sparks.emit(it.pos.x, it.pos.y + 0.2, it.pos.z, [1, 0.45, 0.1], 14, 2, 3);
+  debris.emit(it.pos.x, it.pos.y + 0.3, it.pos.z, [0.25, 0.22, 0.2], 6, 0.6, 2.5);
+  Sound.at(it.pos.x, it.pos.y, it.pos.z, () => uiSound.fizz());
+});
 // Sebrání předmětu hráčem u této obrazovky (volá shared/sim/ground-items.js pro každý předmět)
 const MAGNET = 2.4; // m: odsud se předmět začne přitahovat
 let tickDt = 0;
 function pickupLocal(it) {
   const p = player.pos;
-  if (!player.alive || it.n <= 0 || it.age <= it.delay || it.pos.y < p.y - 0.8 || it.pos.y > p.y + PH) return;
+  // výška: od jámy o blok hlouběji (vykopaná hlína) po hlavu
+  if (!player.alive || it.n <= 0 || it.age <= it.delay || it.pos.y < p.y - 1.3 || it.pos.y > p.y + PH) return;
   const dx = p.x - it.pos.x, dz = p.z - it.pos.z, d = Math.hypot(dx, dz);
   if (d >= MAGNET || !roomFor(it.id)) return;
   if (d > 0.05) { // magnet: čím blíž, tím rychleji (jen na této obrazovce, o sebrání rozhoduje dál ten, kdo drží svět)

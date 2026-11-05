@@ -38,6 +38,7 @@ export function buildComputerModel(g) {
   c.height = 160;
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapT = THREE.RepeatWrapping;
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.37), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
   scr.position.set(0.12, 0.44, -0.121);
   g.add(scr);
@@ -66,16 +67,30 @@ function scanTex() {
   return scanT;
 }
 // Obraz na monitoru ve světě (vidí ho i ostatní hráči): vypnuto, start, plocha
-export function drawPCScreen(k, S, st) {
+// standby = počítač je vypnutý, ale v síti s proudem: na obrazovce běží pohotovostní terminál (řádky pomalu jedou nahoru)
+export function drawPCScreen(k, S, st, standby = false) {
   const local = pc.k === k && (pc.phase === 'boot' || pc.phase === 'shut') ? pc.phase : null;
-  const mode = local || (st?.pc && st.pw ? 'desk' : 'off');
+  const mode = local || (st?.pc && st.pw ? 'desk' : standby ? 'standby' : 'off');
+  S.mode = mode;
   const key = mode + (st?.wall || 0);
   if (S.key === key) return;
   S.key = key;
   const x = S.ctx, W = 256, H = 160;
+  S.tex.offset.y = 0;
   x.fillStyle = '#050608';
   x.fillRect(0, 0, W, H);
-  if (mode === 'boot' || mode === 'shut') {
+  if (mode === 'standby') {
+    // svislé opakování: textura se posouvá (power.js), takže řádky „běží“ bez překreslování plátna
+    x.fillStyle = '#04121a';
+    x.fillRect(0, 0, W, H);
+    x.font = '11px monospace';
+    const lines = ['ŘíšeOS 2.6 · pohotovost', '> síť: OK', '> napájení ✓', '> čekám na hráče…', '> kontrola disku 100 %', '> teplota 31 °C', '> zálohy: hotovo', '> pravým tlačítkem zapni', '> síť: OK', '> ping 3 ms'];
+    lines.forEach((t, i) => { x.fillStyle = i === 0 ? '#9ff4ff' : i % 3 === 1 ? '#5cff8a' : '#38c8e0'; x.fillText(t, 10, 14 + i * 16); });
+    x.fillStyle = 'rgba(56,232,255,0.5)';
+    x.fillRect(W - 40, 8, 30, 3); x.fillRect(W - 40, 15, 18, 3);
+    x.strokeStyle = 'rgba(56,232,255,0.35)';
+    x.strokeRect(1.5, 1.5, W - 3, H - 3);
+  } else if (mode === 'boot' || mode === 'shut') {
     x.fillStyle = '#0a1424';
     x.fillRect(0, 0, W, H);
     x.fillStyle = '#e8eef8';
