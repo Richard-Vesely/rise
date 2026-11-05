@@ -4,7 +4,7 @@
 // velké textury a ta se přečte najednou. Jen funkce (volá je render/blocks.js).
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { ICONS } from './icons.js';
+import { ICONS, iconCanvas } from './icons.js';
 import { renderer } from './renderer.js';
 
 const S = 64, SS = S * 2; // velikost ikony; kreslí se 2× větší a zmenší (hladké hrany)
@@ -80,14 +80,14 @@ export async function renderIcons(items) {
   renderer.setClearColor(prevColor, prevAlpha);
   rt.dispose(); envRT.dispose(); pmrem.dispose();
   // rozstříhat na ikony (řádky z WebGL jsou odspodu)
-  const big = document.createElement('canvas');
+  const big = iconCanvas();
   big.width = big.height = SS;
   const bctx = big.getContext('2d'), img = bctx.createImageData(SS, SS), W = cols * SS;
   shots.forEach((s, i) => {
     const ox = (i % cols) * SS, oy = Math.floor(i / cols) * SS;
     for (let y = 0; y < SS; y++) { const src = ((oy + SS - 1 - y) * W + ox) * 4; img.data.set(px.subarray(src, src + SS * 4), y * SS * 4); }
     bctx.putImageData(img, 0, 0);
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = S;
     const x = c.getContext('2d');
     x.imageSmoothingEnabled = true;

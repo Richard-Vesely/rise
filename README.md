@@ -54,7 +54,7 @@ git push -u origin moje-vec
 
 Ve svém forku na GitHubu klikni **Compare & pull request** (cíl `Richard-Vesely/rise`, `main`) a napiš, co jsi
 přidal(a), jak to vyzkoušet a kdo na tom pracoval.
-Počkej, až bude automatická kontrola zelená ✅ a Richard změnu schválí. Podrobný návod: [CONTRIBUTING.md](CONTRIBUTING.md).
+Když je automatická kontrola zelená ✅, Robot kroužku to sám sloučí a napíše ti komentář. Když ne, napíše, co opravit. Podrobný návod: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Jak hrát
 

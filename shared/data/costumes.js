@@ -11,7 +11,16 @@ export const SUITS = {
   scientist: { name: 'Vědec', desc: 'Dlouhý laboratorní plášť a brýle s hologramem' },
   shadow: { name: 'Stínový', desc: 'Tmavá kápě a roztřepený plášť, jako stínová sada' },
   sky: { name: 'Nebeský', desc: 'Bílo-zlatý oblek se svatozáří a tryskami, jako nebeská sada' },
+  // Hrdinové (hero): bez přilby, s obličejem a vlasy (inspirace Hytale). Hledí = barva vlasů, znak = pleť, světla = oči a drahokam.
+  mage: { name: 'Mág', desc: 'Dlouhý hábit se zlatými ornamenty, drahokam na hrudi a rozcuchané vlasy', hero: true },
+  knight: { name: 'Rytíř', desc: 'Kroužková tunika s erbem, kovové nárameníky a krátký plášť', hero: true },
+  ranger: { name: 'Hraničář', desc: 'Kožená vesta, kápě přes záda, toulec a vlající šála', hero: true },
 };
+/** Má oblek obličej a vlasy místo přilby? */
+export const isHero = (s) => !!SUITS[s]?.hero;
+/** Hrdinové: barva vlasů (místo hledí, stejný počet) a pleti (místo znaku, stejný počet). */
+export const HAIR_COLORS = [['Fialové', '#8a4ad8'], ['Hnědé', '#5a3a22'], ['Blond', '#e0b858'], ['Černé', '#26222c'], ['Zrzavé', '#c8562a']];
+export const SKIN_TONES = [['Světlá', '#f2cfae'], ['Růžová', '#eebc9e'], ['Broskvová', '#e0a98a'], ['Olivová', '#c99a6e'], ['Medová', '#b07c52'], ['Hnědá', '#8a5a3a'], ['Tmavá', '#62402a'], ['Mramorová', '#d8d4e0']];
 export const SUIT_IDS = Object.keys(SUITS);
 
 /** Barvy obleku (látka a lak). */

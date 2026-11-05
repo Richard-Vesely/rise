@@ -1,7 +1,8 @@
-// Auto: model, jízda, kufr.
+// Vozidla: auto (model a jízda) a co mají všechna vozidla společné: nastoupit a vystoupit, zobrazení, kamera, nitro.
+// Druhy vozidel jsou v kinds.js; kolo v bike.js, lodě v boat.js, letadla v plane.js, spolujezdci v passengers.js,
+// okno vozidla a ukazatele v vehicle-ui.js.
 import '../world/fishing.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import * as THREE from 'three';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { NET } from '../../../shared/net/net.js';
 import { others } from '../../../shared/net/room.js';
 import { mobs } from '../../../shared/sim/mobs.js';
@@ -20,132 +21,141 @@ import { hitMob } from '../mobs/mobs.js';
 import { clearTarget, groundRing, outline, preview, target } from '../player/interaction.js';
 import { collidesBlocks, input, keys, player } from '../player/player.js';
 import { tmpV } from '../render/daylight.js';
-import { MATQ, setupBlockMat } from '../render/materials.js';
 import { forestColliders } from '../render/forest.js';
 import { holder } from '../render/held-item.js';
+import { sparks } from '../render/particles.js';
 import { U, camera, scene } from '../render/renderer.js';
 import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
-import { slotHTML, ui } from '../ui/inventory-ui.js';
-import { PLANE, buildPlaneModel, flyPlane, placePlaneCamera } from './plane.js';
+import { buildCarModel } from './car-model.js';
+import { animateLook, exhaustOf, lookKey } from './veh-look.js';
+import { bell, buildBikeModel, placeBikeCamera, rideBike, setGear } from './bike.js';
+import { boatHorn, buildBoatModel, placeBoatCamera, sailBoat, updateWake } from './boat.js';
+import { NITRO_TIME, isBoat, isPlane, kindOf, powerMul, trunkSize } from './kinds.js';
+import { leaveRide, placeRider, tryRide } from './passengers.js';
+import { PLANE, flyPlane, placePlaneCamera } from './plane.js';
+import { buildPlaneModel } from './plane-model.js';
+import { vehicleHud } from './vehicle-ui.js';
+export { renderCarUI } from './vehicle-ui.js';
+export { setGear };
 
 // ============================================================ vozidla: auto
-// Stav auta se ukládá a v multiplayeru synchronizuje jako malá mapa (vehicles). Kdo řídí, počítá fyziku u sebe
-// a polohu posílá s pozicí hráče (12× za sekundu); ostatní auto plynule dopočítávají.
+// Stav vozidla se ukládá a v multiplayeru synchronizuje jako malá mapa (vehicles). Kdo řídí, počítá fyziku u sebe
+// a polohu posílá s pozicí hráče (12× za sekundu); ostatní vozidlo plynule dopočítávají.
 export const CAR = { len: 4.2, wid: 1.9, wb: 2.6, track: 1.6, maxFwd: 22, maxRev: 6, accel: 7, brake: 16, steerMax: 0.55, fuelMax: 40, step: 0.65 };
 export const myDriverId = () => (MP ? NET.pid : 'me');
-// Rozměry a vlastnosti podle druhu vozidla (letadlo je definované v 19c)
-export const vehDim = (t) => (t === 'plane' ? { wid: PLANE.span, len: PLANE.len, h: 2.6, push: 1.1, name: 'Dvouplošník', fuelMax: PLANE.fuelMax }
-  : { wid: CAR.wid, len: CAR.len, h: 1.62, push: CAR.wid, name: 'Auto', fuelMax: CAR.fuelMax });
-const remoteVeh = new Map(); // id auta -> poslední poloha od hráče, který ho řídí (neukládá se)
-export const carWarn = { t: 0 }; // odpočet do dalšího upozornění (auto i letadlo)
+/** Rozměry a vlastnosti podle druhu vozidla (kinds.js). */
+export const vehDim = kindOf;
+const remoteVeh = new Map(); // id vozidla -> poslední poloha od hráče, který ho řídí (neukládá se)
+export const carWarn = { t: 0 }; // odpočet do dalšího upozornění (všechna vozidla)
 export let carCam = 0;
 export function toggleCarCam() { carCam = 1 - carCam; } // 0 = z první osoby, 1 = ze třetí osoby
-const vehMeshes = new Map();
-// Jediné reflektorové světlo pro auto, které řídíš (stálý počet světel = žádné překompilování shaderů)
+export const vehMeshes = new Map(); // id vozidla -> model ({ group, wheels, pivots, … })
+// Jediné reflektorové světlo pro vozidlo, které řídíš (stálý počet světel = žádné překompilování shaderů)
 const carSpot = new THREE.SpotLight(0xfff2d0, 0, 45, 0.55, 0.5, 1.2);
 scene.add(carSpot, carSpot.target);
 
-// ---------- model: dopředu je -z, počátek mezi nápravami na zemi
-function buildCarModel(color) {
-  const g = new THREE.Group();
-  const M = (o) => new THREE.MeshStandardMaterial({ roughness: 0.5, ...o });
-  // metalický lak s průhledným vrchním lakem (střední a vysoká grafika), sklo s odlesky oblohy
-  const paint = MATQ.maps ? new THREE.MeshPhysicalMaterial({ color, metalness: 0.55, roughness: 0.34, clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.3 }) : M({ color, metalness: 0.45, roughness: 0.3 });
-  const dark = M({ color: 0x1e1e22, roughness: 0.8 }), chrome = M({ color: 0xd8dce2, metalness: 1, roughness: 0.16 });
-  const glass = setupBlockMat(new THREE.MeshStandardMaterial({ color: 0x1a2632, transparent: true, opacity: 0.55, depthWrite: false }), 'glass');
-  const box = (w, h, d, m, x, y, z, parent = g, r = 0) => { const me = new THREE.Mesh(r ? new RoundedBoxGeometry(w, h, d, 3, r) : new THREE.BoxGeometry(w, h, d), m); me.position.set(x, y, z); parent.add(me); return me; };
-  box(1.9, 0.5, 4.2, paint, 0, 0.68, 0, g, 0.14);     // spodní část karoserie (zaoblená)
-  box(1.86, 0.12, 1.5, paint, 0, 0.98, -1.3, g, 0.05); // kapota
-  box(1.8, 0.62, 1.95, glass, 0, 1.24, 0.25, g, 0.06); // kabina se skly
-  box(1.84, 0.08, 1.75, paint, 0, 1.58, 0.3, g, 0.035); // střecha
-  for (const [x, z] of [[-0.88, -0.7], [0.88, -0.7], [-0.88, 1.2], [0.88, 1.2]]) box(0.08, 0.62, 0.1, paint, x, 1.24, z); // sloupky
-  box(1.95, 0.22, 0.18, dark, 0, 0.52, -2.12);        // přední nárazník
-  box(1.95, 0.22, 0.18, dark, 0, 0.52, 2.12);         // zadní nárazník
-  box(1.0, 0.2, 0.04, chrome, 0, 0.75, -2.11);        // maska chladiče
-  const head = M({ color: 0xfff8e0, emissive: 0xfff2c0, emissiveIntensity: 0 }), tail = M({ color: 0x6a1010, emissive: 0xff2010, emissiveIntensity: 0.25 });
-  for (const x of [-0.65, 0.65]) { box(0.38, 0.16, 0.04, head, x, 0.78, -2.11); box(0.36, 0.14, 0.04, tail, x, 0.78, 2.11); }
-  // tyrkysové podsvícení podvozku (svítí, když auto jede nebo má rozsvíceno)
-  const under = M({ color: 0x0b0d12, emissive: 0x38e8ff, emissiveIntensity: 0 });
-  for (const x of [-0.96, 0.96]) box(0.03, 0.04, 3.5, under, x, 0.45, 0);
-  box(1.6, 0.02, 3.6, under, 0, 0.42, 0);
-  const seat = M({ color: 0x4a2e22 });
-  for (const x of [-0.42, 0.42]) { box(0.55, 0.12, 0.55, seat, x, 0.98, 0.35); box(0.55, 0.6, 0.12, seat, x, 1.25, 0.66); }
-  const sw = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.025, 6, 16), dark);
-  sw.position.set(-0.42, 1.2, -0.25);
-  sw.rotation.x = -0.9;
-  g.add(sw);
-  // kola: natáčecí čep -> rotující kolo (pneumatika, ráfek, paprsek, aby bylo vidět otáčení)
-  const wheels = [], pivots = [];
-  const tireGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.3, 18).rotateZ(Math.PI / 2), rimGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.32, 12).rotateZ(Math.PI / 2);
-  for (const [x, z] of [[-0.95, -1.3], [0.95, -1.3], [-0.95, 1.3], [0.95, 1.3]]) {
-    const pivot = new THREE.Group();
-    pivot.position.set(x, 0.38, z);
-    g.add(pivot);
-    const spin = new THREE.Group();
-    pivot.add(spin);
-    spin.add(new THREE.Mesh(tireGeo, dark), new THREE.Mesh(rimGeo, chrome));
-    box(0.34, 0.06, 0.36, chrome, 0, 0, 0, spin);
-    wheels.push(spin);
-    if (z < 0) pivots.push(pivot);
-  }
-  return { group: g, wheels, pivots, head, tail, under };
-}
+// Barvy nových vozidel (garáž je umí přelakovat na kteroukoli z PAINTS)
 const CAR_COLORS = [0xc82a2a, 0x2a5ab0, 0x2a8a3a, 0xe8c030, 0xe8e8e8, 0x2a2a30, 0xe07a20];
+const COLORS = { plane: [0x2a5ab0, 0xc82a2a, 0x2a2a30, 0xe07a20], seaplane: [0x2a6ab0, 0xe8c030, 0xc82a2a, 0x2ab0a0], motorboat: [0xe8e8e8, 0x2a5ab0, 0xc82a2a, 0x2a2a30], sailboat: [0x2a5ab0, 0x2ab0a0, 0x2a8a3a, 0xc82a2a] };
+function buildModel(v) {
+  if (isPlane(v.type)) return buildPlaneModel(v.color ?? 0x8a2a22, v.type === 'seaplane', v);
+  if (v.type === 'bike') return buildBikeModel(v.color ?? 0xd83a2a, v);
+  if (isBoat(v.type)) return buildBoatModel(v.type, v.color ?? 0xe8e8e8, v);
+  return buildCarModel(v.color ?? 0xc82a2a, v);
+}
 
 // ---------- vytvoření, nastoupení, vystoupení
 export function spawnVehicle(type, x, z, yaw) {
-  const id = NET.uid();
+  const id = NET.uid(), cols = COLORS[type] || CAR_COLORS;
   const y = floorAt(x, z, terrainH(x, z) + 1);
-  vehicles.set(id, { type, x, y, z, yaw, pitch: type === 'plane' ? PLANE.groundPitch : 0, roll: 0, spd: 0, steer: 0, fuel: 0, bat: 0, slots: Array(19).fill(null), lights: false, driver: null,
-    color: type === 'plane' ? [0x8a2a22, 0x3a5a3a, 0x3a4a7a, 0xb8a060][randInt(0, 3)] : CAR_COLORS[randInt(0, CAR_COLORS.length - 1)], ...(type === 'plane' ? { vx: 0, vy: 0, vz: 0, thr: 0, ground: true } : {}) });
+  vehicles.set(id, { type, x, y, z, yaw, pitch: isPlane(type) ? PLANE.groundPitch : 0, roll: 0, spd: 0, steer: 0, fuel: 0, bat: 0, slots: Array(1 + trunkSize(type)).fill(null), lights: false, driver: null,
+    color: cols[randInt(0, cols.length - 1)], ...(isPlane(type) ? { vx: 0, vy: 0, vz: 0, thr: 0, ground: true } : {}), ...(type === 'bike' ? { gear: 2 } : {}), ...(isBoat(type) ? { thr: 0 } : {}) });
   return id;
 }
+const HELP = {
+  plane: ['Mezerník / Shift = plyn · S nos nahoru, W dolů · A/D náklon (na zemi řízení) · N nitro · L světla · V kamera · F vystoupit', 'Plyn + / − · joystick = knipl (dolů = nos nahoru, do stran = náklon) · kamera, vystoupit'],
+  seaplane: ['Hydroplán: rozjeď se po vodě (Mezerník = plyn), vzlétneš kolem 76 km/h · S nos nahoru, W dolů · A/D náklon · N nitro · F vystoupit', 'Plyn + / − · joystick = knipl · na vodě se rozjeď, vzlétneš kolem 76 km/h'],
+  bike: ['W šlapat · S / Mezerník brzda · A/D řídit · 1/2/3 převod · B zvonek · L světlo · V kamera · F sesednout', 'Joystick = šlapat a řídit · tlačítka: brzda, převod, zvonek, kamera, sesednout'],
+  motorboat: ['W/S plyn a zpátečka · A/D kormidlo · N nitro · L světla · B houkačka · V kamera · F vystoupit (na břehu)', 'Joystick = plyn a kormidlo · tlačítka: nitro, světla, houkačka, kamera, vystoupit'],
+  sailboat: ['W vytáhnout plachtu, S svinout · A/D kormidlo · plachta se natočí sama · přímo proti větru to nejde – pluj šikmo (křižuj)! · V kamera · F vystoupit', 'Joystick nahoru = plachta, do stran = kormidlo · proti větru pluj šikmo'],
+  car: ['W/S plyn a brzda · A/D zatáčení · Mezerník brzda · N nitro · L světla · B klakson · V kamera · F vystoupit', 'Joystick = jízda a zatáčení · tlačítka: brzda, světla, klakson, kamera, vystoupit'],
+};
 export function enterVehicle(id) {
   const v = vehicles.get(id);
   if (!v) return;
-  if (v.driver && v.driver !== myDriverId()) { toast('V autě už někdo sedí'); return; }
+  if (v.driver && v.driver !== myDriverId()) { if (!tryRide(id)) toast(`${kindOf(v.type).name}: už tu někdo sedí`); return; }
   v.driver = myDriverId();
   player.vehicle = id;
   player.sitting = null;
-  player.yaw = 0; // ve voze je natočení kamery relativní k autu
+  player.yaw = 0; // ve voze je natočení kamery relativní k vozidlu
   player.pitch = -0.08;
   holder.visible = false;
   v.engine = false;
+  nitro.t = 0;
   Sound.place();
-  if (v.type === 'plane') toast(TOUCH ? 'Plyn + / − · joystick = knipl (dolů = nos nahoru, do stran = náklon) · kamera, vystoupit' : 'Mezerník / Shift = plyn · S nos nahoru, W dolů · A/D náklon (na zemi řízení) · L světla · V kamera · F vystoupit');
-  else toast(TOUCH ? 'Joystick = jízda a zatáčení · tlačítka: brzda, světla, klakson, kamera, vystoupit' : 'W/S plyn a brzda · A/D zatáčení · Mezerník brzda · L světla · B klakson · V kamera · F vystoupit');
+  toast((HELP[v.type] || HELP.car)[TOUCH ? 1 : 0]);
+}
+// Vystoupí vedle vozidla: na volné místo, z lodi nejradši na břeh (jinak do vody, kde se plave)
+export function placeOutside(v) {
+  const K = kindOf(v.type), c = Math.cos(v.yaw), s = Math.sin(v.yaw), spots = [];
+  for (const side of [-1, 1]) spots.push([side * K.exit, 0]);
+  spots.push([0, -(K.len / 2 + 0.8)], [0, K.len / 2 + 0.8]);
+  if (isBoat(v.type) || v.type === 'seaplane') for (let r = 2; r <= 7; r += 1) for (let a = 0; a < 12; a++) spots.push([Math.cos(a * Math.PI / 6) * (K.wid / 2 + r), Math.sin(a * Math.PI / 6) * (K.len / 2 + r * 0.6)]);
+  let first = null;
+  for (const [lx, lz] of spots) {
+    const x = v.x + c * lx + s * lz, z = v.z - s * lx + c * lz, y = floorAt(x, z, v.y + 1);
+    if (!isFinite(y)) continue;
+    player.pos.set(x, y + 0.02, z);
+    if (collidesBlocks(player.pos)) continue;
+    if (waterAt(x, y + 0.5, z) === null) return; // suchá zem
+    first ||= [x, y, z];
+  }
+  if (first) player.pos.set(first[0], first[1] + 0.02, first[2]);
 }
 export function exitVehicle() {
+  if (player.riding) { leaveRide(); return; }
   const v = vehicles.get(player.vehicle);
-  // z letadla se vystupuje jen na zemi, když stojí
-  if (v?.type === 'plane' && player.alive && (!v.ground || Math.hypot(v.vx || 0, v.vz || 0) > 3)) { toast('Vystoupit můžeš jen na zemi, až letadlo zastaví'); return; }
+  // z letadla se vystupuje jen na zemi (nebo na vodě), když stojí
+  if (v && isPlane(v.type) && player.alive && (!v.ground || Math.hypot(v.vx || 0, v.vz || 0) > 3)) { toast('Vystoupit můžeš, až letadlo stojí na zemi nebo na vodě'); return; }
   player.vehicle = null;
   holder.visible = true;
   Sound.engine?.(false, 0);
+  nitro.t = 0;
   if (!v) return;
   v.driver = null;
   v.engine = false;
   v.spd = 0;
-  // vystoupí vlevo od auta (nebo vpravo, když vlevo je zeď)
-  for (const side of [-1, 1]) {
-    const c = Math.cos(v.yaw), s = Math.sin(v.yaw), lx = side * (v.type === 'plane' ? 5.2 : 1.6);
-    const x = v.x + c * lx, z = v.z - s * lx, y = floorAt(x, z, v.y + 1);
-    player.pos.set(x, y + 0.02, z);
-    if (!collidesBlocks(player.pos)) break;
-  }
+  v.pd = 0;
+  if (isBoat(v.type) && v.type === 'motorboat') v.thr = 0;
+  placeOutside(v);
   player.vel.set(0, 0, 0);
   player.yaw = v.yaw + player.yaw;
   Sound.place();
 }
 
+// ---------- nitro (náplně z garáže): N nebo dotykové tlačítko, 3 s plného výkonu
+export const nitro = { t: 0 };
+export const nitroOn = () => nitro.t > 0;
+export function useNitro() {
+  const v = vehicles.get(player.vehicle);
+  if (!v || !kindOf(v.type).mods.includes('nitro')) return;
+  if (nitro.t > 0) return;
+  if (!(v.mods?.nitro > 0)) { toast('Nitro je prázdné – naplň ho v garáži (láhev Nitro)'); return; }
+  v.mods = { ...v.mods, nitro: v.mods.nitro - 1 };
+  nitro.t = NITRO_TIME;
+  player.shake = 0.25;
+  Sound.burst({ dur: 0.9, f0: 300, f1: 2400, q: 0.6, vol: 0.35 }); Sound.burst({ dur: 1.4, f0: 900, f1: 200, q: 0.5, vol: 0.2, type: 'lowpass', delay: 0.2 });
+  toast(`🔥 NITRO! (zbývá ${v.mods.nitro})`);
+}
+
 // ---------- fyzika jízdy
 // Podlaha pod bodem: terén (když není vykopaný) nebo horní stěna bloku / podzemí; jen do výšky schodu nad yRef
-export function floorAt(x, z, yRef) {
+export function floorAt(x, z, yRef, step = CAR.step) {
   const g = groundHeight(x, z), vf = voxFloor(x, yRef + 0.2, z);
-  return Math.max(isFinite(g) && g <= yRef + CAR.step ? g : -Infinity, vf);
+  return Math.max(isFinite(g) && g <= yRef + step ? g : -Infinity, vf);
 }
-const carLocal = (v, lx, lz) => { const c = Math.cos(v.yaw), s = Math.sin(v.yaw); return [v.x + c * lx + s * lz, v.z - s * lx + c * lz]; };
+export const carLocal = (v, lx, lz) => { const c = Math.cos(v.yaw), s = Math.sin(v.yaw); return [v.x + c * lx + s * lz, v.z - s * lx + c * lz]; };
 // Narazí karoserie (body po obvodu ve výšce 0,5–1,5 m) do bloku, stromu nebo balvanu?
 export function carHits(v, x, z, yaw) {
   const t = { ...v, x, z, yaw };
@@ -160,9 +170,12 @@ export let hornN = 0, carHitT = 0;
 export function driveVehicle(dt) {
   const v = vehicles.get(player.vehicle);
   if (!v) { exitVehicle(); return 0; }
-  if (v.type === 'plane') return flyPlane(v, dt);
   if (target) { clearTarget(); outline.visible = groundRing.visible = preview.visible = false; $('targetLabel').innerHTML = ''; $('progress').style.opacity = 0; } // za volantem se nemíří
-  const joy = input.joy;
+  if (nitro.t > 0) nitro.t = Math.max(0, nitro.t - dt);
+  if (isPlane(v.type)) return flyPlane(v, dt);
+  if (v.type === 'bike') return rideBike(v, dt);
+  if (isBoat(v.type)) return sailBoat(v, dt);
+  const joy = input.joy, off = !!v.mods?.offroad, boost = nitro.t > 0;
   const fwd = clamp((keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + (joy ? -joy.y : 0), -1, 1);
   const steerIn = clamp((keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) - (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) + (joy ? -joy.x : 0), -1, 1);
   const hand = keys.has('Space');
@@ -173,24 +186,26 @@ export function driveVehicle(dt) {
     else { v.engine = true; v.bat = Math.max(0, v.bat - 2); Sound.burst({ dur: 0.6, f0: 300, f1: 120, q: 1.5, vol: 0.3, type: 'lowpass' }); }
   }
   if (v.engine && v.fuel <= 0) { v.engine = false; toast('Motor zhasl – došlo palivo'); }
-  // zrychlení, brzdy, zpátečka, odpor
-  const thr = v.engine ? fwd : 0;
+  // zrychlení, brzdy, zpátečka, odpor; turbo a nitro z garáže přidají výkon
+  const thr = v.engine ? fwd : 0, maxF = CAR.maxFwd * (v.mods?.engine ? 1.25 : 1) * (boost ? 1.35 : 1), acc = CAR.accel * powerMul(v, boost);
   if (hand) v.spd -= Math.sign(v.spd) * Math.min(Math.abs(v.spd), CAR.brake * 1.2 * dt);
-  else if (thr > 0) v.spd = v.spd < 0 ? Math.min(0, v.spd + CAR.brake * dt) : Math.min(CAR.maxFwd, v.spd + CAR.accel * thr * (1 - v.spd / (CAR.maxFwd * 1.15)) * dt);
+  else if (thr > 0) v.spd = v.spd < -0.3 ? Math.min(0, v.spd + CAR.brake * dt) : Math.min(maxF, v.spd + acc * thr * (1 - v.spd / (maxF * 1.15)) * dt); // pomalé couvání ze svahu plyn přetlačí (jinak by se auto do kopce nerozjelo)
   else if (thr < 0) v.spd = v.spd > 0.3 ? Math.max(0, v.spd - CAR.brake * dt) : Math.max(-CAR.maxRev, v.spd + CAR.accel * 0.6 * thr * dt);
   else if (fwd < 0 && v.spd > 0) v.spd = Math.max(0, v.spd - CAR.brake * dt); // brzda funguje i s vypnutým motorem
   v.spd *= 1 - Math.min(1, (0.25 + Math.abs(v.spd) * 0.012) * dt); // valivý a vzdušný odpor
   if (Math.abs(v.spd) < 0.02 && !thr) v.spd = 0;
-  // svah: auto do kopce zpomaluje, z kopce zrychluje
-  v.spd -= Math.sin(v.pitch || 0) * 9.8 * dt * 0.6;
+  // svah: auto do kopce zpomaluje, z kopce zrychluje (terénní pneumatiky do kopce míň)
+  const sl = Math.sin(v.pitch || 0);
+  v.spd -= sl * 9.8 * dt * (off && sl > 0 ? 0.3 : 0.6);
   // natáčení kol a zatáčení (kolo se otáčí kolem zadní nápravy)
   v.steer += (steerIn * CAR.steerMax * (1 - Math.min(0.6, Math.abs(v.spd) / 40)) - v.steer) * Math.min(1, dt * 6);
   const yawRate = (v.spd * Math.tan(v.steer)) / CAR.wb;
   const nyaw = v.yaw + yawRate * dt;
   const nx = v.x - Math.sin(nyaw) * v.spd * dt, nz = v.z - Math.cos(nyaw) * v.spd * dt;
   // kola: výška podlahy pod každým kolem
-  const wy = [[-0.95, -1.3], [0.95, -1.3], [-0.95, 1.3], [0.95, 1.3]].map(([lx, lz]) => { const [px, pz] = carLocal({ x: nx, z: nz, yaw: nyaw }, lx, lz); return floorAt(px, pz, v.y); });
-  const blockedStep = wy.some((h) => !isFinite(h)) || (v.spd > 0 ? Math.max(wy[0], wy[1]) : Math.max(wy[2], wy[3])) > v.y + CAR.step;
+  const step = off ? 0.9 : CAR.step;
+  const wy = [[-0.95, -1.3], [0.95, -1.3], [-0.95, 1.3], [0.95, 1.3]].map(([lx, lz]) => { const [px, pz] = carLocal({ x: nx, z: nz, yaw: nyaw }, lx, lz); return floorAt(px, pz, v.y, step); });
+  const blockedStep = wy.some((h) => !isFinite(h)) || (v.spd > 0 ? Math.max(wy[0], wy[1]) : Math.max(wy[2], wy[3])) > v.y + step;
   if (blockedStep || carHits(v, nx, nz, nyaw)) {
     if (Math.abs(v.spd) > 4 && (carHitT -= dt) <= 0) { carHitT = 0.5; Sound.burst({ dur: 0.25, f0: 500, f1: 120, q: 1, vol: 0.5, type: 'lowpass' }); player.shake = 0.3; }
     v.spd *= -0.25;
@@ -202,7 +217,7 @@ export function driveVehicle(dt) {
   const f = (wy[0] + wy[1]) / 2, r = (wy[2] + wy[3]) / 2, l = (wy[0] + wy[2]) / 2, rt = (wy[1] + wy[3]) / 2;
   v.pitch = isFinite(f - r) ? clamp(Math.atan2(f - r, CAR.wb), -0.6, 0.6) : 0;
   v.roll = isFinite(l - rt) ? clamp(Math.atan2(l - rt, CAR.track), -0.5, 0.5) : 0;
-  if (waterAt(v.x, v.y + 0.3, v.z) !== null) v.spd *= 1 - Math.min(1, dt * 2); // voda brzdí
+  if (waterAt(v.x, v.y + 0.3, v.z) !== null) v.spd *= 1 - Math.min(1, dt * (off ? 0.8 : 2)); // voda brzdí
   // palivo a baterie: motor žere palivo podle plynu a dobíjí baterii; světla s vypnutým motorem vybíjejí
   if (v.engine) { v.fuel = Math.max(0, v.fuel - (0.012 + Math.abs(thr) * 0.06) * dt); v.bat = Math.min(100, v.bat + 0.5 * dt); }
   else if (v.lights) v.bat = Math.max(0, v.bat - 0.4 * dt);
@@ -220,15 +235,17 @@ export function driveVehicle(dt) {
   player.vel.set(0, 0, 0);
   player.onGround = true;
   placeCarCamera(v);
-  Sound.engine(v.engine, Math.abs(v.spd) / CAR.maxFwd + Math.max(0, thr) * 0.25);
+  Sound.engine(v.engine, Math.abs(v.spd) / CAR.maxFwd + Math.max(0, thr) * 0.25 + (boost ? 0.3 : 0));
   return Math.abs(v.spd);
 }
+const camE = new THREE.Euler();
 export function placeCarCamera(v) {
-  if (v.type === 'plane') return placePlaneCamera(v);
+  if (isPlane(v.type)) return placePlaneCamera(v);
+  if (v.type === 'bike') return placeBikeCamera(v);
+  if (isBoat(v.type)) return placeBoatCamera(v);
   const e = new THREE.Euler(0, 0, 0, 'YXZ');
-  if (carCam === 0) {
-    const [cx, cz] = carLocal(v, -0.42, 0.62); // oči řidiče nad sedadlem, pod střechou
-    camera.position.set(cx, v.y + 1.42, cz);
+  if (carCam === 0) { // oči řidiče nad sedadlem, pod střechou (i když auto stojí ve svahu nebo se naklání)
+    camera.position.set(-0.42, 1.42, 0.62).applyEuler(camE.set(v.pitch || 0, v.yaw, -(v.roll || 0), 'YXZ')).add(tmpV.set(v.x, v.y, v.z));
     e.set(player.pitch + (v.pitch || 0), v.yaw + clamp(player.yaw, -2.4, 2.4), 0);
   } else {
     const yaw = v.yaw + player.yaw, d = 7.5;
@@ -240,40 +257,44 @@ export function placeCarCamera(v) {
   camera.quaternion.setFromEuler(e);
   camera.rotation.set(e.x, e.y, e.z);
 }
-export function honk() { hornN++; Sound.horn(); }
+// Klakson / zvonek / lodní houkačka podle vozidla
+const hornOf = (type) => (type === 'bike' ? bell() : isBoat(type) ? boatHorn(type) : Sound.horn());
+export function honk() { const v = vehicles.get(player.vehicle); if (!v || isPlane(v.type)) return; hornN++; hornOf(v.type); }
+/** L: světla (auto potřebuje nabitou baterii nebo běžící motor, kolo má dynamo). */
+export function toggleLights(v) {
+  if (v.type === 'car' && !v.lights && !v.engine && !(v.slots[0]?.id === 'car_battery' && v.bat > 0)) { toast('Světla nesvítí – vybitá autobaterie'); return; }
+  if (v.type === 'sailboat') { toast('Plachetnice nemá světla'); return; }
+  v.lights = !v.lights;
+}
+/** Poloha vozidla, které řídím, do pozice hráče (posílá se ostatním 12× za sekundu). */
+export function vehPose() {
+  const v = vehicles.get(player.vehicle);
+  if (!v) return null;
+  const r2 = (x) => Math.round(x * 100) / 100;
+  return { id: player.vehicle, x: r2(v.x), y: r2(v.y), z: r2(v.z), yaw: r2(v.yaw), pitch: r2(v.pitch || 0), roll: r2(v.roll || 0), spd: r2(v.spd), steer: r2(v.steer), thr: r2(v.thr || 0), lights: v.lights ? 1 : 0,
+    ...(v.boom ? { bm: r2(v.boom) } : {}), ...(v.lf ? { lf: 1 } : {}), ...(v.pd ? { pd: 1 } : {}), ...(nitro.t > 0 ? { nb: 1 } : {}) };
+}
+
+// ---------- zobrazení všech vozidel (i řízených ostatními hráči)
 const vehHud = document.createElement('div');
 vehHud.id = 'vehHud';
 document.body.append(vehHud);
-function updateVehHud() {
-  const v = vehicles.get(player.vehicle);
-  vehHud.style.display = v ? 'block' : 'none';
-  if (!v) return;
-  const dm = vehDim(v.type), fuel = `⛽ ${v.fuel.toFixed(1)} / ${dm.fuelMax} l`;
-  let html;
-  if (v.type === 'plane') {
-    const sp = Math.hypot(v.vx || 0, v.vy || 0, v.vz || 0), alt = Math.max(0, v.y - terrainH(v.x, v.z));
-    const stall = !v.ground && sp < PLANE.stall + 2;
-    html = `✈ ${Math.round(sp * 3.6)} km/h · ⇡ ${Math.round(alt)} m · plyn ${Math.round((v.thr || 0) * 100)} % · ${fuel}${v.ground ? ' · na zemi' : ''}${stall ? ' <b class="warn">PÁD RYCHLOSTI</b>' : ''}`;
-  } else html = `🚗 ${Math.round(Math.abs(v.spd) * 3.6)} km/h${v.spd < -0.3 ? ' (zpátečka)' : ''} · ${fuel} · 🔋 ${v.slots[0]?.id === 'car_battery' ? Math.round(v.bat) + ' %' : 'chybí'}${v.engine ? '' : ' · motor stojí'}`;
-  if (vehHud.innerHTML !== html) vehHud.innerHTML = html;
-}
-
-// ---------- zobrazení všech aut (i řízených ostatními hráči)
 export function updateVehicles(dt) {
   const me = myDriverId();
-  // auta řízená ostatními: poloha z jejich pozice (12× za sekundu), plynule
+  // vozidla řízená ostatními: poloha z jejich pozice (12× za sekundu), plynule
   for (const P of others.values()) {
     const q = P.pose?.veh;
     if (!q) continue;
     const v = vehicles.get(q.id);
     if (!v) continue;
     remoteVeh.set(q.id, q);
-    if (P.hornSeen !== undefined && P.pose.hn > P.hornSeen && Math.hypot(q.x - player.pos.x, q.z - player.pos.z) < 60) Sound.horn();
+    if (P.hornSeen !== undefined && P.pose.hn > P.hornSeen && Math.hypot(q.x - player.pos.x, q.z - player.pos.z) < 60) hornOf(v.type);
     P.hornSeen = P.pose.hn;
   }
   for (const [id, v] of vehicles) {
     let m = vehMeshes.get(id);
-    if (!m) { m = v.type === 'plane' ? buildPlaneModel(v.color || 0x8a2a22) : buildCarModel(v.color || 0xc82a2a); scene.add(m.group); vehMeshes.set(id, m); m.group.position.set(v.x, v.y, v.z); m.group.rotation.y = v.yaw; m.spin = 0; }
+    if (m && m.look !== lookKey(v)) { scene.remove(m.group); vehMeshes.delete(id); m = null; } // přelakováno nebo vylepšeno v garáži
+    if (!m) { m = buildModel(v); m.color = v.color; m.look = lookKey(v); scene.add(m.group); vehMeshes.set(id, m); m.group.position.set(v.x, v.y, v.z); m.group.rotation.y = v.yaw; m.spin = 0; }
     const remote = v.driver && v.driver !== me ? remoteVeh.get(id) || null : null;
     const src = remote || v;
     const k = remote ? 1 - Math.exp(-dt * 10) : 1;
@@ -283,32 +304,49 @@ export function updateVehicles(dt) {
     m.group.rotateY(m.yaw);
     m.group.rotateX(src.pitch || 0); // předek výš = kladný náklon
     m.group.rotateZ(-(src.roll || 0));
-    m.spin += ((src.spd || 0) / 0.38) * dt;
+    m.spin += ((src.spd || 0) / (v.type === 'bike' ? 0.34 : 0.38)) * dt;
     for (const w of m.wheels) w.rotation.x = -m.spin;
-    if (m.prop) m.prop.rotation.z += (src.thr || 0) * 70 * dt + (src.thr > 0 ? 6 * dt : 0); // vrtule
+    if (m.prop && !isBoat(v.type)) m.prop.rotation.z += (src.thr || 0) * 70 * dt + (src.thr > 0 ? 6 * dt : 0); // vrtule
     for (const p of m.pivots) p.rotation.y = src.steer || 0;
-    const lights = remote ? remote.lights : v.lights;
-    if (m.head) { m.head.emissiveIntensity = lights ? 2.2 : 0; m.tail.emissiveIntensity = lights ? 1.2 : 0.25; }
-    if (m.under) m.under.emissiveIntensity += ((lights || Math.abs(src.spd || 0) > 0.3 ? 1.6 : 0) - m.under.emissiveIntensity) * Math.min(1, dt * 4);
-    if (m.navs) m.navs.forEach((n, i) => (n.emissiveIntensity = lights ? (i === 2 && Math.sin(performance.now() / 300) < 0 ? 0 : 2) : 0)); // poziční světla, ocasní bliká
+    m.update?.(src, dt, v, !!v.driver);
+    const lights = remote ? remote.lights : v.lights, boost = remote ? remote.nb : v.driver === me && nitro.t > 0;
+    animateLook(m, src, lights, !!remote || v.engine, boost, dt); // světla, podsvícení, trysky
+    if (boost && Math.random() < dt * 40) { const p = m.group.localToWorld(tmpV.set(...exhaustOf(m, kindOf(v.type).len))); sparks.emit(p.x, p.y, p.z, [0.3, 0.7, 1], 3, 2.5, 0.4); } // nitro: modré plameny
     if (v.slots?.[0]?.id && v.batId !== v.slots[0].id) { v.bat = v.slots[0].id === 'car_battery' ? 100 : 0; v.batId = v.slots[0].id; } // nově vložená baterie
     if (!v.slots?.[0]) v.batId = null;
   }
   for (const [id, m] of vehMeshes) if (!vehicles.has(id)) { scene.remove(m.group); vehMeshes.delete(id); }
-  updateVehHud();
-  // reflektor auta, ve kterém sedíš
+  updateWake(dt);
+  if (player.riding) placeRider(dt); // spolujezdec sedí v modelu vozidla
+  const hud = player.vehicle || player.riding?.id;
+  const hv = vehicles.get(hud);
+  vehHud.style.display = hv ? 'block' : 'none';
+  document.body.classList.toggle('in-veh', !!hv); // řádek vozidla je na místě nápovědy kláves: nápověda se schová
+  if (hv) { const html = vehicleHud(hv, !!player.riding); if (vehHud.innerHTML !== html) vehHud.innerHTML = html; }
+  // reflektor vozidla, ve kterém sedíš
   const v = vehicles.get(player.vehicle);
-  if (v && v.lights && v.type !== 'plane') {
-    const [hx, hz] = carLocal(v, 0, -2.2), [tx, tz] = carLocal(v, 0, -14);
-    carSpot.position.set(hx, v.y + 0.9, hz);
-    carSpot.target.position.set(tx, v.y - 0.5, tz);
-    carSpot.intensity = 60;
-    U.headPos.value.set(hx, v.y + 0.9, hz);
+  if (v && v.lights && !isPlane(v.type)) {
+    const front = -kindOf(v.type).len / 2;
+    const [hx, hz] = carLocal(v, 0, front), [tx, tz] = carLocal(v, 0, front - 12);
+    const hy = v.y + (v.type === 'bike' ? 0.86 : v.type === 'motorboat' ? 0.5 : 0.9);
+    carSpot.position.set(hx, hy, hz);
+    carSpot.target.position.set(tx, hy - 1.4, tz);
+    carSpot.intensity = v.type === 'bike' ? 25 : 60;
+    U.headPos.value.set(hx, hy, hz);
     U.headDir.value.set(tx - hx, -1.4, tz - hz).normalize();
     U.headOn.value = 1;
   } else { carSpot.intensity = 0; U.headOn.value = 0; }
 }
-// Hráč pěšky se do auta nepropadne: odsune se z obrysu karoserie
+/** Místo k sezení ve světě (podle modelu vozidla): poloha nohou hráče. Vrátí false, když vozidlo není. */
+export function seatWorld(id, seat, out) {
+  const m = vehMeshes.get(id), v = vehicles.get(id);
+  if (!m || !v) return false;
+  const s = kindOf(v.type).seats[seat] || kindOf(v.type).seats[0];
+  m.group.updateMatrixWorld();
+  m.group.localToWorld(out.set(s[0], s[1], s[2]));
+  return true;
+}
+// Hráč pěšky se do vozidla nepropadne: odsune se z obrysu
 export function vehiclePush(p) {
   for (const v of vehicles.values()) {
     if (v.driver === myDriverId()) continue;
@@ -323,14 +361,14 @@ export function vehiclePush(p) {
     p.z = v.z - s * nx + c * nz;
   }
 }
-// Paprsek na auto (míření): obdélník karoserie v souřadnicích auta
+// Paprsek na vozidlo (míření): kvádr v souřadnicích vozidla (u lodí sahá i pod hladinu)
 export function rayVehicle(o, d, maxT) {
   let best = null;
   for (const [id, v] of vehicles) {
-    if (id === player.vehicle || (v.x - o.x) ** 2 + (v.z - o.z) ** 2 > 100) continue;
+    if (id === player.vehicle || id === player.riding?.id || (v.x - o.x) ** 2 + (v.z - o.z) ** 2 > 100) continue;
     const c = Math.cos(v.yaw), s = Math.sin(v.yaw);
     const lo = [c * (o.x - v.x) - s * (o.z - v.z), o.y - v.y, s * (o.x - v.x) + c * (o.z - v.z)], ld = [c * d.x - s * d.z, d.y, s * d.x + c * d.z];
-    const dm = vehDim(v.type), mn = [-dm.wid / 2, 0.15, -dm.len / 2], mx = [dm.wid / 2, dm.h, dm.len / 2];
+    const dm = vehDim(v.type), mn = [-dm.wid / 2, isBoat(v.type) ? -0.4 : 0.15, -dm.len / 2], mx = [dm.wid / 2, dm.h, dm.len / 2];
     let t0 = 0, t1 = maxT;
     for (let a = 0; a < 3 && t0 <= t1; a++) {
       if (Math.abs(ld[a]) < 1e-9) { if (lo[a] < mn[a] || lo[a] > mx[a]) t0 = Infinity; continue; }
@@ -341,22 +379,6 @@ export function rayVehicle(o, d, maxT) {
     if (t0 <= t1 && t0 < maxT && (!best || t0 < best.t)) best = { t: t0, id };
   }
   return best;
-}
-// Okno auta: palivo, baterie, kufr
-export function renderCarUI(area) {
-  const v = vehicles.get(ui.fireKey);
-  if (!v) { area.innerHTML = '<div class="mc-note">Auto tu už není.</div>'; return; }
-  const bar = (p, color) => `<div class="parrow" style="width:160px"><i style="width:${clamp(p, 0, 100)}%;background:${color}"></i></div>`;
-  const dm = vehDim(v.type), plane = v.type === 'plane';
-  area.innerHTML = `<div class="mc-title">${dm.name}</div>
-    <div class="car-ui">
-      <div><div class="k-label">Palivo ${v.fuel.toFixed(1)} / ${dm.fuelMax} l</div>${bar((v.fuel / dm.fuelMax) * 100, '#e0a03b')}
-        ${plane ? '' : `<div class="k-label">Autobaterie ${v.slots[0]?.id === 'car_battery' ? Math.round(v.bat) + ' %' : v.slots[0] ? 'vybitá' : 'chybí'}</div>
-        <div style="display:flex;gap:8px;align-items:center">${slotHTML(v.slots[0], 0, '', 'car')}${bar(v.slots[0]?.id === 'car_battery' ? v.bat : 0, '#3aff5a')}</div>`}</div>
-      <button class="mc-btn" data-car-enter>${v.driver && v.driver !== myDriverId() ? 'Obsazeno' : 'Nastoupit (F)'}</button>
-    </div>
-    <div class="k-label">${plane ? 'Zavazadlový prostor' : 'Kufr'}</div><div class="grid">${v.slots.slice(1).map((s, i) => slotHTML(s, i + 1, '', 'car')).join('')}</div>
-    <div class="mc-note">${plane ? 'Natankuješ kanystrem s palivem (pravé tl. s kanystrem). Startuje se plynem (mezerník), vzlétne se při rychlosti kolem 21 m/s.' : 'Natankuješ kanystrem s palivem (pravé tl. s kanystrem na auto). Vybitou autobaterii nabiješ v nabíječce.'}</div>`;
 }
 Object.assign(Sound, {
   // Motor: pila přes dolní propust, výška tónu podle otáček
