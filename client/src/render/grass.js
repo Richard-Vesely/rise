@@ -108,6 +108,7 @@ function makeGrass(layer) {
         float tall = dot(wa, vec4(1.0, 1.0, 0.0, 1.5)) + dot(wb, vec4(0.0, 1.35, 0.0, 0.55));
         float h = aParams.x * (0.45 + 0.95 * m) * tall;
         h *= smoothstep(9.7, 10.4, shrineDist(wp));
+        h *= 1.0 - beachK(wp, terrainHW(wp, wa, wb)); // na pláži a pod mořem tráva neroste
         h *= step(1.0, lakeD(wp)); // v jezeře tráva neroste
         h *= 1.0 - smoothstep(0.3, 0.55, texture2D(uCut, wp / ${CUT_WORLD.toFixed(1)}).r); // posekaná tráva
         if (texture2D(uDig, (floor(wp) + 0.5) / ${DIG_N.toFixed(1)}).r > 0.5) h = 0.0;      // vykopaná díra

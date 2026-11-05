@@ -10,7 +10,7 @@ import { Vec3 } from '../vec3.js';
 import { nearLight, solidAny, solidAt, voxFloor } from '../world/collision.js';
 import { collidersNear } from '../world/nature.js';
 import { bkey, blocks, chests, lights, spawners } from '../world/state.js';
-import { biomeAt, forest, inLake, isMark, shrineDist, shrineOf, terrainH } from '../world/terrain.js';
+import { SEA, biomeAt, forest, inLake, isMark, oceanK, shrineDist, shrineOf, terrainH } from '../world/terrain.js';
 import { groundHeight, topY } from '../world/voxels.js';
 import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
@@ -221,7 +221,7 @@ export function updateSpawns(dt, night) {
   const spot = () => {
     const a = Math.random() * Math.PI * 2, r = 35 + Math.random() * 25;
     const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
-    return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) ? null : [x, z]; // ne v jezeře
+    return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) || (oceanK(x, z) > 0.02 && terrainH(x, z) < SEA + 0.3) ? null : [x, z]; // ne v jezeře ani v moři
   };
   if (isMark(c.x)) { // Markova dimenze: Markomani a krystaloví golemové
     if (count('markoman') < (night > 0.5 ? 8 : 5)) { const p = spot(); if (p) spawnMob('markoman', ...p); }

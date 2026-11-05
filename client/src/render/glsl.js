@@ -1,8 +1,9 @@
 // Kousky shaderů: terén a biomy (dvojče JS vzorce v shared/world/terrain.js) a šum trávy.
-import { BIOME_BLEND, BIOME_SCALE, BIOME_START, LAKE_CELL, LAKE_EDGE, LAKE_MIN, MARK_CX, MARK_X, MUSH_CELL, MUSH_R, POND_CELL, VOLC_CELL, VOLC_R } from '../../../shared/world/terrain.js';
+import { BIOME_BLEND, BIOME_SCALE, BIOME_START, LAKE_CELL, LAKE_EDGE, LAKE_MIN, MARK_CX, MARK_X, MUSH_CELL, MUSH_R, OCEAN_START, POND_CELL, SEA, VOLC_CELL, VOLC_R } from '../../../shared/world/terrain.js';
 import { DRAGON_CX, DRAGON_X } from '../../../shared/world/dragon-land.js';
 
 export const TERRAIN_GLSL = /* glsl */`
+  uniform float uOceans; // 1 = svět s oceány (WORLD_GEN.oceans, nastavuje render/water.js)
   float shrineDist(vec2 p) { return length(p - vec2(p.x < ${DRAGON_X.toFixed(1)} ? ${DRAGON_CX.toFixed(1)} : p.x > ${MARK_X.toFixed(1)} ? ${MARK_CX.toFixed(1)} : 0.0, 0.0)); }
   float hash2i(float fx, float fz) {
     uint h = (uint(int(fx)) * 374761393u) ^ (uint(int(fz)) * 668265263u);
@@ -12,13 +13,31 @@ export const TERRAIN_GLSL = /* glsl */`
   }
   // smoothstep, který (na rozdíl od vestavěného) funguje i s obrácenými hranami – stejně jako v JS
   float sst(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
-  float regionDist(vec2 p, float cell, float salt, float chance) {
+  // střed vzácné oblasti v buňce: xy = střed, z = 1 když tam oblast je (dvojče regionOf v terrain.js)
+  vec3 regionCtr(vec2 p, float cell, float salt, float chance) {
     vec2 c = floor(p / cell);
-    if (p.x > ${MARK_X.toFixed(1)} || hash2i(c.x + salt, c.y - salt * 3.0) >= chance) return 1e9;
-    vec2 ctr = vec2(c.x + 0.3 + 0.4 * hash2i(c.x + salt + 1.0, c.y + 7.0), c.y + 0.3 + 0.4 * hash2i(c.x + 7.0, c.y + salt + 1.0)) * cell;
-    return length(p - ctr);
+    if (p.x > ${MARK_X.toFixed(1)} || hash2i(c.x + salt, c.y - salt * 3.0) >= chance) return vec3(0.0);
+    return vec3(vec2(c.x + 0.3 + 0.4 * hash2i(c.x + salt + 1.0, c.y + 7.0), c.y + 0.3 + 0.4 * hash2i(c.x + 7.0, c.y + salt + 1.0)) * cell, 1.0);
   }
-  float volcanoDist(vec2 p) { return p.x < ${DRAGON_X.toFixed(1)} ? 1e9 : regionDist(p, ${VOLC_CELL.toFixed(1)}, 71.0, 0.5); }
+  float regionDist(vec2 p, float cell, float salt, float chance) {
+    vec3 r = regionCtr(p, cell, salt, chance);
+    return r.z > 0.0 ? length(p - r.xy) : 1e9;
+  }
+  // oceány (dvojče oceanK / oceanH / beachK v shared/world/terrain.js)
+  float oceanK(vec2 p) {
+    if (uOceans < 0.5 || p.x > ${MARK_X.toFixed(1)} || p.x < ${DRAGON_X.toFixed(1)}) return 0.0;
+    float ring = sst(${OCEAN_START.toFixed(1)}, ${(OCEAN_START + 260).toFixed(1)}, shrineDist(p));
+    if (ring <= 0.0) return 0.0;
+    float n = sin(p.x * 0.00071 + 0.7) * cos(p.y * 0.00063 - 1.3) * 0.65 + sin((p.x * 0.6 - p.y) * 0.00042 + 2.1) * 0.35;
+    return sst(0.18, 0.44, n) * ring;
+  }
+  // sopka v buňce (dvojče volcanoOf v terrain.js): ne v Zemi draka a ne v moři
+  float volcanoDist(vec2 p) {
+    if (p.x < ${DRAGON_X.toFixed(1)}) return 1e9;
+    vec3 v = regionCtr(p, ${VOLC_CELL.toFixed(1)}, 71.0, 0.5);
+    return v.z > 0.0 && oceanK(v.xy) <= 0.0 ? length(p - v.xy) : 1e9;
+  }
+  float beachK(vec2 p, float h) { return min(1.0, oceanK(p) * 5.0) * sst(${(SEA + 2.6).toFixed(2)}, ${(SEA + 1.0).toFixed(2)}, h); }
   // jezero v buňce (dvojče lakeOf v terrain.js): xy = střed, z = poloměr (0 = žádné), w = hloubka
   vec4 lakeOf(vec2 p) {
     if (p.x < ${DRAGON_X.toFixed(1)}) return vec4(0.0);
@@ -26,7 +45,7 @@ export const TERRAIN_GLSL = /* glsl */`
     if (hash2i(c.x + 57.0, c.y + 311.0) >= 0.42) return vec4(0.0);
     vec2 ctr = vec2(c.x + 0.25 + 0.5 * hash2i(c.x + 61.0, c.y + 5.0), c.y + 0.25 + 0.5 * hash2i(c.x + 5.0, c.y + 61.0)) * ${LAKE_CELL.toFixed(1)};
     float r = 50.0 + 70.0 * hash2i(c.x + 8.0, c.y + 8.0), e = r * ${LAKE_EDGE.toFixed(2)};
-    if (ctr.x - e <= ${DRAGON_X.toFixed(1)} || ctr.x + e >= ${MARK_X.toFixed(1)} || length(ctr) <= ${LAKE_MIN.toFixed(1)} + e || volcanoDist(ctr) <= ${(VOLC_R * 1.7).toFixed(1)} + e) return vec4(0.0);
+    if (ctr.x - e <= ${DRAGON_X.toFixed(1)} || ctr.x + e >= ${MARK_X.toFixed(1)} || length(ctr) <= ${LAKE_MIN.toFixed(1)} + e || volcanoDist(ctr) <= ${(VOLC_R * 1.7).toFixed(1)} + e || oceanK(ctr) > 0.0) return vec4(0.0);
     return vec4(ctr, r, 6.0 + 2.0 * hash2i(c.x + 9.0, c.y + 3.0));
   }
   // vzdálenost od středu jezera v poloměrech (velké číslo = žádné jezero); tráva pod hladinou neroste
@@ -78,6 +97,11 @@ export const TERRAIN_GLSL = /* glsl */`
       float cone = vd < ${VOLC_R.toFixed(1)} ? 30.0 * pow(1.0 - vd / ${VOLC_R.toFixed(1)}, 1.8) - 14.0 * pow(max(0.0, 1.0 - vd / 18.0), 1.5) : 0.0;
       h = wa.x * h + wa.y * (h * 1.15 + 0.6) + wa.z * (h * 0.45 + dune) + wa.w * (h * 1.3 + sin(p.x * 0.043 + 0.4) * sin(p.y * 0.051 + 1.2) * 2.2)
         + wb.x * (h * 0.55 + 0.8) + wb.y * (h * 0.7 + 0.4) + wb.z * (h * 0.9 + cone) + wb.w * (h * 0.8 + 0.5);
+    }
+    float o = oceanK(p);
+    if (o > 0.0) {
+      float isl = max(0.0, sin(p.x * 0.0047 + 1.0) * sin(p.y * 0.0053 + 2.0) - 0.72) * 60.0;
+      h = h + (${(SEA - 9).toFixed(1)} + h * 0.25 + isl - h) * o;
     }
     return h * smoothstep(16.0, 70.0, shrineDist(p));
   }

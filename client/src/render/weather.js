@@ -28,7 +28,7 @@ function makeRain() {
   geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 4));
   geo.instanceCount = n;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: U.time, uCam: U.cam, uWind: U.wind, uAmbient: U.ambient, uRain: { value: 0 } },
+    uniforms: { uOceans: U.oceans, uTime: U.time, uCam: U.cam, uWind: U.wind, uAmbient: U.ambient, uRain: { value: 0 } },
     // kapky nezapisují hloubku: jinak by mlha v post-processingu za každou kapkou zmizela a v dálce by visely
     // ostré tmavé „tyčky“ (pozadí bez oparu)
     transparent: true, depthWrite: false, fog: false,
@@ -88,7 +88,7 @@ function makeSplashes() {
   geo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 4));
   geo.instanceCount = n;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: U.time, uCam: U.cam, uAmbient: U.ambient, uRain: { value: 0 } },
+    uniforms: { uOceans: U.oceans, uTime: U.time, uCam: U.cam, uAmbient: U.ambient, uRain: { value: 0 } },
     transparent: true, depthWrite: false, fog: false,
     vertexShader: /* glsl */`
       uniform float uTime, uRain;
