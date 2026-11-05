@@ -283,7 +283,8 @@ try {
     const shieldW = g.inv.off[0]?.w, after = g.player.blocking;
     // blok ze druhé ruky: v ruce meč, ve druhé ruce prkna
     g.inv.off[0] = { id: 'planks', n: 5 }; g.player.hp = 100;
-    T.step(20); // ať hráč stojí na zemi (ve vzduchu by pravé tlačítko stavělo pod sebe)
+    T.tpg(-50, 30); g.player.vel.set(0, 0, 0); // zpět na suché místo: odraz od rány mohl hráče posunout do mělkého rybníka
+    T.step(20); // ať hráč stojí na zemi (ve vzduchu nebo ve vodě by pravé tlačítko stavělo i pod sebe)
     const p = g.player.pos, x = Math.floor(p.x), z = Math.floor(p.z) - 2, y = g.groundHeight(x + 0.5, z + 0.5);
     T.aim(x + 0.5, y - 0.05, z + 0.5);
     g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(2);
