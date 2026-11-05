@@ -82,8 +82,9 @@ img.sm { image-rendering: auto !important; } /* 3D ikony bloků a strojů jsou h
 
 #vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 45%, rgba(170, 0, 0, 0.8)); opacity: 0; }
 #fade { position: fixed; inset: 0; display: grid; place-items: center; background: #120305; opacity: 0; pointer-events: none; transition: opacity 0.9s; font: 700 44px 'Cinzel', serif; color: #d9a3a3; letter-spacing: 0.1em; }
-#hint { position: fixed; left: 50%; bottom: 104px; transform: translateX(-50%); padding: 8px 16px; border-radius: 20px; font-size: 13px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); pointer-events: none; transition: opacity 0.6s; white-space: nowrap; }
-#hint.hidden { opacity: 0; }
+#hint { position: fixed; left: 50%; bottom: 104px; transform: translateX(-50%); padding: 8px 16px; border-radius: 20px; font-size: 13px; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); pointer-events: none; transition: opacity 0.6s;
+  width: max-content; max-width: min(94vw, 860px); text-align: center; line-height: 1.55; } /* na užší obrazovce se zalomí, neuteče za okraj */
+#hint.hidden, body.in-veh #hint { opacity: 0; }
 
 #inventory { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0, 0, 0, 0.55); font-family: 'Pixelify Sans', monospace; }
 .mc-window { display: flex; align-items: flex-start; gap: 8px; max-height: 94vh; }
@@ -141,6 +142,16 @@ img.sm { image-rendering: auto !important; } /* 3D ikony bloků a strojů jsou h
 #vehHud .warn { color: #ff6a5a; }
 body.touch #vehHud { bottom: 92px; font-size: 13px; }
 .car-ui { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+/* garáž: barvy laku a vylepšení */
+.garage-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.garage-tabs .on { outline: 2px solid #38e8ff; }
+.garage-paints { display: grid; grid-template-columns: repeat(8, 30px); gap: 6px; margin: 4px 0 10px; }
+.garage-paint { width: 30px; height: 30px; border: 2px solid #1a1a1e; border-radius: 6px; cursor: pointer; box-shadow: inset 0 -6px 10px rgba(0,0,0,.25); }
+.garage-paint.on { outline: 3px solid #38e8ff; outline-offset: 1px; }
+.garage-mod { margin: 6px 0; line-height: 1.6; }
+.garage-mod .mc-btn { margin-left: 8px; padding: 2px 10px; }
+.garage-mod .mc-btn[disabled] { opacity: .45; cursor: default; }
+
 .power-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; padding: 8px; font-size: 14px; color: #e8e2d0; background: #2a2a30; box-shadow: inset 2px 2px 0 #18181c, inset -2px -2px 0 #4a4a54; }
 .power-stats b { color: #ffe08a; font-weight: 600; }
 .parrow.fuelbar i { background: #ff8a2a; }
@@ -369,6 +380,7 @@ body.touch canvas { touch-action: none; }
 .tcar { position: absolute; left: calc(10px + env(safe-area-inset-left)); top: calc(50px + env(safe-area-inset-top)); display: none; gap: 6px; }
 #touch.incar .tcar { display: flex; }
 #touch.incar #tLmb, #touch.incar #tRmb, #touch.incar #tSprint, #touch.incar:not(.inplane) #tDown, #touch.inplane [data-act=vhorn] { display: none; }
+#touch.inboat #tJump, #touch.riding .tcar .tbtn:not([data-act=vexit]):not([data-act=vcam]), #touch.riding #tJump, #touch .tcar .tbtn[hidden] { display: none; }
 #tEnter { right: calc(16px + var(--tb) * 1.45 + env(safe-area-inset-right)); bottom: calc(24px + var(--tb) * 1.95); }
 #tJoy { position: absolute; left: calc(26px + env(safe-area-inset-left)); bottom: 26px; width: calc(var(--tb) * 2); height: calc(var(--tb) * 2); border-radius: 50%;
   background: rgba(20, 20, 26, 0.3); border: 2px solid rgba(255, 255, 255, 0.25); opacity: 0.55; pointer-events: none; }
@@ -440,3 +452,17 @@ body.touch #netbox { z-index: 5; }
 .repair-note { color: #8fe8ff; }
 #bars .wrap.hit { animation: heartHit 0.45s ease-out; }
 @keyframes heartHit { 0% { filter: brightness(2.2) drop-shadow(0 0 6px #ff3030); transform: scale(1.06); } 100% { filter: none; transform: none; } }
+
+/* aréna: tabulka bodů (client/src/player/arena.js) */
+#arenaScore { position: fixed; top: 58px; left: 18px; min-width: 150px; padding: 8px 12px; background: var(--panel); border-radius: 4px; color: #eee; font-size: 12.5px; pointer-events: none; z-index: 3; }
+#arenaScore .t { font: 700 13px 'Cinzel', serif; color: var(--gold); margin-bottom: 4px; }
+#arenaScore table { border-collapse: collapse; width: 100%; }
+#arenaScore th { font-weight: 400; color: #9aa; text-align: left; padding: 0 6px 2px 0; }
+#arenaScore td { padding: 1px 6px 1px 0; }
+#arenaScore td:nth-child(n+3), #arenaScore th:nth-child(n+3) { text-align: right; }
+#arenaScore tr.me td { color: var(--cyan); font-weight: 700; }
+body.touch #arenaScore { top: 46px; }
+/* Zdraví strážce Země draka. */
+#dragonHealth { position: fixed; top: 122px; left: 50%; transform: translateX(-50%); width: min(380px, 75vw); padding: 10px 16px; background: #241b18e8; border: 1px solid #d7985b; border-radius: 8px; color: #ffe4ba; text-align: center; pointer-events: none; z-index: 15; }
+#dragonHealth progress { display: block; width: 100%; height: 12px; margin: 6px 0; accent-color: #ed713c; }
+#dragonHealth small { font-size: 12px; }

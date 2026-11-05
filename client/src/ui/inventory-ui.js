@@ -18,8 +18,10 @@ import { renderPowerUI } from '../machines/power.js';
 import { addItem, countItem, findRecipe, hasFor, insertInto, inv, recipeNeeds, removeItem } from '../player/inventory.js';
 import { creative, input, lockPointer, setCreative, setResetting, unlockPointer } from '../player/player.js';
 import { enterVehicle, renderCarUI } from '../vehicles/car.js';
+import { garageClick, renderGarageUI } from '../vehicles/garage.js';
 import { throwItem } from '../world/ground-items.js';
 import { crafted } from '../world/world-state.js';
+import { countBucket, track } from './analytics.js';
 import { $ } from './dom.js';
 import { feed, toast } from './hud.js';
 import { btnOf, fitInventory, shiftOf } from './touch.js';
@@ -42,6 +44,9 @@ export const fullSet = () => { const s0 = armor[0] && ITEMS[armor[0].id].armor.s
 export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots })[c]();
 
 export function renderHotbar() { paintHotbar(inv.slots, inv.sel); }
+/** Pec bere nahoru jen to, co se taví, a dolů jen palivo (jako v Minecraftu). Vrací důvod odmítnutí, nebo null. */
+export const furnaceRefuses = (i, id) => (i === 0 && !smeltResult(id) ? 'Tohle se v peci tavit nedá'
+  : i === 1 && !FUEL[id] ? 'Tohle nehoří. Palivo je uhlí, dřevěné uhlí, dřevo nebo prkna.' : null);
 
 let onlyCraftable = false;
 // Složité součástky (adv) jdou vyrobit jen v dílně
@@ -59,6 +64,7 @@ export function renderCraftArea() {
   if (ui.mode === 'furnace') return renderFurnace(area);
   if (ui.mode === 'power') return renderPowerUI(area);
   if (ui.mode === 'car') return renderCarUI(area);
+  if (ui.mode === 'garage') return renderGarageUI(area, ui.fireKey);
   if (ui.mode === 'chest') {
     const c = chestOf(ui.fireKey);
     area.innerHTML = `<div class="mc-title">Truhla <button class="mc-btn mini" data-sort="chest" title="Sloučí a seřadí předměty v truhle"><i class="ico-sort"></i>Seřadit</button></div><div class="grid">${c.map((s, i) => slotHTML(s, i, '', 'chest')).join('')}</div><div class="mc-note">Shift + klik přesune předmět mezi truhlou a batohem · Shift + 2× klik přesune všechny stejné.</div>`;
@@ -110,8 +116,8 @@ function renderCatTabs(show) {
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 function renderBook() {
-  document.querySelector('.mc-book').style.display = ui.mode === 'chest' || ui.mode === 'power' || ui.mode === 'car' ? 'none' : '';
-  if (ui.mode === 'power' || ui.mode === 'car') return;
+  document.querySelector('.mc-book').style.display = ui.mode === 'chest' || ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage' ? 'none' : '';
+  if (ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage') return;
   renderCatTabs(['inv', 'bench', 'adv'].includes(ui.mode) && !(creative && ui.mode === 'inv'));
   if (ui.mode === 'chest') return;
   if (ui.mode === 'kitchen') {
@@ -213,7 +219,7 @@ export function quickMove(c, i, s) {
   else if (ui.mode === 'chest') left = insertStack(chestOf(ui.fireKey), s);
   else if (ui.mode === 'car' && vehicles.get(ui.fireKey)) { // do kufru (autobaterie do jejího místa)
     const sl = vehicles.get(ui.fireKey).slots;
-    if (!sl[0] && (s.id === 'car_battery' || s.id === 'car_battery_empty')) { sl[0] = s; left = 0; }
+    if (!sl[0] && vehicles.get(ui.fireKey).type === 'car' && (s.id === 'car_battery' || s.id === 'car_battery_empty')) { sl[0] = s; left = 0; }
     else {
       for (let j = 1; j < sl.length && left; j++) if (sl[j]?.id === s.id) { const k = Math.min(ITEMS[s.id].stack - sl[j].n, left); sl[j].n += k; left -= k; }
       for (let j = 1; j < sl.length && left; j++) if (!sl[j]) { sl[j] = { id: s.id, n: left }; left = 0; }
@@ -223,10 +229,14 @@ export function quickMove(c, i, s) {
     const ok = t === 'coal_generator' ? FUEL[s.id] : t === 'electric_furnace' ? smeltResult(s.id) : t === 'printer' ? s.id === 'paper' : s.id === 'car_battery_empty';
     if (ok && !st.slots[0]) { st.slots[0] = s; left = 0; }
     else if (ok && st.slots[0].id === s.id) { const k = Math.min(ITEMS[s.id].stack - st.slots[0].n, s.n); st.slots[0].n += k; left = s.n - k; }
-  } else if (ui.mode === 'furnace' && (smeltResult(s.id) || FUEL[s.id])) { // surovina nahoru, palivo dolů
-    const f = furnaceOf(ui.fireKey), j = smeltResult(s.id) ? 0 : 1;
-    if (!f.slots[j]) { f.slots[j] = s; left = 0; }
-    else if (f.slots[j].id === s.id) { const k = Math.min(ITEMS[s.id].stack - f.slots[j].n, s.n); f.slots[j].n += k; left = s.n - k; }
+  } else if (ui.mode === 'furnace' && (smeltResult(s.id) || FUEL[s.id])) { // surovina nahoru, palivo dolů; dřevo bez místa nahoře jde do paliva
+    const f = furnaceOf(ui.fireKey);
+    for (const j of [0, 1]) {
+      if (!left || furnaceRefuses(j, s.id)) continue;
+      const t = f.slots[j];
+      if (!t) { f.slots[j] = { ...s, n: left }; left = 0; }
+      else if (t.id === s.id) { const k = Math.min(ITEMS[s.id].stack - t.n, left); t.n += k; left -= k; }
+    }
   } else if (ui.mode === 'fire' && COOKING[s.id]) {
     const f = fireOf(ui.fireKey);
     if (!f.slots[0]) { f.slots[0] = s; left = 0; }
@@ -251,6 +261,7 @@ export function slotClick(c, i, button, shift) {
   if (c === 'armor' && inv.cursor && ITEMS[inv.cursor.id].armor?.slot !== i) return deny(ITEMS[inv.cursor.id].armor ? `Sem patří: ${ARMOR_SLOT_NAMES[i]}` : 'Sem patří jen brnění'); // do políčka jen správný kus brnění
   if (c === 'power' && i === 0 && inv.cursor && blocks.get(ui.fireKey) === 'printer' && inv.cursor.id !== 'paper') return deny('Do tiskárny patří papír'); // do tiskárny jen papír
   if (c === 'car' && i === 0 && inv.cursor && !['car_battery', 'car_battery_empty'].includes(inv.cursor.id)) return deny('Sem patří autobaterie'); // místo na autobaterii
+  if (c === 'furnace' && inv.cursor && furnaceRefuses(i, inv.cursor.id)) return deny(furnaceRefuses(i, inv.cursor.id)); // surovina nahoru, palivo dolů
   if (shift && s && !inv.cursor) {
     arr[i] = null;
     const n0 = s.n, left = quickMove(c, i, s);
@@ -260,6 +271,7 @@ export function slotClick(c, i, button, shift) {
     if (inv.cursor) {
       if (!s) arr[i] = { ...inv.cursor, n: 1 };
       else if (s.id === inv.cursor.id && s.n < ITEMS[s.id].stack) s.n++;
+      else if (s.id !== inv.cursor.id) { arr[i] = inv.cursor; inv.cursor = s; if (c === 'craft') ui.ghost = null; return refreshUI(); } // jiný předmět: prohodí se (jako levým)
       else return;
       if (--inv.cursor.n <= 0) inv.cursor = null;
     } else if (s) {
@@ -303,6 +315,7 @@ export function takeResult(shift) {
     made++;
   } while (shift && made < 64 && currentResult() === r);
   if (made) { if (r.repair) toolSound('repair'); else Sound.craft(); }
+  if (made) track('item_crafted', { kind: r.repair ? 'repair' : 'craft', amount: countBucket(r.n * made) });
   if (shift && made) feed(r.out, `+${made * r.n} ${ITEMS[r.out].name}`);
   if (shift && currentResult() === r && made < 64) toast('Batoh je plný');
   refreshUI();
@@ -316,8 +329,8 @@ function returnGrid() {
   for (let i = 0; i < ui.craft.length; i++) if (ui.craft[i]) { const s = ui.craft[i]; ui.craft[i] = null; giveOrDrop(s.id, s.n, s.w); }
 }
 export function fillRecipe(r, shift) {
-  if (r.adv && ui.mode !== 'adv') { toast('Tento recept potřebuje dílnu (pokročilý pracovní stůl)'); return; }
-  if (r.w > ui.size || r.h > ui.size) { toast('Tento recept potřebuje pracovní stůl'); return; }
+  if (r.adv && ui.mode !== 'adv') { track('recipe_book_used', { result: 'needs_workshop' }); toast('Tento recept potřebuje dílnu (pokročilý pracovní stůl)'); return; }
+  if (r.w > ui.size || r.h > ui.size) { track('recipe_book_used', { result: 'needs_bench' }); toast('Tento recept potřebuje pracovní stůl'); return; }
   returnGrid();
   lastRecipe = r;
   const need = recipeNeeds(r);
@@ -328,6 +341,7 @@ export function fillRecipe(r, shift) {
   if (times < 1) {
     ui.ghost = Array(9).fill(null);
     r.pat.forEach((row, y) => row.forEach((id, x) => { ui.ghost[y * ui.size + x] = id; }));
+    track('recipe_book_used', { result: 'missing_items' });
     toast('Chybí ti suroviny');
     return refreshUI();
   }
@@ -336,6 +350,7 @@ export function fillRecipe(r, shift) {
     removeItem(id, times);
     ui.craft[y * ui.size + x] = { id, n: times };
   }));
+  track('recipe_book_used', { result: 'filled' });
   refreshUI();
 }
 export function fillCooking(id) {
@@ -378,6 +393,8 @@ invEl.addEventListener('mousedown', (e) => {
   const ck = e.target.closest('[data-cook]');
   if (ck) fillCooking(ck.dataset.cook);
   if (e.target.closest('[data-car-enter]')) { const id = ui.fireKey; closeInventory(); enterVehicle(id); return; }
+  const gar = e.target.closest('[data-gar]');
+  if (gar) { if (garageClick(gar)) refreshUI(); return; }
   const fu = e.target.closest('[data-fur]');
   if (fu) return fillFurnace(fu.dataset.fur);
   const ct = e.target.closest('[data-cat]');
@@ -400,6 +417,7 @@ export function openInventory(mode = 'inv', fireKey = null) {
   unlockPointer();
   invEl.style.display = 'grid';
   renderInventory();
+  track('inventory_opened', { mode });
 }
 export function closeInventory() {
   returnGrid();
@@ -412,7 +430,7 @@ export function closeInventory() {
   renderHotbar();
   lockPointer();
 }
-$('modeBtn').addEventListener('click', () => setCreative(!creative));
+$('modeBtn').addEventListener('click', () => { setCreative(!creative); track('creative_toggled', { to: creative ? 'on' : 'off' }); });
 $('newWorld').addEventListener('click', () => {
   if (!confirm('Opravdu začít v novém světě? Současný postup bude smazán.')) return;
   setResetting(true);

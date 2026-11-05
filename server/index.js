@@ -6,12 +6,13 @@
 //   ROOM_PASSWORD   heslo, které hráči zadají při připojení (prázdné = bez hesla)
 //   DATA_DIR        kam ukládat světy (výchozí server/data; každý svět ve své složce DATA_DIR/<id>/)
 //   STATIC_DIR      složka se sestavenou hrou, kterou server taky posílá (výchozí dist; "" = neposílat)
-//   WORLDS          světy na serveru: "svet:Hlavní svět,kreativ:Kreativní svět:creative" (id:jméno[:creative])
+//   WORLDS          světy na serveru: "svet:Hlavní svět,kreativ:Kreativní svět:creative" (id:jméno[:creative][:pvp|:pvp-mark])
 //                   (bez WORLDS je jeden svět "svet" = Hlavní svět)
 //   MAX_PLAYERS     kolik hráčů najednou v jednom světě (výchozí 8)
 //   ALLOW_CREATIVE  1 = všichni smí kreativní režim (výchozí 0; jen když WORLDS není nastavené)
 //   SAVE_SECONDS    jak často ukládat svět (výchozí 30)
 //   ADMIN_PASSWORD  heslo stránky /admin se seznamem hráčů a resetem PINu (prázdné = stránka vypnutá)
+//   SILENT_SECONDS  po kolika sekundách ticha se spojení s hráčem zavře (výchozí 30; testy na pomalém stroji víc)
 // Profily hráčů (přezdívka + PIN) jsou v DATA_DIR/players.json; správa z příkazové řádky: node server/admin.js
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,6 +36,7 @@ const srv = await startServer({
   maxPlayers: Number(env.MAX_PLAYERS || 8),
   saveEveryMs: 1000 * Number(env.SAVE_SECONDS || 30),
   adminPassword: env.ADMIN_PASSWORD || '',
+  silentMs: 1000 * Number(env.SILENT_SECONDS || 30),
   log,
 });
 log(`Server Říše běží: http://localhost:${srv.port}/  (hráči se připojí na ws://<adresa>:${srv.port}/ws, světy: ${srv.worlds.join(', ')})`);

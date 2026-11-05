@@ -9,6 +9,7 @@ import { playerSafe } from '../mobs/mobs.js';
 import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
 import { receiveGift } from '../pc/papers-world.js';
+import { startArena } from '../player/arena.js';
 import { creative, guideOpen, isLocked, player, setCreative } from '../player/player.js';
 import { rebuildBlocks } from '../render/blocks.js';
 import { rebuildForest } from '../render/forest.js';
@@ -82,6 +83,7 @@ if (MP) {
     for (const d of BOOT.queue || []) window.__netOnData(d);
     if (!NET.perm && creative) setCreative(false);
     sysLine(`Připojeno k serveru ${NET.code}${NET.worldName ? ` · svět ${NET.worldName}` : ''}`);
+    if (NET.pvp) startArena(); // aréna: výbava, místo v aréně, tabulka bodů
   }
   // Záložka na pozadí: prohlížeč zastaví snímky (requestAnimationFrame), svět (hlavně u hostitele) ale musí běžet dál.
   setInterval(() => {

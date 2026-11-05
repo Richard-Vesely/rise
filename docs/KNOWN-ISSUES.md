@@ -1,7 +1,7 @@
 # Known issues
 
 Things that are not right yet. v2 kept Marek's behaviour on purpose ("parity first"); only what blocked the server was
-changed. Pick one, open an issue, fix it in a small PR (ask Richard for anything in the core files, see AGENTS.md).
+changed. Pick one, open an issue, fix it in a small PR (core files: see rule 4 in AGENTS.md).
 
 ## Multiplayer (all hosts)
 - **Players are trusted.** The host accepts every world edit (`ops`), every small-map value (`kv`: chests, machines, cars…),

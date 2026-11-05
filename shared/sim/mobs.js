@@ -10,11 +10,15 @@ import { Vec3 } from '../vec3.js';
 import { nearLight, solidAny, solidAt, voxFloor } from '../world/collision.js';
 import { collidersNear } from '../world/nature.js';
 import { bkey, blocks, chests, lights, spawners } from '../world/state.js';
-import { biomeAt, forest, isMark, shrineDist, shrineOf, terrainH } from '../world/terrain.js';
+import { biomeAt, forest, inLake, isMark, shrineDist, shrineOf, terrainH } from '../world/terrain.js';
 import { groundHeight, topY } from '../world/voxels.js';
+import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
+import { ruinsBuilt, ruinsOpened } from '../world/state.js';
+import { updateDragon } from './dragon.js';
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
+  dragon: { name: 'Drak Země draka', hp: 300, radius: 2.4, cy: 2, dmg: 65, tall: true, drops: [['shard', 8, 8], ['gold_ingot', 6, 6], ['markorite', 3, 3]] },
   sheep: { name: 'Ovce', hp: 5, radius: 0.75, cy: 0.75, drops: [['raw_mutton', 1, 2], ['wool', 1, 2]] },
   boar: { name: 'Kanec', hp: 12, radius: 0.8, cy: 0.7, dmg: 10, drops: [['raw_pork', 2, 3], ['bone', 0, 1]] },
   chicken: { name: 'Slepice', hp: 4, radius: 0.45, cy: 0.45, drops: [['raw_chicken', 1, 1], ['egg', 0, 1]] },
@@ -59,7 +63,7 @@ export function hurtMob(m, dmg, yaw, kb = 1) {
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
   m.hp -= dmg;
   m.flash = 1;
-  const push = (m.type === 'golem' ? 2 : 8) * kb;
+  const push = (m.type === 'dragon' ? 0.5 : m.type === 'golem' ? 2 : 8) * kb;
   m.vel.x += fx * push;
   m.vel.z += fz * push;
   emit('mobHit', m, !NET.killer, dmg); // jiskry a zvuk; !NET.killer = udeřil hráč u této obrazovky
@@ -73,6 +77,7 @@ export function killMob(m, drops, trap = false) {
   m.dead = true;
   emit('mobKilled', m);
   if (!drops) return;
+  if (m.type === 'dragon') ruinsOpened.add(DRAGON_DEN.key);
   let chest = null;
   if (trap) {
     let best = 26;
@@ -104,8 +109,9 @@ export function updateMobs(dt, day) {
     const T = nearestTarget(TG, m.pos), tp = T.pos;
     const dx = tp.x - m.pos.x, dz = tp.z - m.pos.z, dist = Math.hypot(dx, dz) || 0.01;
     const dyP = tp.y - m.pos.y;
-    if (dist > 120) { removeMob(m); continue; }
+    if (dist > 120 && m.type !== 'dragon') { removeMob(m); continue; }
     m.tdist = dist;
+    if (m.type === 'dragon') { updateDragon(m, T, dt); continue; }
     let dirX = 0, dirZ = 0, speed = 0;
     const wander = (sp) => {
       if ((m.idleT -= dt) <= 0) { m.moving = !m.moving; m.idleT = 2 + Math.random() * 4; m.wander = Math.random() * Math.PI * 2; }
@@ -202,13 +208,20 @@ export function updateSpawns(dt, night) {
   spawnT = 2;
   const c = NET.spawnCenter(); // tvorové se rodí kolem některého z hráčů
   if (!c) return; // na serveru nikdo není
+  if (isDragon(c.x)) {
+    if (ruinsBuilt.has(DRAGON_DEN.key) && !ruinsOpened.has(DRAGON_DEN.key) &&
+      Math.hypot(c.x - DRAGON_DEN.x, c.z - DRAGON_DEN.z) < 80 && !mobs.some((m) => m.type === 'dragon')) {
+      spawnMob('dragon', DRAGON_DEN.x, DRAGON_DEN.z);
+    }
+    return;
+  }
   // zvěř se nepase v poušti a na sopce
   const grazing = () => { const p = spot(); return p && !['desert', 'volcanic'].includes(biomeAt(p[0], p[1])) ? p : null; };
   const count = (t) => mobs.filter((m) => m.type === t && !m.dead).length;
   const spot = () => {
     const a = Math.random() * Math.PI * 2, r = 35 + Math.random() * 25;
     const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
-    return shrineDist(x, z) < 35 || nearLight(x, z, 12) ? null : [x, z];
+    return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) ? null : [x, z]; // ne v jezeře
   };
   if (isMark(c.x)) { // Markova dimenze: Markomani a krystaloví golemové
     if (count('markoman') < (night > 0.5 ? 8 : 5)) { const p = spot(); if (p) spawnMob('markoman', ...p); }

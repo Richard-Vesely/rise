@@ -1,23 +1,14 @@
 // Kousky shaderů: terén a biomy (dvojče JS vzorce v shared/world/terrain.js) a šum trávy.
-import { BIOME_START, MARK_CX, MARK_X, MUSH_CELL, MUSH_R, POND_CELL, VOLC_CELL, VOLC_R } from '../../../shared/world/terrain.js';
+import { BIOME_BLEND, BIOME_SCALE, BIOME_START, LAKE_CELL, LAKE_EDGE, LAKE_MIN, MARK_CX, MARK_X, MUSH_CELL, MUSH_R, POND_CELL, VOLC_CELL, VOLC_R } from '../../../shared/world/terrain.js';
+import { DRAGON_CX, DRAGON_X } from '../../../shared/world/dragon-land.js';
 
 export const TERRAIN_GLSL = /* glsl */`
-  float shrineDist(vec2 p) { return length(p - vec2(p.x > ${MARK_X.toFixed(1)} ? ${MARK_CX.toFixed(1)} : 0.0, 0.0)); }
+  float shrineDist(vec2 p) { return length(p - vec2(p.x < ${DRAGON_X.toFixed(1)} ? ${DRAGON_CX.toFixed(1)} : p.x > ${MARK_X.toFixed(1)} ? ${MARK_CX.toFixed(1)} : 0.0, 0.0)); }
   float hash2i(float fx, float fz) {
     uint h = (uint(int(fx)) * 374761393u) ^ (uint(int(fz)) * 668265263u);
     h = (h ^ (h >> 13u)) * 1274126177u;
     h ^= h >> 16u;
     return float(h) / 4294967296.0;
-  }
-  float pondDip(vec2 p) {
-    vec2 c = floor(p / ${POND_CELL.toFixed(1)});
-    if (hash2i(c.x + 31.0, c.y + 913.0) >= 0.45) return 0.0;
-    vec2 ctr = vec2(c.x + 0.3 + 0.4 * hash2i(c.x + 2.0, c.y + 9.0), c.y + 0.3 + 0.4 * hash2i(c.x + 9.0, c.y + 2.0)) * ${POND_CELL.toFixed(1)};
-    float r = 9.0 + 5.0 * hash2i(c.x + 4.0, c.y + 4.0);
-    float d = length(p - ctr) / r;
-    if (d >= 1.0) return 0.0;
-    float k = 1.0 - d * d;
-    return 2.6 * k * k * smoothstep(60.0, 90.0, shrineDist(ctr));
   }
   // smoothstep, který (na rozdíl od vestavěného) funguje i s obrácenými hranami – stejně jako v JS
   float sst(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
@@ -27,16 +18,44 @@ export const TERRAIN_GLSL = /* glsl */`
     vec2 ctr = vec2(c.x + 0.3 + 0.4 * hash2i(c.x + salt + 1.0, c.y + 7.0), c.y + 0.3 + 0.4 * hash2i(c.x + 7.0, c.y + salt + 1.0)) * cell;
     return length(p - ctr);
   }
-  float volcanoDist(vec2 p) { return regionDist(p, ${VOLC_CELL.toFixed(1)}, 71.0, 0.5); }
+  float volcanoDist(vec2 p) { return p.x < ${DRAGON_X.toFixed(1)} ? 1e9 : regionDist(p, ${VOLC_CELL.toFixed(1)}, 71.0, 0.5); }
+  // jezero v buňce (dvojče lakeOf v terrain.js): xy = střed, z = poloměr (0 = žádné), w = hloubka
+  vec4 lakeOf(vec2 p) {
+    if (p.x < ${DRAGON_X.toFixed(1)}) return vec4(0.0);
+    vec2 c = floor(p / ${LAKE_CELL.toFixed(1)});
+    if (hash2i(c.x + 57.0, c.y + 311.0) >= 0.42) return vec4(0.0);
+    vec2 ctr = vec2(c.x + 0.25 + 0.5 * hash2i(c.x + 61.0, c.y + 5.0), c.y + 0.25 + 0.5 * hash2i(c.x + 5.0, c.y + 61.0)) * ${LAKE_CELL.toFixed(1)};
+    float r = 50.0 + 70.0 * hash2i(c.x + 8.0, c.y + 8.0), e = r * ${LAKE_EDGE.toFixed(2)};
+    if (ctr.x - e <= ${DRAGON_X.toFixed(1)} || ctr.x + e >= ${MARK_X.toFixed(1)} || length(ctr) <= ${LAKE_MIN.toFixed(1)} + e || volcanoDist(ctr) <= ${(VOLC_R * 1.7).toFixed(1)} + e) return vec4(0.0);
+    return vec4(ctr, r, 6.0 + 2.0 * hash2i(c.x + 9.0, c.y + 3.0));
+  }
+  // vzdálenost od středu jezera v poloměrech (velké číslo = žádné jezero); tráva pod hladinou neroste
+  float lakeD(vec2 p) { vec4 L = lakeOf(p); return L.z > 0.0 ? length(p - L.xy) / L.z : 99.0; }
+  float pondDip(vec2 p) {
+    if (p.x < ${DRAGON_X.toFixed(1)}) return 0.0;
+    vec2 c = floor(p / ${POND_CELL.toFixed(1)});
+    if (hash2i(c.x + 31.0, c.y + 913.0) >= 0.45) return 0.0;
+    vec2 ctr = vec2(c.x + 0.3 + 0.4 * hash2i(c.x + 2.0, c.y + 9.0), c.y + 0.3 + 0.4 * hash2i(c.x + 9.0, c.y + 2.0)) * ${POND_CELL.toFixed(1)};
+    float r = 9.0 + 5.0 * hash2i(c.x + 4.0, c.y + 4.0);
+    float d = length(p - ctr) / r;
+    if (d >= 1.0) return 0.0;
+    vec4 L = lakeOf(ctr);
+    if (L.z > 0.0 && length(ctr - L.xy) < L.z * ${LAKE_EDGE.toFixed(2)} + r) return 0.0; // v jezeře rybníky nejsou
+    float k = 1.0 - d * d;
+    return 2.6 * k * k * smoothstep(60.0, 90.0, shrineDist(ctr));
+  }
   // wa = (louka, třešně, poušť, džungle), wb = (tundra, savana, sopka, houby)
   void biomeWeights(vec2 p, out vec4 wa, out vec4 wb) {
     wa = vec4(1.0, 0.0, 0.0, 0.0); wb = vec4(0.0);
+    if (p.x < ${DRAGON_X.toFixed(1)}) { wa = vec4(0.0); wb.z = 1.0; return; }
     if (p.x > ${MARK_X.toFixed(1)}) return;
-    float ring = sst(${BIOME_START.toFixed(1)}, ${(BIOME_START + 160).toFixed(1)}, shrineDist(p));
+    float ring = sst(${BIOME_START.toFixed(1)}, ${(BIOME_START + BIOME_BLEND).toFixed(1)}, shrineDist(p));
     if (ring <= 0.0) return;
-    float t = sin(p.x * 0.0017 + 1.1) * cos(p.y * 0.0021 - 0.4) * 0.6 + sin((p.x + p.y) * 0.0009 + 2.3) * 0.4;
-    float hm = cos(p.x * 0.0019 - 0.8) * sin(p.y * 0.0016 + 0.6) * 0.6 + sin((p.x - p.y) * 0.0011 + 0.9) * 0.4;
-    float tundra = sst(-0.3, -0.48, t), hot = sst(0.18, 0.36, t), dry = sst(-0.02, -0.22, hm), wet = sst(0.12, 0.3, hm);
+    vec2 b = p * ${BIOME_SCALE.toFixed(1)};
+    vec2 c = b + vec2(sin(b.y * 0.004), sin(b.x * 0.0035 + 0.7)) * 180.0;
+    float t = sin(c.x * 0.0017 + 1.1) * cos(c.y * 0.0021 - 0.4) * 0.6 + sin((c.x + c.y) * 0.0009 + 2.3) * 0.4;
+    float hm = cos(c.x * 0.0019 - 0.8) * sin(c.y * 0.0016 + 0.6) * 0.6 + sin((c.x - c.y) * 0.0011 + 0.9) * 0.4;
+    float tundra = sst(-0.3, -0.48, t), hot = sst(-0.02, 0.2, t), dry = sst(0.12, -0.14, hm), wet = sst(0.12, 0.3, hm);
     float cherry = sst(0.2, 0.38, hm) * (1.0 - hot) * (1.0 - tundra);
     float vol = sst(${(VOLC_R * 1.7).toFixed(1)}, ${(VOLC_R * 1.05).toFixed(1)}, volcanoDist(p));
     float mus = sst(${(MUSH_R * 1.5).toFixed(1)}, ${(MUSH_R * 0.9).toFixed(1)}, regionDist(p, ${MUSH_CELL.toFixed(1)}, 43.0, 0.45)) * (1.0 - vol);
@@ -45,7 +64,8 @@ export const TERRAIN_GLSL = /* glsl */`
     wb = vec4(tundra * k, hot * (1.0 - dry) * (1.0 - wet) * k, vol * ring, mus * ring);
     wa.x = 1.0 - wa.y - wa.z - wa.w - wb.x - wb.y - wb.z - wb.w;
   }
-  float terrainHW(vec2 p, vec4 wa, vec4 wb) {
+  // terén bez rybníků a jezer
+  float terrainBase(vec2 p, vec4 wa, vec4 wb) {
     float h = sin(p.x * 0.011 + 1.3) * cos(p.y * 0.013 - 0.7) * 6.0
             + sin(p.x * 0.027 + p.y * 0.018) * 2.4
             + cos(p.y * 0.035 - p.x * 0.021 + 2.0) * 1.4
@@ -53,13 +73,29 @@ export const TERRAIN_GLSL = /* glsl */`
     if (p.x > ${MARK_X.toFixed(1)}) h = h * 1.6 + sin(p.x * 0.0045 + p.y * 0.006) * 5.0;
     if (wa.x < 1.0) {
       float dune = 0.5 + 0.5 * sin(p.x * 0.07 + sin(p.y * 0.023) * 2.5);
-      dune = dune * dune * 2.4;
+      dune = dune * dune * (3.5 + 2.0 * (0.5 + 0.5 * sin(p.y * 0.009 + p.x * 0.006)));
       float vd = volcanoDist(p);
       float cone = vd < ${VOLC_R.toFixed(1)} ? 30.0 * pow(1.0 - vd / ${VOLC_R.toFixed(1)}, 1.8) - 14.0 * pow(max(0.0, 1.0 - vd / 18.0), 1.5) : 0.0;
       h = wa.x * h + wa.y * (h * 1.15 + 0.6) + wa.z * (h * 0.45 + dune) + wa.w * (h * 1.3 + sin(p.x * 0.043 + 0.4) * sin(p.y * 0.051 + 1.2) * 2.2)
         + wb.x * (h * 0.55 + 0.8) + wb.y * (h * 0.7 + 0.4) + wb.z * (h * 0.9 + cone) + wb.w * (h * 0.8 + 0.5);
     }
-    return h * smoothstep(16.0, 70.0, shrineDist(p)) - pondDip(p) * (1.0 - wb.z);
+    return h * smoothstep(16.0, 70.0, shrineDist(p));
+  }
+  float terrainHW(vec2 p, vec4 wa, vec4 wb) {
+    if (p.x < ${DRAGON_X.toFixed(1)}) {
+      float dx = p.x - ${DRAGON_CX.toFixed(1)}, r = length(vec2(dx, p.y));
+      float a = sin(dx * 0.035), b = cos(p.y * 0.028);
+      return smoothstep(110.0, 200.0, r) * (12.0 + 8.0 * a * a + 9.0 * b * b);
+    }
+    float h = terrainBase(p, wa, wb) - pondDip(p) * (1.0 - wb.z);
+    vec4 L = lakeOf(p);
+    if (L.z <= 0.0) return h;
+    float d = length(p - L.xy) / L.z;
+    if (d >= ${LAKE_EDGE.toFixed(2)}) return h;
+    vec4 ca, cb;
+    biomeWeights(L.xy, ca, cb);
+    float hc = terrainBase(L.xy, ca, cb);
+    return h + (hc - h) * sst(${LAKE_EDGE.toFixed(2)}, 1.15, d) - L.w * sst(1.0, 0.7, d); // rovný břeh, pak dno
   }
   float terrainH(vec2 p) { vec4 wa, wb; biomeWeights(p, wa, wb); return terrainHW(p, wa, wb); }
 `;

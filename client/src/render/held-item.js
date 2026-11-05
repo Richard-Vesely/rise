@@ -7,12 +7,12 @@ import { NET } from '../../../shared/net/net.js';
 import { lerp, smoothstep, wrapAngle } from '../../../shared/util.js';
 import { WALK } from '../../../shared/world/constants.js';
 import { toolSound } from '../audio/tool-sounds.js';
-import { iconVoxels } from '../dining/food-models.js';
 import { loadCostume } from '../menu/costume.js';
 import { heldStack } from '../player/inventory.js';
 import { player } from '../player/player.js';
 import { blockMat } from './blocks.js';
 import { bowModel } from './bow-model.js';
+import { addOutline, chunkyVoxels, hoeModel, rodModel } from './held-models.js';
 import { buildFPArm, disposeCharacter, suitPalette } from './character.js';
 import { ICONS } from './icons.js';
 import { camera } from './renderer.js';
@@ -51,6 +51,7 @@ function toolModel(d, mesh) {
   const future = d.tier >= 4, shaft = future ? graphite : handleMat, head = TIER_MAT[d.tier];
   mesh(new THREE.CylinderGeometry(0.019, 0.023, 0.64, 10), shaft, 0, 0.11);
   mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.16, 10), gripMat, 0, -0.1); // omotávka
+  for (const y of [-0.04, -0.1, -0.16]) mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.018, 10), handleMat, 0, y); // pruhy omotávky
   mesh(new THREE.CylinderGeometry(0.029, 0.027, 0.03, 10), socketMat, 0, -0.2); // koncovka
   if (future) for (const y of [0.0, 0.22]) mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.012, 12), NEON[d.tier], 0, y);
   if (d.tool === 'pick') {
@@ -60,7 +61,7 @@ function toolModel(d, mesh) {
     s.quadraticCurveTo(0.15, 0.05, 0.28, -0.07);
     s.quadraticCurveTo(0.14, 0.0, 0, -0.005);
     s.quadraticCurveTo(-0.14, 0.0, -0.28, -0.07);
-    mesh(ex(s, 0.03), head, 0, 0.4);
+    mesh(ex(s, 0.05), head, 0, 0.4); // tlustší hlava (Hytale)
     mesh(new THREE.BoxGeometry(0.06, 0.1, 0.056), socketMat, 0, 0.405);
     if (future) mesh(new THREE.BoxGeometry(0.064, 0.022, 0.06), NEON[d.tier], 0, 0.4); // svítící jádro v objímce
   } else if (d.tool === 'axe') {
@@ -70,7 +71,7 @@ function toolModel(d, mesh) {
     s.quadraticCurveTo(0.2, 0.0, 0.1, -0.11);
     s.lineTo(0.02, -0.055);
     s.lineTo(0.02, 0.05);
-    mesh(ex(s, 0.018, 0.008), head, 0, 0.36);
+    mesh(ex(s, 0.034, 0.008), head, 0, 0.36);
     mesh(new THREE.BoxGeometry(0.07, 0.1, 0.05), socketMat, -0.005, 0.36); // objímka
     mesh(new THREE.BoxGeometry(0.05, 0.06, 0.04), head, -0.06, 0.36); // týl
     if (future) mesh(new THREE.BoxGeometry(0.006, 0.17, 0.03), NEON[d.tier], 0.155, 0.355).rotation.z = 0.12;
@@ -82,7 +83,7 @@ function toolModel(d, mesh) {
     s.quadraticCurveTo(0.065, 0.2, 0, 0.235);
     s.quadraticCurveTo(-0.065, 0.2, -0.07, 0.12);
     s.lineTo(-0.07, 0);
-    const blade = mesh(ex(s, 0.012, 0.005), head, 0, 0.42);
+    const blade = mesh(ex(s, 0.022, 0.005), head, 0, 0.42);
     blade.rotation.x = -0.12; // lopata je trochu prohnutá dopředu
     mesh(new THREE.CylinderGeometry(0.03, 0.022, 0.08, 10), socketMat, 0, 0.42);
     if (future) mesh(new THREE.BoxGeometry(0.008, 0.16, 0.02), NEON[d.tier], 0, 0.53);
@@ -94,12 +95,17 @@ export function buildHeld(id) { // používají ho i postavičky ostatních hrá
   const mesh = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
   if (d.tool === 'sword') {
     const shape = new THREE.Shape([new THREE.Vector2(-0.032, 0), new THREE.Vector2(0.032, 0), new THREE.Vector2(0.027, 0.74), new THREE.Vector2(0, 0.86), new THREE.Vector2(-0.027, 0.74)]);
-    mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.006, bevelSegments: 1 }).translate(0, 0.02, -0.004), TIER_MAT[d.tier]);
+    mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.018, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 1 }).translate(0, 0.02, -0.009), TIER_MAT[d.tier]); // tlustší čepel (Hytale)
     mesh(new THREE.BoxGeometry(0.24, 0.035, 0.05), d.tier >= 3 ? goldMat : handleMat);
     mesh(new THREE.CylinderGeometry(0.021, 0.024, 0.17, 10), handleMat, 0, -0.1);
+    for (const y of [-0.05, -0.1, -0.15]) mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.022, 10), gripMat, 0, y); // kožená omotávka
     mesh(new THREE.SphereGeometry(0.034, 12, 8), d.tier >= 3 ? goldMat : handleMat, 0, -0.2);
   } else if (d.tool === 'axe' || d.tool === 'pick' || d.tool === 'shovel') {
     toolModel(d, mesh);
+  } else if (id === 'fishing_rod') {
+    rodModel(mesh);
+  } else if (id === 'hoe') {
+    hoeModel(mesh, handleMat, gripMat);
   } else if (d.bow) {
     const b = bowModel();
     g.add(b);
@@ -113,11 +119,12 @@ export function buildHeld(id) { // používají ho i postavičky ostatních hrá
     f.position.y = 0.33;
     g.add(f);
   } else {
-    const s = iconVoxels(id, 0.016);
+    const s = chunkyVoxels(id, 0.016); // tlusté kostičky s obrysem (Hytale)
     s.position.y = 0.12;
     s.rotation.y = -0.4;
     g.add(s);
   }
+  addOutline(g); // tmavý obrys jako v Hytale
   g.scale.setScalar(0.7);
   return g;
 }

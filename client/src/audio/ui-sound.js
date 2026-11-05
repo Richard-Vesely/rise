@@ -22,4 +22,6 @@ export const uiSound = {
   pickup() { Sound.plip(); },
   /** Vyhození předmětu. */
   toss() { Sound.toss(); },
+  /** Předmět shořel v lávě: krátké syčení. */
+  fizz() { Sound.burst({ dur: 0.45, f0: 5200, f1: 1800, q: 0.6, vol: 0.12, type: 'highpass', attack: 0.01 }); Sound.tone(220, 0.12, 0.05, 'sine', 0, 110, { attack: 0.003 }); },
 };
