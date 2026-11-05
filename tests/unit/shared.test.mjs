@@ -101,7 +101,7 @@ test('every module in shared/ imports in Node (no DOM, no Three.js)', async () =
 });
 
 test('oceans: only in worlds created with them; seas with beaches far from home, water to swim in', async () => {
-  const { WORLD_GEN, oceanK, beachK, lakeOf, SEA, OCEAN_START } = await import('../../shared/world/terrain.js');
+  const { WORLD_GEN, oceanK, beachK, lakeOf, volcanoOf, SEA, OCEAN_START } = await import('../../shared/world/terrain.js');
   const { waterAt } = await import('../../shared/world/nature.js');
   const { loadWorld, worldState } = await import('../../shared/world/save.js');
   const before = terrainH(3000, -2500), home = terrainH(100, -50);
@@ -117,6 +117,7 @@ test('oceans: only in worlds created with them; seas with beaches far from home,
     for (let x = -4000; x <= 4000; x += 100) for (let z = -4000; z <= 4000; z += 100) { if (Math.hypot(x, z) < OCEAN_START) continue; if (terrainH(x, z) < SEA) lo++; else hi++; }
     assert.ok(lo > 0.2 * (lo + hi) && hi > 0.4 * (lo + hi), `big seas and still mostly land (${lo} sea, ${hi} land)`);
     assert.equal(lakeOf(740, 0), null, 'no lake out in the sea');
+    for (let cx = -4; cx < 4; cx++) for (let cz = -4; cz < 4; cz++) { const v = volcanoOf(cx * 1100 + 550, cz * 1100 + 550); if (v) assert.equal(oceanK(v.x, v.z), 0, 'no volcano in the sea'); }
     loadWorld(null);
     assert.equal(WORLD_GEN.oceans, true, 'a new world gets oceans');
     assert.equal(worldState().oceans, true, 'and saves it');

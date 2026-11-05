@@ -50,7 +50,11 @@ export function regionOf(x, z, cell, salt, chance) {
   if (hash2(cx + salt, cz - salt * 3) >= chance) return null;
   return { x: (cx + 0.3 + 0.4 * hash2(cx + salt + 1, cz + 7)) * cell, z: (cz + 0.3 + 0.4 * hash2(cx + 7, cz + salt + 1)) * cell };
 }
-export const volcanoOf = (x, z) => (isMark(x) || isDragon(x) ? null : regionOf(x, z, VOLC_CELL, 71, 0.5));
+export const volcanoOf = (x, z) => {
+  if (isMark(x) || isDragon(x)) return null;
+  const v = regionOf(x, z, VOLC_CELL, 71, 0.5);
+  return v && oceanK(v.x, v.z) > 0 ? null : v; // ve světě s oceány nejsou sopky v moři
+};
 export const volcanoDist = (x, z) => { const v = volcanoOf(x, z); return v ? Math.hypot(x - v.x, z - v.z) : 1e9; };
 const mushDist = (x, z) => { const v = isMark(x) ? null : regionOf(x, z, MUSH_CELL, 43, 0.45); return v ? Math.hypot(x - v.x, z - v.z) : 1e9; };
 // Váhy biomů v bodě (součet = 1), pořadí jako BIOMES

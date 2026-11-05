@@ -13,13 +13,16 @@ export const TERRAIN_GLSL = /* glsl */`
   }
   // smoothstep, který (na rozdíl od vestavěného) funguje i s obrácenými hranami – stejně jako v JS
   float sst(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
-  float regionDist(vec2 p, float cell, float salt, float chance) {
+  // střed vzácné oblasti v buňce: xy = střed, z = 1 když tam oblast je (dvojče regionOf v terrain.js)
+  vec3 regionCtr(vec2 p, float cell, float salt, float chance) {
     vec2 c = floor(p / cell);
-    if (p.x > ${MARK_X.toFixed(1)} || hash2i(c.x + salt, c.y - salt * 3.0) >= chance) return 1e9;
-    vec2 ctr = vec2(c.x + 0.3 + 0.4 * hash2i(c.x + salt + 1.0, c.y + 7.0), c.y + 0.3 + 0.4 * hash2i(c.x + 7.0, c.y + salt + 1.0)) * cell;
-    return length(p - ctr);
+    if (p.x > ${MARK_X.toFixed(1)} || hash2i(c.x + salt, c.y - salt * 3.0) >= chance) return vec3(0.0);
+    return vec3(vec2(c.x + 0.3 + 0.4 * hash2i(c.x + salt + 1.0, c.y + 7.0), c.y + 0.3 + 0.4 * hash2i(c.x + 7.0, c.y + salt + 1.0)) * cell, 1.0);
   }
-  float volcanoDist(vec2 p) { return p.x < ${DRAGON_X.toFixed(1)} ? 1e9 : regionDist(p, ${VOLC_CELL.toFixed(1)}, 71.0, 0.5); }
+  float regionDist(vec2 p, float cell, float salt, float chance) {
+    vec3 r = regionCtr(p, cell, salt, chance);
+    return r.z > 0.0 ? length(p - r.xy) : 1e9;
+  }
   // oceány (dvojče oceanK / oceanH / beachK v shared/world/terrain.js)
   float oceanK(vec2 p) {
     if (uOceans < 0.5 || p.x > ${MARK_X.toFixed(1)} || p.x < ${DRAGON_X.toFixed(1)}) return 0.0;
@@ -27,6 +30,12 @@ export const TERRAIN_GLSL = /* glsl */`
     if (ring <= 0.0) return 0.0;
     float n = sin(p.x * 0.00071 + 0.7) * cos(p.y * 0.00063 - 1.3) * 0.65 + sin((p.x * 0.6 - p.y) * 0.00042 + 2.1) * 0.35;
     return sst(0.18, 0.44, n) * ring;
+  }
+  // sopka v buňce (dvojče volcanoOf v terrain.js): ne v Zemi draka a ne v moři
+  float volcanoDist(vec2 p) {
+    if (p.x < ${DRAGON_X.toFixed(1)}) return 1e9;
+    vec3 v = regionCtr(p, ${VOLC_CELL.toFixed(1)}, 71.0, 0.5);
+    return v.z > 0.0 && oceanK(v.xy) <= 0.0 ? length(p - v.xy) : 1e9;
   }
   float beachK(vec2 p, float h) { return min(1.0, oceanK(p) * 5.0) * sst(${(SEA + 2.6).toFixed(2)}, ${(SEA + 1.0).toFixed(2)}, h); }
   // jezero v buňce (dvojče lakeOf v terrain.js): xy = střed, z = poloměr (0 = žádné), w = hloubka
