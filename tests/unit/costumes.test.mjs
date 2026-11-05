@@ -5,12 +5,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { EMBLEMS, LIGHT_COLORS, SUITS, SUIT_COLORS, SUIT_IDS, VISOR_COLORS, cleanCostume, decodeCostume, defaultCostume, encodeCostume, newerCostume } from '../../shared/data/index.js';
+import { EMBLEMS, LIGHT_COLORS, SUITS, SUIT_COLORS, SUIT_IDS, VISOR_COLORS, HAIR_COLORS, SKIN_TONES, cleanCostume, decodeCostume, isHero, defaultCostume, encodeCostume, newerCostume } from '../../shared/data/index.js';
 import { cleanMe } from '../../server/me.js';
 import { player, pose, sleep, startServer, stop } from './server-helpers.mjs';
 
 test('costumes: data, defaults per name, cleaning and the short text in the position', () => {
-  assert.deepEqual(SUIT_IDS, ['explorer', 'engineer', 'pilot', 'guard', 'scientist', 'shadow', 'sky']);
+  assert.deepEqual(SUIT_IDS, ['explorer', 'engineer', 'pilot', 'guard', 'scientist', 'shadow', 'sky', 'mage', 'knight', 'ranger']);
+  assert.ok(['mage', 'knight', 'ranger'].every(isHero) && !isHero('pilot'), 'heroes have a face and hair instead of a helmet');
+  assert.ok(HAIR_COLORS.length === VISOR_COLORS.length && SKIN_TONES.length === EMBLEMS.length, 'hair and skin reuse the visor and emblem slots (same counts, same save format)');
   for (const id of SUIT_IDS) assert.ok(SUITS[id].name && SUITS[id].desc, `${id} has a Czech name and description`);
   assert.equal(LIGHT_COLORS.length, 4, 'suit lights use only the four glow colours of the game');
   assert.ok(SUIT_COLORS.length >= 10 && VISOR_COLORS.length >= 4 && EMBLEMS.length >= 6);

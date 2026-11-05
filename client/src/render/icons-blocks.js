@@ -1,16 +1,17 @@
 // Ikony bloků, biomů, technologií a elektrických zařízení.
 import './icons.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import { BLOCKS, ITEMS, SHAPES, rotBox } from '../../../shared/data/index.js';
-import { ICONS } from './icons.js';
+import { ICONS, iconCanvas } from './icons.js';
+import { VEH_SHAPES } from './icons-vehicles.js';
 import { acaciaPlanksTex, barkTex, basaltTex, bricksTex, cherryPlanksTex, cobbleTex, concreteTex, copperBlockTex, cutCopperTex, glassTex, goldBlockTex, graniteTex, ironBlockTex, junglePlanksTex, marblePillarTex, marbleTex, markBarkTex, markPlanksTex, markRingsTex, mushroomCapTex, mushroomStemTex, obsidianTex, planksTex, polishedBasaltTex, polishedGraniteTex, polishedMarbleTex, polishedStoneTex, quartzPillarTex, quartzTex, ringsTex, roofTilesTex, sandTex, sandstoneTex, smoothSandstoneTex, snowTex, steelBlockTex, stoneTilesTex, techPanelTex, whitePanelTex, neonTex } from './textures.js';
 
 // ============================================================ ikony stavebních bloků (izometrické 3D tvary ze zmenšených textur)
-const shrinkTex = (tex) => { const c = document.createElement('canvas'); c.width = c.height = 16; c.getContext('2d').drawImage(tex.image, 0, 0, 16, 16); return c; };
+const shrinkTex = (tex) => { const c = iconCanvas(); c.width = c.height = 16; c.getContext('2d').drawImage(tex.image, 0, 0, 16, 16); return c; };
 // Bod kvádru (x, y, z v pixelech 0–16; y nahoru) -> bod na ikoně 32×32 (stejná projekce jako ikony kostek)
 const isoP = (x, y, z) => [2 + x * 0.875 + z * 0.875, 8 + x * 0.4375 - z * 0.4375 + (16 - y)];
 // Nakreslí kvádry (od zadních k předním): vrchní stěna, levá (přední) a pravá stěna, textura se nedeformuje.
 function isoBoxes(top, side, boxes) {
-  const c = document.createElement('canvas');
+  const c = iconCanvas();
   c.width = c.height = 32;
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
@@ -53,7 +54,7 @@ function isoBoxes(top, side, boxes) {
     icon(id, isoBoxes(tex, tex, boxes));
   }
   // Lucerna: železný rám, zářící sklo, ucho nahoře
-  const c = document.createElement('canvas');
+  const c = iconCanvas();
   c.width = c.height = 16;
   const g = c.getContext('2d');
   const rows = ['......DD........', '.....D..D.......', '......DD........', '....DDDDDD......', '....DYYYYD......', '....DYOOYD......',
@@ -69,7 +70,7 @@ function isoBoxes(top, side, boxes) {
   const hex = (h) => `#${h.toString(16).padStart(6, '0')}`;
   // Přebarvení malé textury (beton podle barviva)
   const tint = (src, color) => {
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = 16;
     const g = c.getContext('2d');
     g.drawImage(src, 0, 0);
@@ -80,7 +81,7 @@ function isoBoxes(top, side, boxes) {
   };
   // Pixel art 16×16 kreslený funkcí, s tmavým obrysem jako ostatní ikony
   const paint = (fn) => {
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = 16;
     const g = c.getContext('2d');
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const col = fn(x + 0.5, y + 0.5); if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }
@@ -215,8 +216,9 @@ function isoBoxes(top, side, boxes) {
     case: (x, y) => (inR(x, y, 4, 1, 12, 15) ? (inR(x, y, 6, 3, 10, 4) ? 'A' : inE(x, y, 8, 7, 1) ? 'L' : x > 11 ? 'D' : 'M') : null),
     cartridge: (x, y) => (inR(x, y, 3, 4, 13, 12) ? (inR(x, y, 5, 6, 8, 10) ? 'K' : 'M') : null),
     pencil: (x, y) => (Math.abs(x + y - 16) < 1.5 ? (x < 4 ? 'K' : x < 5.5 ? 'W' : x > 12 ? 'A' : 'M') : null),
-    car: (x, y) => (inR(x, y, 1, 7, 15, 11) || (inR(x, y, 4, 4, 11, 7) && x - 4 > (7 - y) * 0.8 - 0.6) ? (inR(x, y, 6, 4.5, 10, 6.8) ? 'W' : y < 8 ? 'L' : 'M') : inE(x, y, 4, 11.5, 2.2) || inE(x, y, 12, 11.5, 2.2) ? (inE(x, y, 4, 11.5, 0.9) || inE(x, y, 12, 11.5, 0.9) ? 'W' : 'K') : null),
-    plane: (x, y) => (inR(x, y, 1, 4, 15, 5.5) || inR(x, y, 1, 9, 15, 10.5) ? 'L' : (inR(x, y, 3, 5.5, 3.8, 9) || inR(x, y, 12.2, 5.5, 13, 9)) ? 'D' : inE(x, y, 8, 7.5, 5.5, 1.6) ? 'M' : inR(x, y, 13, 5, 15, 8) ? 'M' : x < 2 && y > 5 && y < 10 ? 'K' : inE(x, y, 6, 12, 1.2) || inE(x, y, 10, 12, 1.2) ? 'K' : null),
+    ...VEH_SHAPES, // auto, dvouplošník, hydroplán, kolo, lodě (render/icons-vehicles.js)
+    boat: (x, y) => (y > 8 && y < 13 && x > 1 + (y - 8) * 0.6 && x < 15 - (y - 8) * 0.3 ? (y < 9.5 ? 'L' : y > 11.5 ? 'A' : 'M') : inR(x, y, 9, 5, 12, 8.2) ? (inR(x, y, 9.8, 5.6, 11.4, 7) ? 'W' : 'D') : null), // trup lodi (díl)
+    float: (x, y) => (inE(x, y, 8, 5.5, 6.5, 2) || inE(x, y, 8, 11.5, 6.5, 2) ? (y < 5 || (y > 10 && y < 11) ? 'L' : 'M') : (Math.abs(x - 5) < 0.6 || Math.abs(x - 11) < 0.6) && y > 6 && y < 10 ? 'D' : null),
     axle: (x, y) => (Math.abs(y - 8) < 0.8 && x > 3 && x < 13 ? 'M' : inE(x, y, 3, 8, 2.5, 4) || inE(x, y, 13, 8, 2.5, 4) ? 'K' : null),
     pc: (x, y) => (inR(x, y, 1, 4, 4, 14) ? (inR(x, y, 2, 5, 3, 5) ? 'A' : 'D') : inR(x, y, 5, 2, 15, 10) ? (inR(x, y, 6, 3, 14, 9) ? (x + y < 13 ? 'L' : 'A') : 'M') : inR(x, y, 9, 11, 11, 11) ? 'M' : inR(x, y, 6, 12, 15, 14) ? 'W' : null),
     printer: (x, y) => (inR(x, y, 4, 2, 12, 6) ? 'W' : inR(x, y, 1, 6, 15, 12) ? (inR(x, y, 3, 10, 13, 10) ? 'K' : inR(x, y, 12, 7, 13, 8) ? 'G' : 'M') : inR(x, y, 3, 12, 13, 14) ? 'W' : null),
@@ -227,7 +229,7 @@ function isoBoxes(top, side, boxes) {
     if (!it.art) continue;
     const [shape, main, second = '#2a8a3a'] = it.art, m = rgb(main), a = rgb(second);
     const pal = { M: `rgb(${m.join(',')})`, L: mixC(m, [255, 255, 255], 0.4), D: mixC(m, [0, 0, 0], 0.45), A: `rgb(${a.join(',')})`, W: '#f4f4f0', K: '#1a1a1e', G: '#6e6a66' };
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = 16;
     const g = c.getContext('2d');
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const k = S[shape](x + 0.5, y + 0.5); if (k) { g.fillStyle = pal[k]; g.fillRect(x, y, 1, 1); } }
@@ -241,7 +243,7 @@ function isoBoxes(top, side, boxes) {
   const small = Object.fromEntries(Object.entries(T).map(([k, t]) => [k, shrinkTex(t)]));
   for (const k of Object.keys(T)) icon(k, isoBoxes(small[k], small[k], [[0, 0, 0, 16, 16, 16]]));
   for (const [id, b] of Object.entries(BLOCKS)) if (b.shape && small[b.mat] && !ICONS[id]) icon(id, isoBoxes(small[b.mat], small[b.mat], (SHAPES[b.shape].render || SHAPES[b.shape].box).map((bx) => rotBox(bx, 2).map((v) => v * 16))));
-  const face = (fn) => { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { g.fillStyle = fn(x, y); g.fillRect(x, y, 1, 1); } return c; };
+  const face = (fn) => { const c = iconCanvas(); c.width = c.height = 16; const g = c.getContext('2d'); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { g.fillStyle = fn(x, y); g.fillRect(x, y, 1, 1); } return c; };
   const cob = shrinkTex(cobbleTex);
   const furnaceFront = face((x, y) => (x >= 4 && x <= 11 && y >= 7 && y <= 12 ? (y > 9 ? '#ff8a2a' : '#2a1a10') : `rgb(${cob.getContext('2d').getImageData(x, y, 1, 1).data.slice(0, 3).join(',')})`));
   icon('furnace', isoBoxes(cob, furnaceFront, [[0, 0, 0, 16, 16, 16]]));
@@ -253,7 +255,7 @@ function isoBoxes(top, side, boxes) {
 // ============================================================ ikony elektrických zařízení
 (() => {
   const icon = (id, c) => (ICONS[id] = { canvas: c, url: c.toDataURL() });
-  const face = (fn) => { const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d'); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const col = fn(x, y); if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } } return c; };
+  const face = (fn) => { const c = iconCanvas(); c.width = c.height = 16; const g = c.getContext('2d'); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const col = fn(x, y); if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } } return c; };
   const FULL = [[0, 0, 0, 16, 16, 16]];
   const steel = (x, y) => ((x + y) % 7 ? '#8a96a4' : '#7a8694');
   const steelF = face(steel);

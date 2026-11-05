@@ -6,9 +6,11 @@ import { NET } from '../../../shared/net/net.js';
 import { others } from '../../../shared/net/room.js';
 import { randInt } from '../../../shared/util.js';
 import { BREAK_PAUSE, INSTANT, attackCharge, attackResult, attackSpeed, breakTime, lacksTool, useCost } from '../../../shared/tools.js';
+import { solidAt } from '../../../shared/world/collision.js';
 import { nearPond, waterAt } from '../../../shared/world/nature.js';
 import { bkey, blockMeta, blocks, chairRot, chests, crops, fires, furnaces, pcDisks, power, removed, ruinsOpened, spawners, stoves, tableItems, vehicles } from '../../../shared/world/state.js';
 import { structuresNear } from '../../../shared/world/structures.js';
+import { torchPlacement } from '../../../shared/world/torch.js';
 import { biomeAt, forest } from '../../../shared/world/terrain.js';
 import { V, VOX, columnDug, getVox, setVox, topY } from '../../../shared/world/voxels.js';
 import { blockMaterial, targetMaterial, voxMaterial } from '../audio/materials.js';
@@ -22,7 +24,7 @@ import { openPC } from '../pc/computer.js';
 import { dropSpotsAt, takeSpot, useDocs, withPaper } from '../pc/papers-world.js';
 import { blockMat, rebuildBlocks } from '../render/blocks.js';
 import { breakCount, emitChips, paletteOf } from '../render/chips.js';
-import { crackable, showCracks } from '../render/crack.js';
+import { crackHit, crackable, showCracks } from '../render/crack.js';
 import { rebuildForest } from '../render/forest.js';
 import { cutGrass } from '../render/grass.js';
 import { startSwing } from '../render/held-item.js';
@@ -32,8 +34,11 @@ import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
 import { openInventory, renderHotbar } from '../ui/inventory-ui.js';
 import { carHits, floorAt, myDriverId, spawnVehicle, vehDim } from '../vehicles/car.js';
-import { planeSpot } from '../vehicles/plane.js';
+import { boatSpot } from '../vehicles/boat.js'; // (po car.js: načte se v jeho pořadí)
+import { isBoat } from '../vehicles/kinds.js';
+import { planeSpot, seaplaneSpot } from '../vehicles/plane.js';
 import { useRod } from '../world/fishing.js';
+import { dropper } from '../world/ground-items.js';
 import { usePortal } from '../world/shrine.js';
 import { placedAny } from '../world/world-state.js';
 import { cancelDraw, updateArrows, updateBow } from './bow.js';
@@ -100,15 +105,26 @@ const hitPoint = (t) => t.point || t.at || (t.cell ? t.cell.map((v) => v + 0.5) 
 // Každých 0,2 s při těžbě: drobky z místa úderu a úder podle materiálu (audio/sfx.js; u stromu občas spadne list)
 function mineTick(t, heldId) {
   const at = hitPoint(t), n = t.normal || [0, 1, 0];
-  emitChips([at[0] + n[0] * 0.06, at[1] + n[1] * 0.06, at[2] + n[2] * 0.06], chipColors(t), 2 + ((Math.random() * 3) | 0), { speed: 1.2, up: 1.6, size: [0.035, 0.07], life: [0.25, 0.7], spread: 0.08, dir: n.map((v) => v * 0.5) });
+  const out = [at[0] + n[0] * 0.06, at[1] + n[1] * 0.06, at[2] + n[2] * 0.06], cols = chipColors(t);
+  // Hytale: každý úder vyrazí hrst kostiček materiálu a obláček prachu a blok sebou cukne
+  emitChips(out, cols, 3 + ((Math.random() * 3) | 0), { speed: 1.6, up: 2, size: [0.045, 0.1], life: [0.35, 0.9], spread: 0.1, dir: n.map((v) => v * 0.8) });
+  debris.emit(...out, dust(cols), 3, 0.5, 0.4);
+  crackHit();
   sfxAt(t.at || at, () => Sound.blockHit(targetMaterial(t), ITEMS[heldId]?.tool));
   if (t.kind === 'tree' && !t.tree.mark && Math.random() < 0.6) debris.emit(t.tree.x + (Math.random() - 0.5) * 2, t.tree.y + t.tree.trunkH, t.tree.z + (Math.random() - 0.5) * 2, [0.22, 0.45, 0.12], 2, 0.6, 0.2);
 }
 // Rozbití: hromada úlomků (64 na vysoké grafice, 16 na nízké); zvuk materiálu hraje každá větev breakTarget
 function breakFx(t, at) {
   if (t.kind === 'grass') emitChips(at, chipColors(t), Math.ceil(breakCount() / 4), { speed: 1.4, up: 2, size: [0.025, 0.045], life: [0.3, 0.8], spread: 0.3 }); // jen pár stébel
-  else emitChips(at, chipColors(t), breakCount(), { speed: 2.4, up: 2.4, spread: t.kind === 'tree' ? 0.6 : 0.45 });
+  else {
+    const cols = chipColors(t);
+    emitChips(at, cols, breakCount(), { speed: 2.4, up: 2.4, spread: t.kind === 'tree' ? 0.6 : 0.45 });
+    emitChips(at, cols, 5 + ((Math.random() * 3) | 0), { speed: 2, up: 3, size: [0.13, 0.22], life: [1.2, 2], spread: 0.3 }); // velké kusy, poskočí a chvíli leží
+    debris.emit(at[0], at[1], at[2], dust(cols), 14, 1.4, 0.9); // obláček prachu
+  }
 }
+// Prach: barva materiálu, zesvětlená do šeda
+const dust = (cols) => { const c = Array.isArray(cols?.[0]) ? cols[0] : [0.6, 0.55, 0.5]; return c.map((v) => v * 0.55 + 0.35); };
 
 // Útok: nabití úderu roste od posledního máchnutí (proužek pod zaměřovačem).
 let atkSince = 9, prevLmb = false, wasCharged = true;
@@ -230,17 +246,19 @@ const TREE_DROPS = {
   cherry: [['cherry_log', 3, 5], ['cherries', 0, 3], ['stick', 0, 2]], jungle: [['jungle_log', 5, 8], ['banana', 0, 3], ['resin', 0, 2]], acacia: [['acacia_log', 3, 5], ['stick', 0, 2]],
   spruce: [['log', 4, 6], ['snowball', 0, 2], ['resin', 0, 1]], dead: [['stick', 3, 6]], deadbush: [['stick', 1, 3]], cactus: [['cactus', 1, 3]], mushroom: [['mushroom_block', 2, 4], ['mushroom', 1, 3]],
 };
+// Co vytěžíš, vyskočí jako předmět (dropper v world/ground-items.js) a magnet ho k tobě přitáhne.
 export function breakTarget(t) {
   if (t.kind === 'tree') {
     removed.add(t.key);
     const tr = t.tree;
+    const { drop } = dropper(...(t.at || [tr.x, tr.y + 1, tr.z]));
     const drops = !tr.mark && TREE_DROPS[tr.kind];
-    if (drops) { for (const [id, a, b] of drops) { const n = randInt(a, b); if (n > 0) addItem(id, n); } }
+    if (drops) { for (const [id, a, b] of drops) { const n = randInt(a, b); if (n > 0) drop(id, n); } }
     else {
-      addItem(tr.mark ? 'markwood' : 'log', (tr.pine ? 4 : 3) + randInt(0, 2));
-      if (Math.random() < 0.4) addItem('stick', randInt(1, 3));
-      if (tr.pine && Math.random() < 0.45) addItem('resin', 1); // smrky pouštějí pryskyřici
-      if (!tr.pine && !tr.mark && Math.random() < 0.45) addItem('apple', randInt(1, 3)); // jabloně
+      drop(tr.mark ? 'markwood' : 'log', (tr.pine ? 4 : 3) + randInt(0, 2));
+      if (Math.random() < 0.4) drop('stick', randInt(1, 3));
+      if (tr.pine && Math.random() < 0.45) drop('resin', 1); // smrky pouštějí pryskyřici
+      if (!tr.pine && !tr.mark && Math.random() < 0.45) drop('apple', randInt(1, 3)); // jabloně
     }
     debris.emit(tr.x, tr.y + tr.trunkH, tr.z, [0.2, 0.45, 0.12], 60, 5, 2);
     breakFx(t, t.at || [tr.x, tr.y + 1, tr.z]);
@@ -251,18 +269,18 @@ export function breakTarget(t) {
   else if (t.kind === 'vehicle') { // rozebrané auto se vrátí do batohu i s kufrem a baterií
     const v = vehicles.get(t.id);
     if (!v) return;
-    if (v.driver && v.driver !== myDriverId()) { toast('V autě někdo sedí'); return; }
+    if (v.driver && v.driver !== myDriverId()) { toast(`${vehDim(v.type).name}: někdo v něm sedí`); return; }
     for (const s of v.slots) if (s) addStack(s, false);
-    addItem(v.type === 'plane' ? 'biplane' : v.type, 1);
+    addItem(vehDim(v.type).item, 1);
     vehicles.delete(t.id);
     breakFx(t, t.at || [v.x, v.y + 0.6, v.z]);
     sfxAt(t.at, () => { Sound.blockBreak('metal'); Sound.crack(); });
   } else if (t.kind === 'rock') {
     removed.add(t.key);
-    const r = t.rock;
-    if (r.iron) { addItem('iron_ore', randInt(2, 3)); addItem('stone', 1); }
-    else addItem('stone', 2 + Math.floor(r.s * 3));
-    if (Math.random() < 0.3) addItem('salt', randInt(1, 2)); // solné krystalky v kameni
+    const r = t.rock, { drop } = dropper(r.x, r.y + 0.4, r.z);
+    if (r.iron) { drop('iron_ore', randInt(2, 3)); drop('stone', 1); }
+    else drop('stone', 2 + Math.floor(r.s * 3));
+    if (Math.random() < 0.3) drop('salt', randInt(1, 2)); // solné krystalky v kameni
     breakFx(t, [r.x, r.y + 0.3, r.z]);
     sfxAt(t.at, () => { Sound.blockBreak('stone'); Sound.crack(); });
     rebuildForest(player.pos.x, player.pos.z, true);
@@ -271,14 +289,15 @@ export function breakTarget(t) {
     if (MP && [...others.values()].some((P) => P.pose?.ui === k)) { toast('Tohle teď používá jiný hráč'); return; } // otevřená truhla nebo stroj
     blocks.delete(k);
     blockMeta.delete(k);
-    if (CROPS[t.type]) harvestCrop(t.type, k);
-    if (BLOCKS[t.type].drop) addItem(BLOCKS[t.type].drop, 1);
-    if (tableItems.has(k)) { const t = tableItems.get(k); if (t.food) addItem(t.food, 1); if (t.cutlery) addItem('cutlery', 1); tableItems.delete(k); }
+    const { drop, contents } = dropper(t.cell[0] + 0.5, t.cell[1] + 0.5, t.cell[2] + 0.5);
+    if (CROPS[t.type]) harvestCrop(t.type, k, drop);
+    if (BLOCKS[t.type].drop) drop(BLOCKS[t.type].drop, 1);
+    if (tableItems.has(k)) { const t = tableItems.get(k); if (t.food) contents({ id: t.food, n: 1 }); if (t.cutlery) contents({ id: 'cutlery', n: 1 }); tableItems.delete(k); }
     chairRot.delete(k);
     if (player.sitting === k) player.sitting = null;
-    if (stoves.has(k)) { const st = stoves.get(k); if (st.slots[0]) addItem(st.slots[0].id, st.slots[0].n); stoves.delete(k); }
+    if (stoves.has(k)) { const st = stoves.get(k); if (st.slots[0]) contents(st.slots[0]); stoves.delete(k); }
     spawners.delete(k);
-    for (const store of [fires.get(k)?.slots, chests.get(k), furnaces.get(k)?.slots, power.get(k)?.slots]) if (store) for (const s of store) if (s) addStack(s, false);
+    for (const store of [fires.get(k)?.slots, chests.get(k), furnaces.get(k)?.slots, power.get(k)?.slots]) if (store) for (const s of store) if (s) contents(s);
     fires.delete(k);
     power.delete(k);
     pcDisks.delete(k); // rozebraný počítač přijde o uložené dokumenty
@@ -289,32 +308,32 @@ export function breakTarget(t) {
     sfxAt(t.at, () => Sound.blockBreak(blockMaterial(t.type)));
     rebuildBlocks();
   } else if (t.kind === 'grass') {
-    addItem('fiber', randInt(1, 2));
+    const [gx, gy, gz] = t.point, r = Math.random(), { drop } = dropper(gx, gy + 0.25, gz);
+    drop('fiber', randInt(1, 2));
     // V trávě rostou i divoké plodiny: semínka, rajčata, brambory a v lese houby.
-    const [gx, , gz] = t.point, r = Math.random();
-    if (r < 0.15) addItem('berries', 1);
-    else if (r < 0.4) addItem('wheat_seeds', 1);
-    else if (r < 0.47) addItem('tomato_seeds', 1);
-    else if (r < 0.52) addItem('potato', 1);
-    if (forest(gx, gz) > 0.5 && Math.random() < 0.15) addItem('mushroom', 1);
-    if (Math.random() < (nearPond(gx, gz) ? 0.3 : 0.03)) addItem('rice', 1); // divoká rýže roste u vody
+    if (r < 0.15) drop('berries', 1);
+    else if (r < 0.4) drop('wheat_seeds', 1);
+    else if (r < 0.47) drop('tomato_seeds', 1);
+    else if (r < 0.52) drop('potato', 1);
+    if (forest(gx, gz) > 0.5 && Math.random() < 0.15) drop('mushroom', 1);
+    if (Math.random() < (nearPond(gx, gz) ? 0.3 : 0.03)) drop('rice', 1); // divoká rýže roste u vody
     // Květiny a houby podle biomu
     const bio = biomeAt(gx, gz);
-    if (Math.random() < (bio === 'cherry' ? 0.15 : 0.04)) addItem('red_flower', 1);
-    if ((bio === 'meadow' || bio === 'savanna') && Math.random() < 0.08) addItem('yellow_flower', 1);
-    if (bio === 'jungle' && Math.random() < 0.12) addItem('blue_flower', 1);
-    if (bio === 'mushroom') { if (Math.random() < 0.18) addItem('glowshroom', 1); if (Math.random() < 0.3) addItem('mushroom', 1); }
+    if (Math.random() < (bio === 'cherry' ? 0.15 : 0.04)) drop('red_flower', 1);
+    if ((bio === 'meadow' || bio === 'savanna') && Math.random() < 0.08) drop('yellow_flower', 1);
+    if (bio === 'jungle' && Math.random() < 0.12) drop('blue_flower', 1);
+    if (bio === 'mushroom') { if (Math.random() < 0.18) drop('glowshroom', 1); if (Math.random() < 0.3) drop('mushroom', 1); }
     cutGrass(t.point[0], t.point[2]);
     debris.emit(...t.point, CHIP.grass, 12, 2, 2.5);
     breakFx(t, t.point);
     sfxAt(t.point, () => Sound.blockBreak('grass'));
   } else if (t.kind === 'vox') {
-    const [x, y, z] = t.cell, def = VOX[t.vox];
+    const [x, y, z] = t.cell, def = VOX[t.vox], { drop } = dropper(x + 0.5, y + 0.5, z + 0.5);
     setVox(x, y, z, V.AIR);
     const [id, a, b] = def.drop;
-    addItem(id, randInt(a, b));
-    if (t.vox === V.STONE && Math.random() < 0.08) addItem('salt', 1);
-    if (t.vox === V.DIRT && nearPond(x + 0.5, z + 0.5, 4) && Math.random() < 0.4) addItem('clay', randInt(1, 2)); // jíl u rybníka
+    drop(id, randInt(a, b));
+    if (t.vox === V.STONE && Math.random() < 0.08) drop('salt', 1);
+    if (t.vox === V.DIRT && nearPond(x + 0.5, z + 0.5, 4) && Math.random() < 0.4) drop('clay', randInt(1, 2)); // jíl u rybníka
     if (t.surface) cutGrass(x + 0.5, z + 0.5, 1.2);
     dropSpotsAt(x, y, z);
     if (t.surface) dropSpotsAt(x, y + 1, z);
@@ -330,7 +349,7 @@ export function useItem() {
   if (target?.kind === 'vehicle') {
     const v = vehicles.get(target.id);
     if (!v) return;
-    if (heldStack()?.id === 'fuel_canister') {
+    if (heldStack()?.id === 'fuel_canister' && vehDim(v.type).fuelMax) {
       const fmax = vehDim(v.type).fuelMax;
       if (v.fuel >= fmax - 0.5) { toast('Nádrž je plná'); return; }
       v.fuel = Math.min(fmax, v.fuel + 15);
@@ -340,24 +359,31 @@ export function useItem() {
     } else openInventory('car', target.id);
     return;
   }
-  // Položení auta na zem (natočené ve směru pohledu)
+  // Položení vozidla (natočené ve směru pohledu): auto a kolo na zem, letadlo před hráče, loď a hydroplán na vodu
   const vehHeld = heldStack() && ITEMS[heldStack().id].vehicle;
+  const placed = (id, y, text) => { vehicles.get(id).y = y; consumeSelected(); Sound.place(); toast(text); };
+  if (vehHeld && (isBoat(vehHeld) || vehHeld === 'seaplane')) {
+    const spot = vehHeld === 'seaplane' ? seaplaneSpot() : boatSpot(vehHeld);
+    if (!spot.ok) { toast(`${vehDim(vehHeld).name} se spouští na vodu – ${spot.why}`); return; }
+    placed(spawnVehicle(vehHeld, spot.x, spot.z, player.yaw), spot.y, `${vehDim(vehHeld).name} je na vodě. F = nastoupit, pravé tl. = ${vehDim(vehHeld).fuelMax ? 'palivo a ' : ''}úložný prostor`);
+    return;
+  }
   if (vehHeld && target?.point && ['grass', 'ground', 'vox', 'block'].includes(target.kind) && (target.kind !== 'block' || target.normal?.[1] === 1)) {
     let [x, , z] = target.point, y = floorAt(x, z, target.point[1] + 0.5);
     if (vehHeld === 'plane') { // letadlo je větší než dosah ruky: postaví se před hráče ocasem k němu
       const spot = planeSpot(target.point);
       if (!spot.ok) { toast(`Tady se letadlo nevejde – ${spot.why} (potřebuje asi 10 × 8 m)`); return; }
       ({ x, y, z } = spot);
+    } else if (vehHeld === 'bike') {
+      if (solidAt(Math.floor(x), Math.floor(y + 0.5), Math.floor(z)) || Math.hypot(x - player.pos.x, z - player.pos.z) < 0.8) { toast('Tady se kolo nevejde'); return; }
     } else if (carHits({ y }, x, z, player.yaw) || Math.hypot(x - player.pos.x, z - player.pos.z) < 2.2) { toast('Tady se auto nevejde'); return; }
-    const id = spawnVehicle(vehHeld, x, z, player.yaw);
-    vehicles.get(id).y = y;
-    consumeSelected();
-    Sound.place();
-    toast(vehHeld === 'plane' ? 'Dvouplošník stojí. F = nastoupit, pravé tl. = palivo a zavazadla' : 'Auto stojí. F = nastoupit, pravé tl. = kufr (palivo a autobaterie)');
+    const K = vehDim(vehHeld);
+    placed(spawnVehicle(vehHeld, x, z, player.yaw), y, vehHeld === 'plane' ? 'Dvouplošník stojí. F = nastoupit, pravé tl. = palivo a zavazadla'
+      : vehHeld === 'bike' ? 'Kolo stojí. F = nasednout, pravé tl. = košík' : `${K.name} stojí. F = nastoupit, pravé tl. = kufr (palivo a autobaterie)`);
     return;
   }
   // Pravé tlačítko na pracovní stůl nebo táborák otevře jeho okno.
-  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv' };
+  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
   const held0 = heldStack();
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }
@@ -467,14 +493,18 @@ function placeMeta(shape) {
 }
 export function placeBlock(d, [x, y, z]) {
   if (BLOCKS[d.block].solid && playerIntersects(x, y, z)) return false;
+  // Pochodeň jako v Minecraftu: na zem nebo na zeď, nikdy na strop (shared/world/torch.js)
+  const tm = d.block === 'torch' ? torchPlacement(x, y, z, target?.normal, camera.getWorldDirection(new THREE.Vector3()).toArray()) : 0;
+  if (tm === null) { toast(waterAt(x + 0.5, y + 0.5, z + 0.5) !== null ? 'Pod vodou pochodeň nehoří' : 'Pochodeň potřebuje pevný blok pod sebou nebo vedle sebe'); return false; }
   // Hlína a kámen vrácené do podzemí se stanou zase přirozenou zeminou (zaplní díru i povrch).
   const NATURAL = { dirt: V.DIRT, markdirt: V.MARKDIRT, cobble: V.STONE };
   if (NATURAL[d.block] && y <= topY(x, z) && getVox(x, y, z) === V.AIR) {
     setVox(x, y, z, NATURAL[d.block]);
   } else {
     const k = bkey(x, y, z), B = BLOCKS[d.block];
+    if (tm) blockMeta.set(k, tm); // dřív než blok: ostatní hráči ho hned postaví správně
     blocks.set(k, d.block);
-    if (B.shape || B.facing) blockMeta.set(k, placeMeta(B.shape)); else blockMeta.delete(k);
+    if (B.shape || B.facing) blockMeta.set(k, placeMeta(B.shape)); else if (!tm) blockMeta.delete(k);
     placedAny[d.block] = true;
     if (d.block === 'chair') chairRot.set(bkey(x, y, z), Math.round(player.yaw / (Math.PI / 2)) * (Math.PI / 2));
     rebuildBlocks();

@@ -107,6 +107,9 @@ function mergeBoxes(parts) {
   g.setIndex(idx);
   return g;
 }
+let hitAt = -1;
+/** Úder do bloku: obal s prasklinami se na chvilku nafoukne (cuknutí bloku jako v Hytale). */
+export function crackHit() { hitAt = performance.now(); }
 /** Má cíl praskliny? (bloky a podzemí; malé modely jako pochodeň nebo táborák ne) */
 export function crackable(t) {
   if (!t || !t.cell) return false;
@@ -131,6 +134,8 @@ export function showCracks(t, progress) {
   const sh = t.kind === 'block' && BLOCKS[t.type].shape;
   mesh.geometry = sh ? geoFor(sh, blockMeta.get(bkey(x, y, z)) || 0) : cube;
   mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+  const k = Math.max(0, 1 - (performance.now() - hitAt) / 130); // cuknutí po úderu (130 ms)
+  mesh.scale.setScalar(1 + 0.07 * k * k);
   mesh.visible = true;
 }
 /** Aktuální stupeň (pro testy): -1 = bez prasklin. */

@@ -72,7 +72,7 @@ export function renderPause() {
     <div class="mc-title">Hra pro více hráčů</div>
     <div class="pause-code">${NET.host ? 'Kód serveru:' : 'Server:'} <b>${esc(NET.code)}</b>${NET.worldName ? ` · svět <b>${esc(NET.worldName)}</b>` : ''}${NET.host ? '<button class="mc-btn" data-copy>Zkopírovat</button>' : ''}</div>
     ${NET.host ? `<label class="mc-toggle"><input type="checkbox" id="pAllow" ${NET.allowAll ? 'checked' : ''}> Povolit hráčům kreativní režim (všem)</label>` : `<div class="mc-note">Kreativní režim: ${NET.perm ? 'povolen (klávesa C)' : 'zakázal hostitel'}</div>`}
-    ${NET.pvp ? '<div class="mc-note">⚔ Aréna: tady se bojuje vždy.</div>' : `<label class="mc-toggle"><input type="checkbox" id="pPvp" ${NET.pvpOn ? 'checked' : ''}> ⚔ Souboje s ostatními (bojuješ jen s hráči, kteří je mají taky zapnuté)</label>`}
+    ${NET.pvp ? '<div class="mc-note">⚔ Aréna: tady se bojuje vždy.</div>' : `<label class="mc-toggle"><input type="checkbox" id="pPvp" ${NET.pvpOn ? 'checked' : ''}> ⚔ Souboje s ostatními (bojuješ jen s hráči, kteří je mají taky zapnuté)</label>${NET.pvpMark ? '<div class="mc-note">V Markově dimenzi se bojuje vždy.</div>' : ''}`}
     <div class="mc-title">Hráči (${count}/${NET.maxPlayers})</div>
     <div class="plist"><div class="prow"><span class="pname">${esc(NET.name)} <small>(ty${NET.host ? ', hostitel' : ''})</small></span></div>${[...others.values()].map(row).join('')}</div>
     <div class="menu-row"><button class="mc-btn" data-resume>Pokračovat</button><button class="mc-btn" data-leave>Odejít</button></div>

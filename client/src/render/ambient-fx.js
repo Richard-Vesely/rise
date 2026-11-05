@@ -1,6 +1,7 @@
 // Částice prostředí (všechny kvality, levné): žhavé jiskry a tenký kouř nad táborákem a pochodněmi, prach ve světle
 // pochodní v jeskyni a pomalu se vznášející světélka v Markově dimenzi. Bez vedlejších účinků při načtení: initAmbientFx().
 import * as THREE from 'three';
+import { furnaces } from '../../../shared/world/state.js';
 import { isMark, terrainH } from '../../../shared/world/terrain.js';
 import { GFX } from '../game/prefs.js';
 import { specials } from './blocks.js';
@@ -66,6 +67,21 @@ function emit(S, kind, x, y, z, vx, vy, vz, life, size, r, g, b, a) {
   S.seed[i] = Math.random() * 6.28;
 }
 const rnd = (a, b) => a + Math.random() * (b - a);
+/** Hořící pec (jako v Minecraftu): z komína jde kouř, z otvoru občas vyletí jiskra. */
+function furnaceFx(key, s, step, k, wind) {
+  if (!(furnaces.get(key)?.burn > 0)) return;
+  const dx = s.x + 0.5 - camera.position.x, dz = s.z + 0.5 - camera.position.z;
+  if (dx * dx + dz * dz > 900) return;
+  const r = s.obj.rotation.y, sn = Math.sin(r), cs = Math.cos(r);
+  // komín je v modelu na (0.25, 1.2, -0.2), otvor vpředu na (0, 0.3, 0.55); otočí se s pecí
+  const cx = s.x + 0.5 + 0.25 * cs - 0.2 * sn, cz = s.z + 0.5 - 0.25 * sn - 0.2 * cs;
+  if (Math.random() < step * 3 * k) {
+    const am = U.ambient.value, l = (am.x + am.y + am.z) / 3 * 0.5;
+    emit(smoke, 1, cx + rnd(-0.05, 0.05), s.ry + 1.25, cz + rnd(-0.05, 0.05), wind.x * 0.25, rnd(0.5, 0.9), wind.y * 0.25, rnd(2.5, 4), rnd(0.25, 0.4), l + 0.08, l + 0.07, l + 0.06, 0.14);
+  }
+  if (Math.random() < step * 1.2 * k)
+    emit(glow, 0, s.x + 0.5 + 0.55 * sn + rnd(-0.15, 0.15), s.ry + 0.3, s.z + 0.5 + 0.55 * cs + rnd(-0.15, 0.15), sn * rnd(0.1, 0.4), rnd(0.4, 1), cs * rnd(0.1, 0.4), rnd(0.5, 1.1), rnd(0.02, 0.04), 1.0 * GLOW, 0.55 * GLOW, 0.2 * GLOW, 1);
+}
 let acc = 0, dustAcc = 0, markAcc = 0;
 /** Každý snímek: vypustí nové částice u ohňů (do 30 m), v jeskyni prach ve světle, v Markově dimenzi světélka. */
 export function updateAmbientFx(dt, under = 0) {
@@ -74,11 +90,12 @@ export function updateAmbientFx(dt, under = 0) {
   acc += dt;
   if (acc > 0.05) {
     const step = acc; acc = 0;
-    for (const s of specials.values()) {
+    for (const [key, s] of specials) {
+      if (s.type === 'furnace') { furnaceFx(key, s, step, k, wind); continue; }
       if (s.type !== 'campfire' && s.type !== 'torch' && s.type !== 'lantern') continue;
-      const x = s.x + 0.5, z = s.z + 0.5, dx = x - cp.x, dz = z - cp.z;
+      const x = s.lp ? s.lp[0] : s.x + 0.5, z = s.lp ? s.lp[2] : s.z + 0.5, dx = x - cp.x, dz = z - cp.z; // lp = plamen pochodně (i na zdi)
       if (dx * dx + dz * dz > 900) continue;
-      const fire = s.type === 'campfire', top = s.ry + (fire ? 0.45 : s.type === 'torch' ? 0.85 : 0.5);
+      const fire = s.type === 'campfire', top = s.lp ? s.lp[1] + 0.1 : s.ry + (fire ? 0.45 : 0.5);
       // žhavé jiskry: stoupají, kmitají a hasnou
       if (s.type !== 'lantern' && Math.random() < step * (fire ? 9 : 1.5) * k)
         emit(glow, 0, x + rnd(-0.15, 0.15), top, z + rnd(-0.15, 0.15), rnd(-0.2, 0.2), rnd(0.8, 1.8), rnd(-0.2, 0.2), rnd(0.8, 1.8), rnd(0.025, 0.05), 1.0 * GLOW, 0.55 * GLOW, 0.2 * GLOW, 1);

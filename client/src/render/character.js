@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { EMBLEMS, LIGHT_COLORS, SUIT_COLORS, VISOR_COLORS, cleanCostume } from '../../../shared/data/costumes.js';
+import { EMBLEMS, HAIR_COLORS, LIGHT_COLORS, SKIN_TONES, SUIT_COLORS, VISOR_COLORS, cleanCostume, isHero } from '../../../shared/data/costumes.js';
 import { ITEMS } from '../../../shared/data/index.js';
 
 // ============================================================ sdílené tvary a textury
@@ -225,6 +225,10 @@ const STYLE = {
   scientist: { plate: 0xeef2f5, metal: 0.1, rough: 0.55, trim: 0x8a929e },
   shadow: { plate: 0x1b1724, metal: 0.5, rough: 0.45, trim: 0x3a2f4c, fabric: 0x221d2c },
   sky: { plate: 0xf4f1ea, metal: 0.3, rough: 0.25, trim: 0xe0b040, fabric: 0xf0ede6 },
+  // hrdinové (obličej a vlasy): pláty = boty a doplňky, lem = zlaté ornamenty
+  mage: { plate: 0x2a2238, metal: 0.4, rough: 0.5, trim: 0xe0b040 },
+  knight: { plate: 0xb8c0cc, metal: 0.95, rough: 0.3, trim: 0xd0a040 },
+  ranger: { plate: 0x6a4a2e, metal: 0.05, rough: 0.8, trim: 0xb08a50 },
 };
 // Nic není úplně bílé (pravidlo vzhledu): bílý oblek by na slunci přezářil a s post-processingem se rozmazal do záře.
 const tame = (c, max = 0.72) => { const h = {}; c.getHSL(h); if (h.l > max) c.setHSL(h.h, h.s, max); return c; };
@@ -256,10 +260,91 @@ function suitMats(c) {
     cape: std({ color: c.s === 'shadow' ? new THREE.Color(0x15111d) : suit.clone().multiplyScalar(0.7), map: fabricTex(), roughness: 0.9, side: THREE.DoubleSide }),
   };
   M.glow.userData.glow = true;
+  if (isHero(c.s)) heroMats(c, M, st);
   M.emblem = std({ map: emblemTex(c.e), transparent: true, alphaTest: 0.4, color: 0xffffff, emissive: light, emissiveMap: emblemTex(c.e), emissiveIntensity: 1.1, roughness: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
   M.flashable = [M.fabric, M.fabricDark, M.paint, M.plate, M.rubber, M.coat, M.cape];
   for (const m of [...M.flashable, M.trim]) addRim(m);
   return M;
+}
+
+// Hrdinové: místo svítících linek zlaté ornamenty, kožené rukavice a podrážky, pleť, vlasy a obličej.
+function heroMats(c, M, st) {
+  const std = (o) => new THREE.MeshStandardMaterial(o);
+  M.glow = std({ color: st.trim, metalness: 1, roughness: 0.3, emissive: M.light, emissiveIntensity: 0.12 });
+  M.gem = std({ color: M.light.clone().multiplyScalar(0.5), emissive: M.light, emissiveIntensity: 1.6, metalness: 0.3, roughness: 0.15 });
+  M.gem.userData.glow = true;
+  M.fabric.color.multiplyScalar(c.s === 'mage' ? 0.62 : 0.8); // sytější látka (hábit jako na obrázku z Hytale)
+  M.fabricDark.color.multiplyScalar(0.8);
+  M.rubber = std({ color: c.s === 'knight' ? 0x3a3f48 : 0x4a3222, roughness: 0.75 });
+  M.paint = std({ color: tame(new THREE.Color(SUIT_COLORS[c.c][1]).multiplyScalar(0.6)), map: fabricTex(), roughness: 0.6 });
+  const skin = new THREE.Color(SKIN_TONES[c.e][1]), hair = new THREE.Color(HAIR_COLORS[c.v][1]);
+  M.skin = std({ color: skin, roughness: 0.7 });
+  M.hair = std({ color: hair, map: hairTex(), roughness: 0.75 });
+  M.hairDark = std({ color: hair.clone().multiplyScalar(0.62), map: hairTex(), roughness: 0.8 });
+  M.eyeWhite = std({ color: 0xf2f0ec, roughness: 0.4 });
+  M.iris = std({ color: M.light.clone().multiplyScalar(0.55), emissive: M.light, emissiveIntensity: 0.35, roughness: 0.25 });
+  M.pupil = std({ color: 0x14121a, roughness: 0.3 });
+  M.face = std({ map: faceTex(skin, hair), transparent: true, alphaTest: 0.3, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -1 });
+  M.flashable = [M.fabric, M.fabricDark, M.paint, M.plate, M.rubber, M.coat, M.cape, M.skin];
+  for (const m of [M.rubber, M.paint, M.skin, M.hair, M.hairDark]) addRim(m);
+}
+let _hair;
+// pruhy ve vlasech (prameny)
+const hairTex = () => (_hair ||= canvasTex(32, (g, n) => {
+  const r = rnd(5);
+  for (let x = 0; x < n; x++) { const v = 200 + r() * 55; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, n); }
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(0,0,0,${0.08 + r() * 0.12})`; g.fillRect(Math.floor(r() * n), Math.floor(r() * n), 1, 3 + Math.floor(r() * 6)); }
+}));
+// obličej (bez očí, ty jsou zvlášť a mrkají): obočí, nos, pusa, tváře – pixelový styl
+function faceTex(skin, hair) {
+  const t = canvasTex(32, (g) => {
+    const px = (c, x, y, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    const sh = `#${skin.clone().multiplyScalar(0.78).getHexString()}`, br = `#${hair.clone().multiplyScalar(0.55).getHexString()}`;
+    px(br, 6, 11, 7, 2); px(br, 19, 11, 7, 2); px(br, 5, 12, 2, 1); px(br, 25, 12, 2, 1); // obočí
+    px(sh, 15, 15, 2, 5); px(sh, 14, 19, 4, 1); // nos
+    px('#a0544e', 13, 23, 6, 1); px(sh, 12, 22, 1, 1); px(sh, 19, 22, 1, 1); // pusa
+    px('rgba(230,120,120,0.35)', 6, 19, 4, 2); px('rgba(230,120,120,0.35)', 22, 19, 4, 2); // tváře
+  });
+  t.magFilter = THREE.NearestFilter; // ostré pixely
+  return t;
+}
+// Účesy: kvádry [w, h, d, x, y, z, rotace x, rotace z] na hlavě (hlava 0,46 m, střed y 0,23)
+const HAIR = {
+  mage: [ // rozcuchané, nahoru a do stran, ofina přes čelo
+    [0.5, 0.12, 0.5, 0, 0.47, 0.01], [0.16, 0.2, 0.16, -0.12, 0.56, 0.02, 0.3, 0.45], [0.15, 0.22, 0.15, 0.06, 0.58, -0.04, -0.35, -0.2],
+    [0.14, 0.18, 0.14, 0.17, 0.53, 0.08, 0.2, -0.6], [0.13, 0.2, 0.13, -0.02, 0.57, 0.14, 0.6, 0.1], [0.12, 0.16, 0.12, -0.2, 0.5, -0.1, -0.2, 0.8],
+    [0.5, 0.1, 0.12, 0, 0.4, -0.2, 0, 0], [0.14, 0.14, 0.08, -0.15, 0.33, -0.23, 0, 0.25], [0.12, 0.16, 0.08, 0.02, 0.32, -0.235, 0, -0.15], [0.12, 0.12, 0.08, 0.17, 0.35, -0.23, 0, -0.35],
+    [0.07, 0.3, 0.42, -0.245, 0.3, 0.03], [0.07, 0.3, 0.42, 0.245, 0.3, 0.03], [0.48, 0.36, 0.08, 0, 0.29, 0.235], [0.4, 0.14, 0.1, 0, 0.1, 0.24, 0.2, 0],
+  ],
+  knight: [ // krátké, upravené
+    [0.49, 0.09, 0.49, 0, 0.47, 0], [0.49, 0.08, 0.1, 0, 0.42, -0.2], [0.06, 0.2, 0.44, -0.24, 0.36, 0.02], [0.06, 0.2, 0.44, 0.24, 0.36, 0.02], [0.48, 0.28, 0.07, 0, 0.33, 0.235],
+  ],
+  ranger: [ // delší, za uši, culík vzadu
+    [0.5, 0.1, 0.5, 0, 0.47, 0], [0.5, 0.1, 0.12, 0, 0.41, -0.2, 0, 0.12], [0.07, 0.34, 0.44, -0.245, 0.3, 0.02], [0.07, 0.34, 0.44, 0.245, 0.3, 0.02],
+    [0.48, 0.42, 0.08, 0, 0.27, 0.235], [0.12, 0.3, 0.1, 0, 0.05, 0.29, -0.25, 0],
+  ],
+};
+/** Hlava hrdiny: kostka pleti, obličej, oči (mrkají), uši a účes. */
+function heroHead(R, M, c) {
+  const head = R.head;
+  R.helmet = part(head, 0.46, 0.46, 0.46, M.skin, 0, 0.23, 0, 0.04);
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.46), M.face);
+  face.position.set(0, 0.23, -0.2315);
+  face.rotation.y = Math.PI;
+  head.add(face);
+  R.visor = new THREE.Object3D(); // hrdinové hledí nemají (doplňky obleků s ním počítají)
+  const eyes = pivot(head, 0, 0.255, -0.232);
+  for (const sx of [-1, 1]) {
+    part(eyes, 0.1, 0.075, 0.012, M.eyeWhite, sx * 0.085, 0, 0, 0.004);
+    part(eyes, 0.05, 0.07, 0.014, M.iris, sx * 0.075, -0.002, -0.002, 0.004);
+    part(eyes, 0.024, 0.04, 0.016, M.pupil, sx * 0.072, -0.004, -0.004, 0.004);
+  }
+  R.eyes = [eyes];
+  for (const sx of [-1, 1]) part(head, 0.04, 0.1, 0.07, M.skin, sx * 0.245, 0.22, 0.02, 0.015); // uši
+  for (const [w, h, d, x, y, z, rx = 0, rz = 0] of HAIR[c.s] || HAIR.knight) {
+    const m = part(head, w, h, d, y > 0.5 ? M.hairDark : M.hair, x, y, z, 0.025);
+    m.rotation.set(rx, 0, rz);
+  }
 }
 
 // ============================================================ stavba modelu
@@ -316,20 +401,23 @@ export function buildCharacter(costume, opts = {}) {
   const emb = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.13), M.emblem);
   emb.position.set(0, 0.5, -0.1635);
   emb.rotation.y = Math.PI;
-  if (c.e) torso.add(emb);
+  if (c.e && !isHero(c.s)) torso.add(emb);
   part(torso, 0.3, 0.06, 0.22, M.rubber, 0, 0.66, 0, 0.025); // límec
-  // --- hlava (přilba s hledím)
+  // --- hlava (přilba s hledím, u hrdinů obličej a vlasy)
   const head = (R.head = pivot(torso, 0, 0.67, 0));
   head.rotation.order = 'YXZ';
-  R.helmet = part(head, 0.44, 0.42, 0.44, M.paint, 0, 0.22, 0, 0.1);
-  R.visor = part(head, 0.37, 0.19, 0.05, M.visor, 0, 0.22, -0.208, 0.035);
-  part(head, 0.07, 0.012, 0.004, M.shine, -0.1, 0.285, -0.234, 0.002).rotation.z = 0.25; // odlesk na hledí
-  const eyes = pivot(head, 0, 0.215, -0.235); // oči mrkají
-  for (const sx of [-1, 1]) part(eyes, 0.06, 0.03, 0.006, M.glow, sx * 0.075, 0, 0, 0.008);
-  R.eyes = [eyes];
-  for (const sx of [-1, 1]) {
-    cylPart(head, 0.065, 0.065, 0.04, M.plate, sx * 0.225, 0.2, 0, 0, Math.PI / 2);
-    cylPart(head, 0.035, 0.035, 0.045, M.glow, sx * 0.226, 0.2, 0, 0, Math.PI / 2);
+  if (isHero(c.s)) heroHead(R, M, c);
+  else {
+    R.helmet = part(head, 0.44, 0.42, 0.44, M.paint, 0, 0.22, 0, 0.1);
+    R.visor = part(head, 0.37, 0.19, 0.05, M.visor, 0, 0.22, -0.208, 0.035);
+    part(head, 0.07, 0.012, 0.004, M.shine, -0.1, 0.285, -0.234, 0.002).rotation.z = 0.25; // odlesk na hledí
+    const eyes = pivot(head, 0, 0.215, -0.235); // oči mrkají
+    for (const sx of [-1, 1]) part(eyes, 0.06, 0.03, 0.006, M.glow, sx * 0.075, 0, 0, 0.008);
+    R.eyes = [eyes];
+    for (const sx of [-1, 1]) {
+      cylPart(head, 0.065, 0.065, 0.04, M.plate, sx * 0.225, 0.2, 0, 0, Math.PI / 2);
+      cylPart(head, 0.035, 0.035, 0.045, M.glow, sx * 0.226, 0.2, 0, 0, Math.PI / 2);
+    }
   }
   // --- ruce (rameno → loket)
   const arms = [-1, 1].map((sx) => {
@@ -469,6 +557,63 @@ const SUIT_EXTRAS = {
       R.extras.jets.push(jet);
     }
   },
+  // Mág: dlouhý hábit se zlatými ornamenty, drahokam na hrudi, široké rukávy, zlaté spony na ramenou
+  mage(R, M) {
+    const t = R.torso, gold = M.trim;
+    part(t, 0.53, 0.5, 0.3, M.fabric, 0, 0.41, 0.005, 0.07); // hábit přes hrudník
+    part(t, 0.06, 0.48, 0.02, gold, 0, 0.4, -0.16, 0.01); // zlatý pruh dolů
+    for (const sx of [-1, 1]) { const s = part(t, 0.04, 0.3, 0.02, gold, sx * 0.13, 0.52, -0.158, 0.008); s.rotation.z = sx * 0.5; } // límec do V
+    const gem = part(t, 0.1, 0.1, 0.03, M.gem, 0, 0.5, -0.172, 0.01); // drahokam
+    gem.rotation.z = Math.PI / 4;
+    part(t, 0.15, 0.15, 0.02, gold, 0, 0.5, -0.162, 0.01).rotation.z = Math.PI / 4;
+    part(t, 0.5, 0.07, 0.31, gold, 0, 0.14, 0, 0.02); // pás
+    R.extras.flaps = []; // šosy hábitu: vpředu dva, vzadu jeden; houpou se s nohama
+    for (const [x, z, w] of [[-0.13, -0.14, 0.25], [0.13, -0.14, 0.25], [0, 0.14, 0.5]]) {
+      const p = pivot(R.hips, x, 0.08, z);
+      part(p, w, 0.66, 0.03, M.fabric, 0, -0.32, 0, 0.01);
+      part(p, w + 0.01, 0.04, 0.035, gold, 0, -0.62, 0, 0.008); // zlatý lem
+      part(p, w * 0.5, 0.18, 0.035, M.fabricDark, 0, -0.45, 0, 0.008).rotation.z = 0.6; // ornament
+      R.extras.flaps.push(p);
+    }
+    for (const a of [R.armL, R.armR]) {
+      part(a.sh, 0.2, 0.2, 0.28, gold, 0, 0.03, 0, 0.05); // zlatá spona na rameni
+      part(a.elbow, 0.21, 0.24, 0.23, M.fabric, 0, -0.14, 0, 0.05); // široký rukáv
+      part(a.elbow, 0.22, 0.03, 0.24, gold, 0, -0.26, 0, 0.008);
+    }
+  },
+  // Rytíř: kroužková tunika (kov) s barevným tabardem, nárameníky, krátký plášť
+  knight(R, M) {
+    const t = R.torso;
+    part(t, 0.52, 0.5, 0.29, M.plate, 0, 0.41, 0, 0.06); // kroužková košile
+    part(t, 0.3, 0.62, 0.02, M.fabric, 0, 0.3, -0.155, 0.01); // tabard vpředu
+    part(t, 0.3, 0.62, 0.02, M.fabric, 0, 0.3, 0.155, 0.01);
+    part(t, 0.12, 0.12, 0.025, M.gem, 0, 0.45, -0.167, 0.01).rotation.z = Math.PI / 4; // erb
+    part(t, 0.5, 0.06, 0.31, M.rubber, 0, 0.14, 0, 0.02);
+    for (const sx of [-1, 1]) { R.extras['pad' + sx].material = M.plate; R.extras['pad' + sx].scale.set(1.45, 1.35, 1.3); }
+    const cape = (R.extras.cape = pivot(t, 0, 0.63, 0.17));
+    part(cape, 0.5, 0.7, 0.025, M.cape, 0, -0.35, 0.01, 0.01);
+    part(cape, 0.5, 0.03, 0.03, M.trim, 0, -0.69, 0.01, 0.006);
+  },
+  // Hraničář: kožená vesta, kápě spuštěná na zádech, toulec se šípy, vlající šála
+  ranger(R, M) {
+    const t = R.torso;
+    part(t, 0.52, 0.46, 0.29, M.rubber, 0, 0.42, 0, 0.06); // kožená vesta
+    part(t, 0.2, 0.46, 0.02, M.fabric, 0, 0.42, -0.152, 0.01); // košile ve výstřihu
+    for (const sx of [-1, 1]) part(t, 0.03, 0.46, 0.02, M.trim, sx * 0.11, 0.42, -0.156, 0.006); // šněrování
+    part(t, 0.5, 0.06, 0.31, M.plate, 0, 0.14, 0, 0.02);
+    part(t, 0.4, 0.2, 0.18, M.cape, 0, 0.66, 0.15, 0.06); // spuštěná kápě
+    const q = pivot(t, 0.1, 0.45, 0.2); // toulec
+    q.rotation.z = -0.5;
+    cylPart(q, 0.07, 0.06, 0.48, M.plate, 0, 0, 0, 0, 0, 10);
+    for (const x of [-0.03, 0.02, 0.04]) { cylPart(q, 0.006, 0.006, 0.2, M.trim, x, 0.32, x * 0.5, 0, 0, 5); part(q, 0.035, 0.05, 0.004, M.eyeWhite, x, 0.42, x * 0.5, 0.002); }
+    R.extras.strips = []; // šála vlaje za hlavou
+    for (const [x, len] of [[-0.06, 0.4], [0.06, 0.32]]) {
+      const p = pivot(t, x, 0.66, 0.14);
+      part(p, 0.1, len, 0.02, M.cape, 0, -len / 2, 0, 0.008);
+      R.extras.strips.push(p);
+    }
+    part(t, 0.32, 0.08, 0.26, M.cape, 0, 0.66, -0.01, 0.03); // šála kolem krku
+  },
 };
 let _holo;
 function holoTex() {
@@ -538,6 +683,8 @@ export function setCharacterArmor(R, ids) {
   }
   if (boots) for (const l of [R.legL, R.legR]) { add(l.knee, boots, 0.23, 0.17, 0.31, 0, -0.32, -0.03, 0.05); add(l.knee, boots, 0.19, 0.16, 0.05, 0, -0.16, -0.105, 0.02); }
   R.armorParts = skinRig(R.group, (m) => m.userData.armor);
+  // hrdina s helmou: vlasy (vlastní materiály, sloučené do jednoho dílu) se schovají pod ni
+  if (R.M.hair) for (const o of R.group.children) if (o.isSkinnedMesh && (o.material === R.M.hair || o.material === R.M.hairDark)) o.visible = !helmet;
 }
 
 // ============================================================ animace

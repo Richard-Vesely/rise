@@ -49,6 +49,8 @@ export const U = {
   // okolní světlo: obloha shora, odraz od země zdola; prosvítání trávy proti slunci
   // světla pochodní a lamp (pevný počet, render/blocks.js) i pro terén a trávu: poloha + síla, barva
   pl: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, plColor: { value: Array.from({ length: 6 }, () => new THREE.Vector3()) },
+  // odlesky oblohy (PMREM z render/sky.js) pro vlastní shadery: louže, opar
+  env: { value: null }, envOn: { value: 0 },
   skyAmb: { value: new THREE.Vector3(0.5, 0.6, 0.9) }, groundAmb: { value: new THREE.Vector3(0.3, 0.3, 0.25) }, sss: { value: LK.sss }, foliage: { value: LK.foliage },
 };
 export const shaderUniforms = (extra = {}) => ({

@@ -4,9 +4,10 @@ import { ITEMS } from '../../../shared/data/index.js';
 import { rarityOf } from '../../../shared/inventory.js';
 import { ICONS } from '../render/icons.js';
 import { $ } from './dom.js';
+import { styledIconUrl } from './icon-style.js';
 import { durColor, durOf } from './item-tooltip.js';
 
-export const iconImg = (id) => `<img src="${ICONS[id].url}"${ICONS[id].smooth ? ' class="sm"' : ''} alt="">`; // 3D ikony bloků jsou hladké (render/icon-render.js)
+export const iconImg = (id) => `<img src="${styledIconUrl(id)}"${ICONS[id].smooth ? ' class="sm"' : ''} alt="">`; // 3D ikony bloků jsou hladké (render/icon-render.js)
 /** Vnitřek políčka: ikona, počet a proužek odolnosti. */
 export function slotInner(s) {
   if (!s) return '';

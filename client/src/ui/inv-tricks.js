@@ -19,7 +19,7 @@ import { renderer } from '../render/renderer.js';
 import { dropHeld, throwItem } from '../world/ground-items.js';
 import { $ } from './dom.js';
 import { toast } from './hud.js';
-import { container, cursorEl, fillRecipe, invEl, invOpen, lastRecipe, quickMove, refreshUI, renderCraftArea, renderHotbar, slotClick, takeResult, tipState, ui } from './inventory-ui.js';
+import { container, cursorEl, fillRecipe, furnaceRefuses, invEl, invOpen, lastRecipe, quickMove, refreshUI, renderCraftArea, renderHotbar, slotClick, takeResult, tipState, ui } from './inventory-ui.js';
 import { popSlot, slotInner } from './slots.js';
 
 // Políčka, kam jde rozdělovat tažením (stroje a brnění mají svá pravidla, tam jen klikání)
@@ -189,7 +189,7 @@ export function swapHot(c, i, h) {
     else { uiSound.deny(); return false; }
   } else {
     const bad = (c === 'armor' && t && ITEMS[t.id].armor?.slot !== i) || (c === 'car' && i === 0 && t && !['car_battery', 'car_battery_empty'].includes(t.id))
-      || (c === 'power' && i === 0 && t && blocks.get(ui.fireKey) === 'printer' && t.id !== 'paper');
+      || (c === 'power' && i === 0 && t && blocks.get(ui.fireKey) === 'printer' && t.id !== 'paper') || (c === 'furnace' && t && furnaceRefuses(i, t.id));
     if (bad || (!s && !t)) { if (bad) uiSound.deny(); return false; }
     arr[i] = t;
     slots[h] = s;
@@ -209,7 +209,7 @@ export function dropFrom(c, i, all) {
   if (!s) return false;
   const n = all ? s.n : 1;
   if (!(s.n -= n)) arr[i] = null;
-  throwItem(s.id, n);
+  throwItem(s.id, n, s.w); // opotřebovaný nástroj letí i se svým opotřebením
   refreshUI();
   return true;
 }
