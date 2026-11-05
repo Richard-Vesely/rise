@@ -3,7 +3,7 @@
 import { ITEMS } from '../data/index.js';
 import { NET } from '../net/net.js';
 import { dayCount, dayTime, setDay } from '../sim/day.js';
-import { groundItems, spawnGroundItem } from '../sim/ground-items.js';
+import { DESPAWN, groundItems, spawnGroundItem } from '../sim/ground-items.js';
 import { Vec3 } from '../vec3.js';
 import { ensureDoc } from './papers.js';
 import { blockMeta, blocks, chairRot, chests, crops, fires, furnaces, paperSpots, papers, pcDisks, portalActive, power, removed, ruinsBuilt, ruinsOpened, setPortalActive, spawners, stoves, tableItems, vehicles } from './state.js';
@@ -32,7 +32,12 @@ export function loadWorld(save) {
     for (const k of save?.ruins || []) ruinsBuilt.add(k);
     for (const k of save?.ruinsOpened || []) ruinsOpened.add(k);
     fill(spawners, save?.spawners);
-    for (const d of save?.ground || []) if (ITEMS[d.id]) spawnGroundItem(d.id, d.n, new Vec3(d.x, d.y, d.z), new Vec3(), 0, d.gid || NET.uid());
+    // předměty na zemi i s opotřebením nástroje (w) a stářím (age: zmizí po 5 minutách, i když se mezitím svět uložil)
+    for (const d of save?.ground || []) {
+      if (!ITEMS[d.id]) continue;
+      spawnGroundItem(d.id, d.n, new Vec3(d.x, d.y, d.z), new Vec3(), 0, d.gid || NET.uid(), Number(d.w) || 0);
+      groundItems[groundItems.length - 1].age = Math.min(DESPAWN, Math.max(0, Number(d.age) || 0));
+    }
     fill(vehicles, save?.vehicles);
     // Po načtení nikdo nesedí za volantem (u klienta to určuje hostitel)
     if (!NET.client) for (const v of vehicles.values()) { v.driver = null; v.engine = false; v.spd = 0; }
@@ -47,7 +52,7 @@ export function worldState() {
   return {
     dayTime, day: dayCount, blocks: [...blocks], blockMeta: [...blockMeta], removed: [...removed], fires: Object.fromEntries(fires),
     vox: [...voxEdits.values()].flatMap((m) => [...m]),
-    ground: groundItems.filter((g) => g.n > 0).map((g) => ({ gid: g.gid, id: g.id, n: g.n, x: g.pos.x, y: g.pos.y, z: g.pos.z })),
+    ground: groundItems.filter((g) => g.n > 0).map((g) => ({ gid: g.gid, id: g.id, n: g.n, x: g.pos.x, y: g.pos.y, z: g.pos.z, age: Math.round(g.age), ...(g.w ? { w: g.w } : {}) })),
     stoves: Object.fromEntries(stoves), tableItems: Object.fromEntries(tableItems), chairRot: Object.fromEntries(chairRot), crops: Object.fromEntries(crops),
     spawners: Object.fromEntries(spawners), furnaces: Object.fromEntries(furnaces), power: Object.fromEntries(power), vehicles: Object.fromEntries(vehicles), papers: Object.fromEntries(papers), pcDisks: Object.fromEntries(pcDisks), paperSpots: Object.fromEntries(paperSpots), chests: Object.fromEntries(chests), ruins: [...ruinsBuilt], ruinsOpened: [...ruinsOpened], portal: portalActive,
   };

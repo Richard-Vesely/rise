@@ -12,7 +12,7 @@ export const BLOCKS = {
   workbench: { name: 'Pracovní stůl', solid: true, hard: 1.2, tool: 'axe', drop: 'workbench', special: true },
   chest: { name: 'Truhla', solid: true, hard: 1.2, tool: 'axe', drop: 'chest', special: true },
   campfire: { name: 'Táborák', solid: false, hard: 0.8, tool: 'axe', drop: 'campfire', special: true, light: 20 },
-  torch: { name: 'Pochodeň', solid: false, hard: 0.1, drop: 'torch', special: true, light: 8 },
+  torch: { name: 'Pochodeň', solid: false, hard: 0, drop: 'torch', special: true, light: 8 }, // rozbije se hned (shared/world/torch.js)
   stove: { name: 'Sporák', solid: true, hard: 2.5, tool: 'pick', req: 1, drop: 'stove', special: true },
   well: { name: 'Studna', solid: true, hard: 2.5, tool: 'pick', req: 1, drop: 'well', special: true },
   farmland: { name: 'Orná půda', solid: true, hard: 0.7, tool: 'shovel', drop: 'dirt' },

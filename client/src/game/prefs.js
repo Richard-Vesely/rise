@@ -12,12 +12,16 @@ export const TOUCH = PREFS.controls === 'touch' || (PREFS.controls !== 'mouse' &
 // softwarová (SwiftShader, CI) a dotykové zařízení → nízká (client/src/game/gpu.js).
 export const QUALITY = ['low', 'medium', 'high'].includes(PREFS.quality) ? PREFS.quality : autoQuality(TOUCH);
 export const GPU = gpuClass();
+// Na integrované grafice (notebooky z kroužku) se kreslí nejvýš v hustotě 1 pixel na bod obrazovky: displej s měřítkem
+// 125–150 % by jinak znamenal 1,5–2,25× víc pixelů. Ostrost dorovná vyhlazování, plynulost je důležitější.
+const PR_CAP = GPU === 'discrete' ? Infinity : 1;
 export const GFX = {
   // pr = max. hustota pixelů, grass = počet stébel ve dvou vrstvách, gs = velikost trávníku kolem hráče, trees/rocks = dohled lesa a balvanů
-  low: { pr: 1, aa: false, grass: [40000, 22000], gs: 0.75, trees: 110, rocks: 90, lights: 3, particles: 0.45, fog: 0.0085 },
+  low: { pr: 1, aa: false, grass: [28000, 15000], gs: 0.72, trees: 95, rocks: 80, lights: 3, particles: 0.45, fog: 0.0085 },
   medium: { pr: 1.25, aa: true, grass: [80000, 50000], gs: 0.9, trees: 150, rocks: 120, lights: 4, particles: 0.7, fog: 0.0068 },
   high: { pr: 1.5, aa: true, grass: [150000, 100000], gs: 1, trees: 190, rocks: 150, lights: 6, particles: 1, fog: 0.0058 },
 }[QUALITY];
+GFX.pr = Math.min(GFX.pr, PR_CAP);
 export const prefNum = (k, d) => (Number.isFinite(+PREFS[k]) && +PREFS[k] > 0 ? +PREFS[k] : d);
 export let lookSens = prefNum('sens', 1); // citlivost otáčení (myš i dotyk)
 // Hra pro jednoho má svoje uložení; svět serveru i hráč na cizím serveru se ukládají zvlášť.

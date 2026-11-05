@@ -7,7 +7,8 @@ explain what you change, keep changes small, and ask before big ones.
 
 *Říše* (repository *rise*, formerly *louka*) is Marek's survival/building game in the browser (Three.js): endless terrain with
 biomes, a voxel underground, trees, animals and night monsters, crafting (~260 recipes), cooking, farming,
-furnaces, electricity, cars, a biplane, a computer with games and a printer, and the Mark dimension behind a portal.
+furnaces, electricity, cars, a bicycle, boats (motor and sail), a biplane and a seaplane, a garage, lakes, a computer with games
+and a printer, and the Mark dimension behind a portal.
 The full feature list is [docs/FEATURES.md](docs/FEATURES.md); read it before adding something.
 
 There are **three ways to play, with one set of rules and one protocol**:
@@ -44,12 +45,12 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 | `shared/data/tech.js` | ores, furnace (`FURNACE_ONLY`, `FUEL`), workshop parts, engines, vehicles, computers, electric devices |
 | `shared/data/costumes.js` | suits for *Můj oblek* (`SUITS`, colours, emblems), `cleanCostume`, the short text `encodeCostume` sent in the pose (`lk`) |
 | `shared/data/index.js` | **import data from here**; finalizes recipes (grid pattern, category) once |
-| `shared/world/terrain.js` | terrain height and biomes (its GLSL twin is `client/src/render/glsl.js`, keep them identical) |
+| `shared/world/terrain.js` | terrain height, biomes, ponds and lakes (`lakeOf`; `pondOf` returns a lake when near one; its GLSL twin is `client/src/render/glsl.js`, keep them identical) |
 | `shared/world/voxels.js` | the underground (what is where naturally, player edits, `setVox`, `groundHeight`) |
 | `shared/world/state.js` | **the world state**: blocks, chests, fires, stoves, crops, furnaces, power, vehicles, papers… (`SyncMap` sends changes) |
 | `shared/world/save.js` | `loadWorld(save)` / `worldState()` – the save shape used everywhere |
-| `shared/world/nature.js`, `structures.js`, `collision.js` | trees, rocks, shards, ponds; structures and their builders; what is solid |
-| `shared/sim/*.js` | simulations: `day.js`, `mobs.js` (AI, spawning, spawners), `ground-items.js`, `machines.js` (campfire, furnace, stove, crops), `power.js` (grid, printer), `weather.js` (rain, storm, fog from the day number and time: the same for every player, never sent) |
+| `shared/world/nature.js`, `structures.js`, `collision.js`, `torch.js` | trees, rocks, shards, ponds; structures and their builders; what is solid; torches (stand or hang on a wall, kept in `blockMeta`: 1 = stands, 2–5 = on a wall; pop off without support) |
+| `shared/sim/*.js` | simulations: `day.js`, `mobs.js` (AI, spawning, spawners), `ground-items.js`, `machines.js` (campfire, furnace, stove, crops), `power.js` (grid, printer), `weather.js` (rain, storm, fog and the wind `windAt` from the day number and time: the same for every player, never sent) |
 | `shared/net/net.js` | the `NET` object the rules talk to (mode, `op()` for world changes, hooks) |
 | `shared/net/ops.js` | applying world changes from others (`applyOp`), small maps diff (`kvDiff`, `applyKV`) |
 | `shared/net/room.js` | **the host**: accepts players, handles their messages, broadcasts (browser host and Node server) |
@@ -63,7 +64,8 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 | `client/src/mobs/` | `mob-models.js` creature 3D models; `mobs.js` animation and life (`poseMob`), sounds, sparks (behaviour is in `shared/sim/mobs.js`) |
 | `client/src/audio/` | all sound (WebAudio synthesis): `sound.js` mix + `Sound.at(x, y, z, fn)` positional sound, recipes in `sfx.js` / `voices.js`, materials, ambience, machine hums, music; `soundscape.js` runs it each frame |
 | `client/src/ui/` | HUD, inventory window, touch controls |
-| `client/src/machines/`, `pc/`, `vehicles/`, `dining/`, `world/` | the browser side of machines, the computer + Tanks + documents, car + plane, table manners, shrine/fishing/dropped items |
+| `client/src/machines/`, `pc/`, `dining/`, `world/` | the browser side of machines (garage block model `garage-model.js`), the computer + Tanks + documents, table manners, shrine/fishing/dropped items |
+| `client/src/vehicles/` | `kinds.js` (data: names, sizes, seats, upgrades per vehicle type), `car.js` (chain module: get in/out, drawing all vehicles, cameras, nitro, car driving), `bike.js`, `boat.js` (motorboat, sailboat, wake), `plane.js` (chain module: biplane + seaplane), models `car-model.js`, `bike-model.js`, `boat-model.js`, `plane-model.js` + their shared look `veh-look.js` (paint, glass, tyres, rims, merging, lights), `garage.js`, `passengers.js`, `vehicle-ui.js` (HUD line, vehicle window) |
 | `client/src/net/` | multiplayer in the browser: client side (`multiplayer.js`), avatars (other players, own body + third-person view, name tags), chat + Esc menu, the net loop (`mp-start.js`) |
 | `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js` |
 
@@ -87,8 +89,11 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
   render/dimension → world/ground-items → world/fishing → vehicles/car → vehicles/plane → player/eating →
   dining/dine-view → dining/food-models → dining/dining → player/survival → render/daylight → ui/hud → game/save →
   ui/touch → game/loop → net/multiplayer → net/avatars → net/mp-ui → net/mp-start → game/debug`.
+  Side-effect-free helpers outside the chain (e.g. `vehicles/kinds.js`, `bike.js`, `boat.js`, `garage.js`, `passengers.js`,
+  `vehicle-ui.js`, the vehicle models `*-model.js` + `veh-look.js`, `render/icons-vehicles.js`, `machines/garage-model.js`) may be imported from anywhere; in a file that also imports
+  `vehicles/car.js`, import them after it, so they load inside the chain order.
   A **new browser module** either has no side effects at load time (only functions/constants; then no chain line
-  is needed), or it gets a chain line and is inserted into the chain (ask Richard). Modules in `shared/` never import `client/`.
+  is needed), or it gets a chain line and is inserted into the chain (check that `npm test` and the play-tests still pass). Modules in `shared/` never import `client/`.
 - **`window.game`** (`client/src/game/debug.js`) exposes the game for the console and the play-tests. Keep it working.
 
 ## Protocol
@@ -98,12 +103,18 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
   `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on in the Esc menu; the host passes the pose on unchanged), `['pk', gid]` pick up,
   `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (in a
-  `pvp` world, elsewhere only when both poses have `pv: 1`: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
+  `pvp` world always; in a `pvp-mark` world when attacker and target are both in Markova dimenze, `isMark(x)`; anywhere when both poses have `pv: 1`: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
   `['dmg', dmg × 2.5, dx, dz]`; `hitPlayer` in `shared/net/room.js`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
 - Host → client: `['welcome', { pid, name, perm, world, spawn, max }]`, `['full']`, `['join'|'leave', name]`, `['ops', ops]`,
   `['kv', changes]` (2×/s), `['pl', [[pid, name, pose, perm]…]]` (12×/s), `['mobs', dayTime, day, [[nid, type, x, y, z, ry, hp, flash, dead, eggs, milk]…]]` (5×/s),
-  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`), `['gift', docId, from]`,
+  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`; in a `pvp-mark` world only `kill` with a killer, no `score`), `['gift', docId, from]`,
   `['kick', reason?]` (the browser host sends no reason; the Node server sends `['kick', 'Přihlásil ses jinde.']` when the same player logs in again in that world).
+- **Vehicles in the pose** (the host passes it on unchanged, `client/src/vehicles/car.js` `vehPose`): the driver sends
+  `veh: { id, x, y, z, yaw, pitch, roll, spd, steer, thr, lights }` (or `null`) with optional `bm` (sailboat boom angle),
+  `lf: 1` (sail luffing), `pd: 1` (pedalling a bike), `nb: 1` (nitro burning), and `hn` = horn count. A **passenger** sends
+  `rd: { id, s }` (vehicle id, seat index ≥ 1 from `vehicles/kinds.js`) and no `veh`; others read taken seats from these
+  poses, so a seat frees itself when the passenger gets out or leaves. Seats are never stored in the world. The vehicle
+  itself (`vehicles` small map: colour, fuel, `mods` from the garage, `gear`, sail `thr`/`boom`) syncs like other small maps.
 - Ops: `['m', 'blocks'|'blockMeta', key, value|null]`, `['s', 'removed'|'ruinsOpened', key]`, `['r', structure]`, `['v', x, y, z, id]`,
   `['c', x, z, r]` grass cut, `['p']` portal, `['g', gid, id, n, pos, vel, delay, w?]` dropped item (w = tool wear, only for worn tools), `['gx', gid, n]`.
 - WebSocket only (Node server, `server/server.js`): the client first sends `['hello', { name, pass, v: 2, world, pin | token }]`.
@@ -112,7 +123,8 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   and can send `hello` again with a chosen `world`. An old client (no `v`) and every client on a
   one-world server join the first world. The welcome then also has `worldInfo: { id, name, creative, first }`
   (added by `server/world-worker.js`; the browser host doesn't send it). It also has `pvp` (players can hurt each other,
-  world option `:pvp` in `WORLDS`; the client sets `NET.pvp` from it). `GET /worlds` entries have `pvp` too. `GET /worlds` returns the same list over HTTP
+  world option `:pvp` in `WORLDS`; the client sets `NET.pvp` from it) and `pvpMark` (fights only in Markova dimenze, no arena,
+  option `:pvp-mark`; `NET.pvpMark`). `GET /worlds` entries have `pvp` and `pvpMark` too. `GET /worlds` returns the same list over HTTP
   (no password, `Access-Control-Allow-Origin: *`): the main menu shows a button per world from it and sends the
   chosen `world` in the first `hello` (the password comes from `localStorage` `rise-heslo`, per server address).
 - **Player profiles** (Node server only, `server/profiles.js`): after the password and the world, the hello must carry the
@@ -136,20 +148,25 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
 
 ## Rules for AI helpers
 
-1. **Small pull requests.** One idea per PR. Never push to `main`; open a PR, CI must be green. Never force-push.
+1. **Small pull requests.** One idea per PR. Never push to `main`; open a PR, CI must be green, then the PR bot (or the kid) merges it
+   (no review or approval is required; a red CI or a conflict gets a Czech bot comment with a prompt to fix it;
+   changes to `.github/` or `deploy/` wait for Richard). Never force-push.
 2. **All text in the game stays Czech.** Comments may be Czech (most are) or English.
 3. **Data before engine.** A new item, block, recipe, cooking recipe or mob is mostly a data change in `shared/data/`
    or `shared/sim/mobs.js`. Add engine code only when data can't express it.
-4. **Ask Richard (the lektor) before touching core files:** `shared/net/*`, `shared/world/state.js`, `shared/world/save.js`,
+4. **Be extra careful with core files:** `shared/net/*`, `shared/world/state.js`, `shared/world/save.js`,
    `shared/world/voxels.js`, `shared/world/terrain.js` + `client/src/render/glsl.js` (twins), `shared/events.js`,
    `server/*`, `client/src/net/*`, `client/src/game/*`, `client/src/menu/*`, `client/src/main.js`, the module order chain,
-   the save format or localStorage keys, and before changing balance (damage, speeds, drop rates, recipe costs).
+   the save format or localStorage keys, and balance (damage, speeds, drop rates, recipe costs). Before changing them,
+   tell the kid in simple Czech what could break, keep the change as small as possible, add or extend a test that covers
+   it, and say in the PR description which core file changed and why. No approval is needed: a PR is merged as soon as
+   CI is green, so the tests are the safety net.
 5. **Never change the protocol on one side only.** Host (`shared/net/room.js`), client (`client/src/net/multiplayer.js`)
    and the docs above change in the same PR. Old saves must keep loading.
 6. **Keep `shared/` free of DOM and Three.js** (`npm test` checks that every file imports in Node).
 7. **Keep `window.game` working**; the play-tests use it.
 8. Files stay under ~400 lines (data tables and model builders may be longer). Plain JavaScript ES modules with JSDoc,
-   no TypeScript, no frameworks. New dependencies only with Richard's OK.
+   no TypeScript, no frameworks. Add a new dependency only when plain code can't do it, and say why in the PR.
 9. When you add or change a feature, update [docs/FEATURES.md](docs/FEATURES.md) in the same PR.
 10. No secrets in the repo (the server password lives in an env file on the server). No personal data about the kids:
     a profile is a nickname + a hashed PIN, nothing else. Never log or store a PIN or a token in clear text.
@@ -161,8 +178,8 @@ npm install                     # once
 npm run dev                     # the game: open http://localhost:5173 (Hrát sám)
 npm test                        # unit tests + the Node server over WebSocket (fast)
 npm run build                   # build into dist/
-npm run playtest                # menu + single player in a real browser (50+ checks), then the inventory tricks (27 checks); needs the build
-npm run test:server             # Node server + 2 browsers: join, edits, mobs, pickup, chat, restart; then player profiles (name + PIN, backpack on the server, admin page); then a pvp world (sword and arrow hits)
+npm run playtest                # single player in a real browser (70+ checks), inventory tricks (28), vehicles (18); needs the build
+npm run test:server             # Node server + 2 browsers: join, edits, mobs, pickup, chat, restart; then player profiles (name + PIN, backpack on the server, admin page); then a pvp world (sword and arrow hits) and a pvp-mark world (hits only in Markova dimenze)
 npm run test:worlds             # Node server with 2 worlds + 2 browsers: world buttons, password once, isolation, creative, saves per world
 npm run test:peer               # browser host + browser client over PeerJS (needs internet)
 npm start                       # the server on http://localhost:8787 (serves dist/)
@@ -170,7 +187,8 @@ npm run test:load               # 8 simulated players: server memory, CPU, time 
 npm run test:load:worlds        # the same with 2 worlds × 4 players
 ```
 Console helpers (single player or host): `game.addItem('iron', 5)`, `game.setTime(0.9)` (night),
-`game.spawnMob('boar', x, z)`, `game.setCreative(true)`, `game.teleport(x, z)`.
+`game.spawnMob('boar', x, z)`, `game.setCreative(true)`, `game.teleport(x, z)`, `game.toLake()`,
+`game.spawnOnLake('sailboat')`, `game.spawnVehicle('bike', x, z, yaw)`.
 
 ## Recipes
 
@@ -209,11 +227,11 @@ Letters map to items, a space is an empty cell. Up to 2×2 works in the backpack
 ### Add a mob
 1. `shared/sim/mobs.js`: add to `MOBS`, e.g. `fox: { name: 'Liška', hp: 6, radius: 0.6, cy: 0.5, drops: [['raw_meat', 1, 1]] }`.
 2. Where it appears: a line in `updateSpawns()` (copy the deer line and change the counts). Hostile? add it to the
-   `hostile` condition and `HOSTILE_SPEED`; shy? to the flee lists. These are core rules: ask Richard first.
+   `hostile` condition and `HOSTILE_SPEED`; shy? to the flee lists. These are core rules: see rule 4 above.
 3. Model: a new branch in `buildMob()` in `client/src/mobs/mobs.js` (copy the sheep and change colours);
    a sound in the `on('mobSound', …)` table there.
 
 ## What not to do
 - Don't edit `legacy/` (Marek's original), `dist/` (built output) or `server/data/` (the live world).
 - Don't add a free-text field that collects personal data. Names are nicknames only.
-- Don't remove features from [docs/FEATURES.md](docs/FEATURES.md) without Richard.
+- Don't remove features from [docs/FEATURES.md](docs/FEATURES.md). Fix or improve them instead; if one really has to go, say so in the PR.

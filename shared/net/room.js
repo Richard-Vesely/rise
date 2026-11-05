@@ -12,7 +12,7 @@ import { Vec3 } from '../vec3.js';
 import { nearLight } from '../world/collision.js';
 import { worldState } from '../world/save.js';
 import { blocks, vehicles } from '../world/state.js';
-import { shrineDist } from '../world/terrain.js';
+import { isMark, shrineDist } from '../world/terrain.js';
 import { getVox } from '../world/voxels.js';
 import { NET, isBusy, r2, uiBusy } from './net.js';
 import { applyKV, applyOp, kvDiff } from './ops.js';
@@ -115,7 +115,7 @@ function onClientMsg(P, msg) {
       if (!P.pose) room.onChange();
       const wasAlive = P.pose?.alive !== false;
       P.pose = q;
-      if (NET.pvp && wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl
+      if (wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl (hlášení jen po zásahu hráčem)
       if (typeof q.ui === 'string') {
         if (!isBusy(q.ui)) NET.kvT = 0; // hráč právě otevřel truhlu / stroj: hned mu poslat aktuální stav
         uiBusy.set(q.ui, performance.now() + 1200);
@@ -136,7 +136,7 @@ function onClientMsg(P, msg) {
       try { hurtMob(m, clamp(Number(msg[2]) || 1, 0, 20), Number(msg[3]) || 0, clamp(Number(msg[4]) || 1, 0, 2)); } finally { NET.killer = null; }
       break;
     }
-    case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp)
+    case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp nebo pvp-mark)
     case 'mu': { // slepice (vejce) a kráva (mléko)
       const m = mobs.find((x) => x.nid === msg[1] && !x.dead);
       if (!m) return;
@@ -154,7 +154,7 @@ function onClientMsg(P, msg) {
     case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
   }
 }
-// ---------- souboje hráčů (svět s volbou pvp, jinde dva hráči se zapnutými souboji): hostitel zkontroluje zásah a pošle zraněnému 'dmg'
+// ---------- souboje hráčů (svět s volbou pvp; pvp-mark = oba v Markově dimenzi; jinde dva hráči se zapnutými souboji): hostitel zkontroluje zásah a pošle zraněnému 'dmg'
 export const PVP = { mult: 2.5, invuln: 0.45, reach: 7, range: 90 }; // zranění ×mult (meč a šíp jsou laděné na tvory), dosah ruky / šípu v m
 const hostP = { pose: null, hurtAt: 0 };
 /** Hráč podle pid ('host' = hráč u obrazovky hostitele v prohlížeči; na serveru není): { pose, hurtAt }. */
@@ -176,7 +176,7 @@ function playerOf(pid) {
 export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
   if (from === to) return false;
   const A = playerOf(from), T = playerOf(to), a = A?.pose, t = T?.pose;
-  if (!a || !t || (!NET.pvp && !(a.pv && t.pv))) return false; // mimo arénu jen když mají souboje zapnuté oba
+  if (!a || !t || !(NET.pvp || (NET.pvpMark && isMark(a.x) && isMark(t.x)) || (a.pv && t.pv))) return false; // aréna všichni; pvp-mark oba v Markově dimenzi; jinde jen se zapnutými souboji u obou
   if (a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
   if (Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
   const now = performance.now() / 1000;
@@ -198,6 +198,10 @@ const scoreOf = (name) => { if (!scores.has(name)) scores.set(name, { k: 0, d: 0
 export function arenaDeath(P) {
   const hit = P.lastHit, killer = hit && performance.now() / 1000 - hit.t < KILL_WINDOW && hit.by !== P.name ? hit.by : null;
   P.lastHit = null;
+  if (!NET.pvp) { // mimo arénu (pvp-mark, zapnuté souboje): jen hlášení, když ho vyřadil hráč
+    if (killer) { room.onLog(`souboj: ${killer} vyřadil ${P.name}`); broadcast(['kill', killer, P.name]); }
+    return;
+  }
   scoreOf(P.name).d++;
   if (killer) scoreOf(killer).k++;
   room.onLog(killer ? `aréna: ${killer} vyřadil ${P.name}` : `aréna: ${P.name} padl`);

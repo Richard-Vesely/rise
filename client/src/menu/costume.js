@@ -3,7 +3,7 @@
 // kroužku navíc u profilu hráče (stav `me.look`), a ostatním hráčům se posílá v pozici (`lk`, viz net/avatars.js).
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { EMBLEMS, LIGHT_COLORS, SUITS, SUIT_COLORS, SUIT_IDS, VISOR_COLORS, cleanCostume } from '../../../shared/data/costumes.js';
+import { EMBLEMS, HAIR_COLORS, LIGHT_COLORS, SKIN_TONES, SUITS, SUIT_COLORS, SUIT_IDS, VISOR_COLORS, cleanCostume, isHero } from '../../../shared/data/costumes.js';
 import { animateCharacter, buildCharacter, disposeCharacter, emblemTex } from '../render/character.js';
 
 const KEY = 'rise-obleky';
@@ -55,21 +55,26 @@ function open(opts) {
       <div class="cos-opts">
         <div class="cos-label">Oblek</div><div class="cos-suits"></div><div class="cos-desc"></div>
         <div class="cos-label">Barva obleku</div><div class="cos-sw" data-k="c"></div>
-        <div class="cos-label">Světla</div><div class="cos-sw" data-k="l"></div>
-        <div class="cos-label">Hledí</div><div class="cos-sw" data-k="v"></div>
-        <div class="cos-label">Znak na hrudi</div><div class="cos-sw cos-emb" data-k="e"></div>
+        <div class="cos-label" data-lab="l">Světla</div><div class="cos-sw" data-k="l"></div>
+        <div class="cos-label" data-lab="v">Hledí</div><div class="cos-sw" data-k="v"></div>
+        <div class="cos-label" data-lab="e">Znak na hrudi</div><div class="cos-sw cos-emb" data-k="e"></div>
       </div>
     </div>
     <div class="cos-foot"><button class="cos-btn" data-act="random">Náhodně</button><span></span><button class="cos-btn" data-act="cancel">Zrušit</button><button class="cos-btn main" data-act="ok">Hotovo</button></div>
   </div>`;
   document.body.append(box);
   const q = (s) => box.querySelector(s);
-  const lists = { c: SUIT_COLORS, l: LIGHT_COLORS, v: VISOR_COLORS };
   const render = () => {
+    // hrdinové (obličej a vlasy) místo hledí volí vlasy, místo znaku pleť a světla jsou oči a drahokam
+    const hero = isHero(cur.s), lists = { c: SUIT_COLORS, l: LIGHT_COLORS, v: hero ? HAIR_COLORS : VISOR_COLORS };
+    q('[data-lab="l"]').textContent = hero ? 'Oči a drahokam' : 'Světla';
+    q('[data-lab="v"]').textContent = hero ? 'Vlasy' : 'Hledí';
+    q('[data-lab="e"]').textContent = hero ? 'Pleť' : 'Znak na hrudi';
     q('.cos-suits').innerHTML = SUIT_IDS.map((id) => `<button class="cos-suit ${cur.s === id ? 'on' : ''}" data-s="${id}">${SUITS[id].name}</button>`).join('');
     q('.cos-desc').textContent = SUITS[cur.s].desc;
     for (const k of ['c', 'l', 'v']) q(`[data-k="${k}"]`).innerHTML = lists[k].map(([t, hex], i) => `<button class="cos-dot ${k === 'l' ? 'glow' : ''} ${cur[k] === i ? 'on' : ''}" data-i="${i}" title="${t}" aria-label="${t}" style="--c:${hex}"></button>`).join('');
-    q('[data-k="e"]').innerHTML = EMBLEMS.map((t, i) => `<button class="cos-dot cos-e ${cur.e === i ? 'on' : ''}" data-i="${i}" title="${t}" aria-label="${t}" style="--c:${LIGHT_COLORS[cur.l][1]}">${i ? `<img alt="" src="${emblemTex(i).image.toDataURL()}">` : '–'}</button>`).join('');
+    if (hero) q('[data-k="e"]').innerHTML = SKIN_TONES.map(([t, hex], i) => `<button class="cos-dot ${cur.e === i ? 'on' : ''}" data-i="${i}" title="${t}" aria-label="${t}" style="--c:${hex}"></button>`).join('');
+    else q('[data-k="e"]').innerHTML = EMBLEMS.map((t, i) => `<button class="cos-dot cos-e ${cur.e === i ? 'on' : ''}" data-i="${i}" title="${t}" aria-label="${t}" style="--c:${LIGHT_COLORS[cur.l][1]}">${i ? `<img alt="" src="${emblemTex(i).image.toDataURL()}">` : '–'}</button>`).join('');
   };
   render();
   // ---------- 3D náhled

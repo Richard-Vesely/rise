@@ -2,13 +2,14 @@
 import { hash2, smoothstep } from '../util.js';
 import { ROCK_CELL, SHARD_CELL, TREE_CELL } from './constants.js';
 import { removed } from './state.js';
-import { biomeAt, forest, isMark, pondDip, pondOf, shrineDist, terrainH, volcanoDist } from './terrain.js';
+import { DRAGON_CX, isDragon } from './dragon-land.js';
+import { biomeAt, forest, inLake, isMark, pondDip, pondOf, shrineDist, terrainH, volcanoDist } from './terrain.js';
 
 // ============================================================ úlomky světla (generují se po celém světě)
 export function shardAt(cx, cz) {
   if (hash2(cx + 77, cz - 55) > 0.45) return null;
   const x = (cx + 0.2 + hash2(cx, cz + 1) * 0.6) * SHARD_CELL, z = (cz + 0.2 + hash2(cx + 1, cz) * 0.6) * SHARD_CELL;
-  if (isMark(x) || shrineDist(x, z) < 55) return null; // v Markově dimenzi jsou krystaly jen pod zemí
+  if (isDragon(x) || isMark(x) || shrineDist(x, z) < 55) return null; // v dimenzích jsou krystaly jen pod zemí
   return { key: `s${cx},${cz}`, x, z };
 }
 
@@ -25,6 +26,7 @@ export function treeAt(cx, cz) {
   const r = hash2(cx, cz);
   const x = (cx + 0.15 + hash2(cx + 911, cz) * 0.7) * TREE_CELL;
   const z = (cz + 0.15 + hash2(cx, cz + 577) * 0.7) * TREE_CELL;
+  if (isDragon(x) && Math.hypot(x - DRAGON_CX, z) < 110) return null;
   const f = forest(x, z), mark = isMark(x), bio = mark ? 'meadow' : biomeAt(x, z);
   let kind;
   if (bio === 'meadow') {
@@ -34,7 +36,7 @@ export function treeAt(cx, cz) {
     if (r > TREE_DENSITY[bio]) return null;
     kind = bio === 'desert' ? (hash2(cx + 19, cz + 23) < 0.65 ? 'cactus' : 'deadbush') : TREE_OF_BIOME[bio];
   }
-  if (shrineDist(x, z) < 30 || pondDip(x, z) > 0) return null; // ne ve vodě
+  if (shrineDist(x, z) < 30 || pondDip(x, z) > 0 || inLake(x, z)) return null; // ne ve vodě
   if (bio === 'volcanic' && volcanoDist(x, z) < 22) return null; // ani v kráteru s lávou
   const sh = shardAt(Math.floor(x / SHARD_CELL), Math.floor(z / SHARD_CELL));
   if (sh && (sh.x - x) ** 2 + (sh.z - z) ** 2 < 40) return null;
@@ -46,7 +48,8 @@ export function rockAt(cx, cz) {
   const key = `r${cx},${cz}`;
   const r = hash2(cx + 5000, cz - 3000);
   const x = (cx + hash2(cx, cz + 99) * 0.8) * ROCK_CELL, z = (cz + hash2(cx + 99, cz) * 0.8) * ROCK_CELL;
-  if (removed.has(key) || r > (forest(x, z) < 0.45 ? 0.12 : 0.06) || shrineDist(x, z) < 20 || pondDip(x, z) > 0) return null;
+  if (isDragon(x) && Math.hypot(x - DRAGON_CX, z) < 110) return null;
+  if (removed.has(key) || r > (forest(x, z) < 0.45 ? 0.12 : 0.06) || shrineDist(x, z) < 20 || pondDip(x, z) > 0 || inLake(x, z)) return null;
   const iron = hash2(cx - 7, cz + 13) < 0.16;
   const s = (iron ? 0.6 : 0.35) + hash2(cx + 1, cz + 2) ** 2 * 1.3;
   return { key, x, z, s, iron, r };
@@ -68,7 +71,8 @@ export function collidersNear(x, z, M = 2.5) {
   return near;
 }
 
-// ============================================================ rybníky a rybaření
+// ============================================================ rybníky, jezera a rybaření
+// pondOf vrací i jezero (lake: true, hladina je už spočítaná v level)
 // Hladina = nejnižší bod okraje prohlubně, takže voda nikde nepřeteče.
 export const pondLevel = (p) => {
   if (p.level === undefined) {

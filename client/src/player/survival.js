@@ -47,7 +47,7 @@ function flashHearts() {
   w.classList.add('hit');
 }
 function die() {
-  if (player.vehicle) exitVehicle();
+  if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
   $('fade').style.opacity = 1;
