@@ -22,6 +22,7 @@ export const GFX = {
   high: { pr: 1.5, aa: true, grass: [150000, 100000], gs: 1, trees: 190, rocks: 150, lights: 6, particles: 1, fog: 0.0058 },
 }[QUALITY];
 GFX.pr = Math.min(GFX.pr, PR_CAP);
+export const prefStr = (k) => (typeof PREFS[k] === 'string' ? PREFS[k] : ''); // textová volba nastavení ('' = výchozí)
 export const prefNum = (k, d) => (Number.isFinite(+PREFS[k]) && +PREFS[k] > 0 ? +PREFS[k] : d);
 export let lookSens = prefNum('sens', 1); // citlivost otáčení (myš i dotyk)
 // Hra pro jednoho má svoje uložení; svět serveru i hráč na cizím serveru se ukládají zvlášť.
