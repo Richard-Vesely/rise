@@ -1,6 +1,7 @@
 // Ovládání tělem: z bodů těla z kamery (MediaPipe Pose, 33 bodů, x a y 0–1 v obraze, y dolů) udělá ovládání hry.
 // Čisté výpočty bez kamery a bez DOM (unit test: tests/unit/body.test.mjs). Kameru a model řeší body-control.js.
-//   chůze: 'knees' = chůze na místě (střídavě zvedaná kolena, rychlost podle tempa) nebo 'lean' = náklon dopředu / dozadu
+//   chůze: 'knees' = chůze na místě (střídavě zvedaná kolena, rychlost podle tempa), 'lean' = náklon dopředu / dozadu,
+//          'hands' = jen rukama vsedě (střídavé mávání rukama = chůze, obě ruce nad hlavou = skok, bez úkroků)
 //   úkrok: náklon do strany · otáčení: upažení levou / pravou rukou (hráč zůstane čelem k obrazovce)
 //   pohled nahoru / dolů: malé kývnutí hlavou · útok: pravá ruka nad hlavou · pravé tlačítko: levá ruka nad hlavou · skok: výskok
 
@@ -37,7 +38,7 @@ export function calibrate(frames) {
   return { head: avg('head'), ratio: avg('ratio'), lateral: avg('lateral'), hipY: avg('hipY'), kneeL: avg('kneeL'), kneeR: avg('kneeR') };
 }
 
-export function newState() { return { steps: [], lastKnee: null, jumpT: 0, atk: {}, use: {}, yAvg: null, phase: null }; }
+export function newState() { return { steps: [], lastKnee: null, lastArm: null, jumpT: 0, atk: {}, use: {}, both: {}, yAvg: null, phase: null }; }
 const handOk = (l) => !!l && (l.visibility ?? 1) > 0.6;
 // Gesto ruky s hysterezí: zapne se, až drží 0,2 s, a vypne se 0,2 s po puštění (body z kamery se třesou; hrubé ovládání)
 function steady(g, raw, now) {
@@ -53,7 +54,7 @@ const smooth01 = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t *
  * @param {object} base klidový postoj (calibrate)
  * @param {object} st stav mezi snímky (newState)
  * @param {number} now čas v sekundách
- * @param {'knees'|'lean'} mode chůze
+ * @param {'knees'|'lean'|'hands'} mode chůze
  * @returns {{ ok: boolean, forward: number, strafe: number, sprint: boolean, turn: number, look: number, attack: boolean, use: boolean, jump: boolean, byShoulders?: boolean, why?: string }}
  */
 export function readPose(L, base, st, now, mode = 'knees') {
@@ -71,17 +72,32 @@ export function readPose(L, base, st, now, mode = 'knees') {
   out.turn = armOut(L[P.LWR], L[P.LSH], side) - armOut(L[P.RWR], L[P.RSH], -side); // + = doleva
   // ruka nad hlavou: pravá = útok, levá = pravé tlačítko
   const nose = L[P.NOSE];
-  out.attack = steady(st.atk, handOk(L[P.RWR]) && L[P.RWR].y < nose.y - 0.3 * sw, now); // ruka opravdu nad hlavou
-  out.use = steady(st.use, handOk(L[P.LWR]) && L[P.LWR].y < nose.y - 0.3 * sw, now);
+  const rUp = handOk(L[P.RWR]) && L[P.RWR].y < nose.y - 0.3 * sw, lUp = handOk(L[P.LWR]) && L[P.LWR].y < nose.y - 0.3 * sw; // ruka opravdu nad hlavou
+  const both = mode === 'hands' && rUp && lUp;
+  if (steady(st.both, both, now) && now - st.jumpT > 0.8) { out.jump = true; st.jumpT = now; } // vsedě: obě ruce nahoru = skok
+  out.attack = steady(st.atk, rUp && !both, now);
+  out.use = steady(st.use, lUp && !both, now);
   // pohled: kývnutí hlavou proti klidu (mrtvá zóna, ať se obraz necuká)
   const dh = m.head - base.head;
   out.look = Math.abs(dh) < 0.16 ? 0 : -Math.sign(dh); // + = nahoru; jen výrazné kývnutí, pak stálá rychlost
   // úkrok: náklon do strany
-  if (base.lateral != null) { const dl = (m.lateral - base.lateral) * side; out.strafe = Math.abs(dl) < 0.22 ? 0 : -Math.sign(dl); } // + = doprava; jen výrazný náklon
+  if (base.lateral != null && mode !== 'hands') { const dl = (m.lateral - base.lateral) * side; out.strafe = Math.abs(dl) < 0.22 ? 0 : -Math.sign(dl); } // + = doprava; jen výrazný náklon
   // skok: boky vyskočí nahoru proti klidu
-  if (m.hipY != null && base.hipY != null && base.hipY - m.hipY > 0.35 && now - st.jumpT > 0.6) { out.jump = true; st.jumpT = now; }
+  if (mode !== 'hands' && m.hipY != null && base.hipY != null && base.hipY - m.hipY > 0.35 && now - st.jumpT > 0.6) { out.jump = true; st.jumpT = now; }
   // chůze
-  if (mode === 'lean') {
+  if (mode === 'hands') {
+    // střídavé mávání rukama: jedno zápěstí výrazně výš než druhé, pak naopak = krok (upažení a ruka nad hlavou se nepočítají)
+    const lw = L[P.LWR], rw = L[P.RWR];
+    if (handOk(lw) && handOk(rw) && !out.turn && !rUp && !lUp) {
+      const d = (rw.y - lw.y) / sw, which = d > 0.5 ? 'L' : d < -0.5 ? 'R' : null; // výš je levá / pravá
+      if (which && which !== st.lastArm) { st.steps.push(now); st.lastArm = which; }
+    }
+    st.steps = st.steps.filter((t) => now - t < 2);
+    const last = st.steps.at(-1) ?? -9, cadence = st.steps.length / 2;
+    out.forward = cadence >= 1 ? clamp01(0.45 + cadence * 0.25) * (1 - smooth01(0.7, 1.2, now - last)) : 0;
+    out.sprint = cadence >= 3 && now - last < 0.6;
+    if (!handOk(lw) || !handOk(rw)) out.why = 'Nevidím obě ruce – posaď se dál od kamery';
+  } else if (mode === 'lean') {
     if (m.ratio != null && base.ratio != null) {
       const d = m.ratio / base.ratio - 1;
       out.forward = Math.abs(d) < 0.1 ? 0 : Math.sign(d); // jen výrazný náklon, pak plná chůze

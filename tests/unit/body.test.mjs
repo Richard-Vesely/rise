@@ -97,3 +97,27 @@ test('body control: a shaky camera on a player standing still does not walk', ()
   }
   assert.equal(walked, 0, 'nothing happens while standing still');
 });
+
+test('body control, hands only (seated): pumping arms walks, both hands up jumps, turning and attacking do not walk', () => {
+  const seated = (ch) => { const L = stand(ch); for (const k of [P.LHIP, P.RHIP, P.LKNEE, P.RKNEE]) L[k].visibility = 0; return L; };
+  const b = calibrate(Array.from({ length: 10 }, () => seated()));
+  const st = newState();
+  let r, t = 0;
+  for (let i = 0; i < 8; i++) { // mávání: střídavě jedna ruka nahoře u hrudi, druhá dole
+    t += 0.25; r = readPose(seated(i % 2 ? { [P.LWR]: [0.6, 0.42], [P.RWR]: [0.4, 0.62] } : { [P.RWR]: [0.4, 0.42], [P.LWR]: [0.6, 0.62] }), b, st, t, 'hands');
+  }
+  assert.ok(r.forward > 0.5, `pumping arms walks (${r.forward})`);
+  assert.equal(readPose(seated(), b, st, t + 1.5, 'hands').forward, 0, 'hands down stops');
+  const turn = newState();
+  for (let i = 0; i < 8; i++) readPose(seated({ [P.LWR]: [0.9, 0.33] }), b, turn, i * 0.25, 'hands');
+  assert.equal(turn.steps.length, 0, 'an arm out for turning is not a step');
+  const up = newState();
+  readPose(seated({ [P.LWR]: [0.58, 0.05], [P.RWR]: [0.42, 0.05] }), b, up, 1, 'hands');
+  r = readPose(seated({ [P.LWR]: [0.58, 0.05], [P.RWR]: [0.42, 0.05] }), b, up, 1.25, 'hands');
+  assert.ok(r.jump && !r.attack && !r.use, 'both hands above the head = jump, not attack');
+  assert.equal(up.steps.length, 0, '…and not a step');
+  const atk = newState();
+  readPose(seated({ [P.RWR]: [0.42, 0.05] }), b, atk, 1, 'hands');
+  r = readPose(seated({ [P.RWR]: [0.42, 0.05] }), b, atk, 1.25, 'hands');
+  assert.ok(r.attack && !r.jump && atk.steps.length === 0, 'right hand up still attacks and is not a step');
+});

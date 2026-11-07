@@ -568,7 +568,7 @@ under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hum
 `volume.js` (slider values). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
 
 ## 12. Controls (summary)
-- **Body control with a webcam** (Settings → *Ovládání tělem*: *Chůze na místě* or *Náklon*): MediaPipe Pose (Google; the library
+- **Body control with a webcam** (Settings → *Ovládání tělem*: *Chůze na místě*, *Náklon* or *Jen rukama (vsedě)*): MediaPipe Pose (Google; the library
   and the model are downloaded from the internet only when switched on) finds the body in the camera picture; the video stays in
   the computer. Walk: march on the spot (speed by the pace, fast = run) or lean forward / back; lean to the side = step aside; arm
   out to the left / right = turn (you keep facing the screen); a small nod = look up / down; right hand above the head = attack /
@@ -576,6 +576,8 @@ under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hum
   Coarse on purpose: only clear gestures count (arm fully out, hand well above the head for 0.2 s, a clear nod or lean) and then
   move at one steady speed; everything is smoothed, so a shaky camera or small sways do nothing. Without visible knees (a laptop
   camera) marching is recognised by the shoulders bobbing. Turning speed follows *Citlivost otáčení*; the calm pose adapts slowly.
+  *Jen rukama (vsedě)*: pumping the arms up and down alternately = walk (fast = run), arm out = turn, right / left hand above
+  the head = attack / right button, both hands above the head = jump, a nod = look; no side steps.
   A small window bottom left shows the camera, the skeleton and what it understood. Gestures: `client/src/player/body-gestures.js`
   (unit test `tests/unit/body.test.mjs`), camera: `client/src/player/body-control.js`.
 WASD move · Shift run · Space jump · mouse look · left button mine/attack · right button place/use/eat ·
