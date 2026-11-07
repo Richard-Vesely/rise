@@ -8,7 +8,7 @@ const touchAuto = matchMedia('(pointer: coarse)').matches && navigator.maxTouchP
 const OPTS = {
   quality: [['', 'Automaticky'], ['low', 'Nízká'], ['medium', 'Střední'], ['high', 'Vysoká']],
   controls: [['', 'Automaticky'], ['touch', 'Dotykové'], ['mouse', 'Myš a klávesnice']],
-  body: [['', 'Vypnuto'], ['knees', 'Chůze na místě'], ['lean', 'Náklon']], // ovládání tělem přes webkameru (player/body-control.js)
+  body: [['', 'Vypnuto'], ['knees', 'Chůze na místě'], ['lean', 'Náklon'], ['hands', 'Jen rukama (vsedě)']], // ovládání tělem přes webkameru (player/body-control.js)
 };
 let box = null;
 function open(opts = {}) {

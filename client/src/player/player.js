@@ -296,7 +296,7 @@ export function updatePlayer(dt) {
 // Ovládání tělem přes webkameru (Nastavení → Ovládání tělem): modul se načte, až když ho hráč zapne.
 let bodyMode = '';
 function applyBodyMode() {
-  const m = ['knees', 'lean'].includes(prefStr('body')) ? prefStr('body') : '';
+  const m = ['knees', 'lean', 'hands'].includes(prefStr('body')) ? prefStr('body') : '';
   if (m === bodyMode) return;
   bodyMode = m;
   import('./body-control.js').then((B) => B.setBodyMode(m || null));

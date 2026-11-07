@@ -16,7 +16,7 @@ let base = null, calib = [], calibUntil = 0, st = newState(), last = 0, joy = nu
 const sm = { forward: 0, strafe: 0, turn: 0, look: 0 }; // vyhlazené ovládání (body z kamery se třesou)
 const ease = (k, v, dt, rate) => { sm[k] += (v - sm[k]) * (1 - Math.exp(-dt * rate)); if (Math.abs(sm[k]) < 0.02 && !v) sm[k] = 0; return sm[k]; };
 
-/** Zapne / vypne ovládání tělem ('knees' = chůze na místě, 'lean' = náklon, null = vypnuto). */
+/** Zapne / vypne ovládání tělem ('knees' = chůze na místě, 'lean' = náklon, 'hands' = jen rukama vsedě, null = vypnuto). */
 export async function setBodyMode(m) {
   if (!m) return stop();
   mode = m;
@@ -93,8 +93,8 @@ function loop(t) {
   if (!base) { // kalibrace
     draw(L);
     calib.push(L);
-    ui(`Stůj rovně, ruce dolů… ${Math.max(0, Math.ceil((calibUntil - now) / 1000))}`);
-    if (now >= calibUntil) { base = calibrate(calib); if (base) toast('Kalibrace hotová: šlapej na místě, upaž = otočit, ruka nahoru = útok'); else recalibrate(); }
+    ui(`${mode === 'hands' ? 'Seď rovně' : 'Stůj rovně'}, ruce dolů… ${Math.max(0, Math.ceil((calibUntil - now) / 1000))}`);
+    if (now >= calibUntil) { base = calibrate(calib); if (base) toast(mode === 'hands' ? 'Kalibrace hotová: mávej rukama = chůze, upaž = otočit, ruka nahoru = útok, obě nahoru = skok' : 'Kalibrace hotová: šlapej na místě, upaž = otočit, ruka nahoru = útok'); else recalibrate(); }
     return;
   }
   const r = readPose(L, base, st, now / 1000, mode);
@@ -109,5 +109,5 @@ function loop(t) {
   player.pitch = Math.max(-1.5, Math.min(1.5, player.pitch + ease('look', r.look, dt, 6) * LOOK * lookSens * dt));
   input.lmb = r.attack;
   input.rmb = r.use;
-  ui(r.why || [fw ? (r.sprint ? 'běžíš' : 'jdeš') + (r.byShoulders ? ' (podle ramen)' : '') : '', sm.turn > 0 ? '↺ doleva' : sm.turn < 0 ? '↻ doprava' : '', r.attack ? 'útok' : '', r.use ? 'použít' : ''].filter(Boolean).join(' · ') || (mode === 'knees' ? 'stojíš – šlapej na místě' : 'stojíš – nakloň se dopředu'));
+  ui(r.why || [fw ? (r.sprint ? 'běžíš' : 'jdeš') + (r.byShoulders ? ' (podle ramen)' : '') : '', sm.turn > 0 ? '↺ doleva' : sm.turn < 0 ? '↻ doprava' : '', r.attack ? 'útok' : '', r.use ? 'použít' : ''].filter(Boolean).join(' · ') || ({ knees: 'stojíš – šlapej na místě', lean: 'stojíš – nakloň se dopředu', hands: 'stojíš – mávej rukama jako při běhu' }[mode]));
 }
