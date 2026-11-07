@@ -4,14 +4,17 @@
 // Načítá se dynamicky (import()) až po zapnutí, takže nemá řádek v pořadí spouštění.
 import { toast } from '../ui/hud.js';
 import { calibrate, newState, readPose } from './body-gestures.js';
+import { lookSens } from '../game/prefs.js';
 import { input, keys, player } from './player.js';
 
 const LIB = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
-const TURN = 2.2, LOOK = 1.2; // rad/s při plném upažení / kývnutí
+const TURN = 1.6, LOOK = 0.8; // rad/s při upažení / kývnutí (hrubé ovládání: stálá klidná rychlost)
 
 let mode = null, video = null, stream = null, landmarker = null, box = null, canvas = null, status = null, raf = 0;
 let base = null, calib = [], calibUntil = 0, st = newState(), last = 0, joy = null, held = new Set();
+const sm = { forward: 0, strafe: 0, turn: 0, look: 0 }; // vyhlazené ovládání (body z kamery se třesou)
+const ease = (k, v, dt, rate) => { sm[k] += (v - sm[k]) * (1 - Math.exp(-dt * rate)); if (Math.abs(sm[k]) < 0.02 && !v) sm[k] = 0; return sm[k]; };
 
 /** Zapne / vypne ovládání tělem ('knees' = chůze na místě, 'lean' = náklon, null = vypnuto). */
 export async function setBodyMode(m) {
@@ -36,7 +39,7 @@ export async function setBodyMode(m) {
   }
 }
 /** Nová kalibrace: 3 s stát v klidu, rukama dolů. */
-export function recalibrate() { base = null; calib = []; calibUntil = performance.now() + 3000; st = newState(); }
+export function recalibrate() { base = null; calib = []; calibUntil = performance.now() + 3000; st = newState(); for (const k in sm) sm[k] = 0; }
 
 function stop() {
   cancelAnimationFrame(raf);
@@ -64,12 +67,19 @@ function ui(text) {
 }
 
 const BONES = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28]];
-function draw(L) {
+function draw(L, r) {
   const g = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
   g.save(); g.scale(-1, 1); g.drawImage(video, -w, 0, w, h); g.restore(); // zrcadlově, jako v zrcadle
   if (!L) return;
   g.strokeStyle = '#38e8ff'; g.lineWidth = 3;
   for (const [a, b] of BONES) { if ((L[a].visibility ?? 1) < 0.5 || (L[b].visibility ?? 1) < 0.5) continue; g.beginPath(); g.moveTo((1 - L[a].x) * w, L[a].y * h); g.lineTo((1 - L[b].x) * w, L[b].y * h); g.stroke(); }
+  if (!r) return;
+  // ukazatele: šipky otáčení (síla = délka), pruh chůze vpravo, ruce nahoře zlatě
+  g.fillStyle = '#ffd36a';
+  if (sm.turn) { const len = 20 + 50 * Math.abs(sm.turn), x0 = sm.turn > 0 ? 10 : w - 10, d = sm.turn > 0 ? 1 : -1; g.beginPath(); g.moveTo(x0, h / 2); g.lineTo(x0 + d * 14, h / 2 - 10); g.lineTo(x0 + d * 14, h / 2 + 10); g.fill(); g.fillRect(Math.min(x0 + d * 14, x0 + d * len), h / 2 - 3, len - 14, 6); }
+  g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(w - 10, 10, 6, h - 20);
+  g.fillStyle = r.sprint ? '#ff8a3a' : '#5cff8a'; const fh = (h - 20) * Math.abs(sm.forward); g.fillRect(w - 10, h - 10 - fh, 6, fh);
+  for (const [i, on] of [[16, r.attack], [15, r.use]]) if (on && L[i]) { g.fillStyle = '#ffd36a'; g.beginPath(); g.arc((1 - L[i].x) * w, L[i].y * h, 8, 0, 7); g.fill(); }
 }
 
 function loop(t) {
@@ -79,23 +89,25 @@ function loop(t) {
   last = now;
   const res = landmarker.detectForVideo(video, now);
   const L = res.landmarks?.[0] || null;
-  draw(L);
-  if (!L) { release(); ui('Nevidím tě – postav se před kameru'); return; }
+  if (!L) { draw(null); release(); ui('Nevidím tě – postav se před kameru'); return; }
   if (!base) { // kalibrace
+    draw(L);
     calib.push(L);
     ui(`Stůj rovně, ruce dolů… ${Math.max(0, Math.ceil((calibUntil - now) / 1000))}`);
     if (now >= calibUntil) { base = calibrate(calib); if (base) toast('Kalibrace hotová: šlapej na místě, upaž = otočit, ruka nahoru = útok'); else recalibrate(); }
     return;
   }
   const r = readPose(L, base, st, now / 1000, mode);
+  draw(L, r);
   if (!r.ok) { release(); ui(r.why); return; }
   // pohyb přes analogový joystick hry (stejně jako dotykové ovládání: input.joy)
-  joy = input.joy = r.forward || r.strafe ? { x: r.strafe, y: -r.forward } : null;
+  const fw = ease('forward', r.forward, dt, 5), sf = ease('strafe', r.strafe, dt, 5);
+  joy = input.joy = fw || sf ? { x: sf, y: -fw } : null;
   hold('ShiftLeft', r.sprint);
   if (r.jump) { hold('Space', true); setTimeout(() => hold('Space', false), 180); }
-  player.yaw += r.turn * TURN * dt;
-  player.pitch = Math.max(-1.5, Math.min(1.5, player.pitch + r.look * LOOK * dt));
+  player.yaw += ease('turn', r.turn, dt, 6) * TURN * lookSens * dt; // citlivost: Nastavení → Citlivost otáčení
+  player.pitch = Math.max(-1.5, Math.min(1.5, player.pitch + ease('look', r.look, dt, 6) * LOOK * lookSens * dt));
   input.lmb = r.attack;
   input.rmb = r.use;
-  ui(r.why || [r.forward ? (r.sprint ? 'běžíš' : 'jdeš') : '', r.turn > 0 ? '↺ doleva' : r.turn < 0 ? '↻ doprava' : '', r.attack ? 'útok' : '', r.use ? 'použít' : ''].filter(Boolean).join(' · ') || 'stojíš');
+  ui(r.why || [fw ? (r.sprint ? 'běžíš' : 'jdeš') + (r.byShoulders ? ' (podle ramen)' : '') : '', sm.turn > 0 ? '↺ doleva' : sm.turn < 0 ? '↻ doprava' : '', r.attack ? 'útok' : '', r.use ? 'použít' : ''].filter(Boolean).join(' · ') || (mode === 'knees' ? 'stojíš – šlapej na místě' : 'stojíš – nakloň se dopředu'));
 }
