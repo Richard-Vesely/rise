@@ -450,3 +450,10 @@ body.touch #netbox { z-index: 5; }
 #arenaScore td:nth-child(n+3), #arenaScore th:nth-child(n+3) { text-align: right; }
 #arenaScore tr.me td { color: var(--cyan); font-weight: 700; }
 body.touch #arenaScore { top: 46px; }
+
+/* ovládání tělem: okénko s kamerou a kostrou (client/src/player/body-control.js) */
+#bodyCam { position: fixed; left: 18px; bottom: 96px; z-index: 6; width: 200px; padding: 6px; background: var(--panel); border-radius: 6px; color: #eee; font-size: 12px; text-align: center; }
+#bodyCam canvas { display: block; width: 200px; height: 150px; border-radius: 4px; background: #000; }
+#bodyCam .bc-status { margin: 5px 0; min-height: 15px; color: var(--cyan); }
+#bodyCam button { pointer-events: auto; }
+body.touch #bodyCam { bottom: auto; top: 90px; }

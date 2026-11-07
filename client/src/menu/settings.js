@@ -8,6 +8,7 @@ const touchAuto = matchMedia('(pointer: coarse)').matches && navigator.maxTouchP
 const OPTS = {
   quality: [['', 'Automaticky'], ['low', 'Nízká'], ['medium', 'Střední'], ['high', 'Vysoká']],
   controls: [['', 'Automaticky'], ['touch', 'Dotykové'], ['mouse', 'Myš a klávesnice']],
+  body: [['', 'Vypnuto'], ['knees', 'Chůze na místě'], ['lean', 'Náklon']], // ovládání tělem přes webkameru (player/body-control.js)
 };
 let box = null;
 function open(opts = {}) {
@@ -22,6 +23,7 @@ function open(opts = {}) {
       <div class="mc-title">Nastavení</div>
       <div class="set-row"><div class="set-label">Grafika <small>(automaticky: ${autoQ})</small></div>${seg('quality')}</div>
       <div class="set-row"><div class="set-label">Ovládání <small>(automaticky: ${autoC})</small></div>${seg('controls')}</div>
+      <div class="set-row"><div class="set-label">Ovládání tělem (webkamera) <small>upaž = otočit, ruka nahoru = útok / použít; video zůstává v počítači</small></div>${seg('body')}</div>
       <div class="set-row"><div class="set-label">Velikost dotykových tlačítek <b>${Math.round((p.btnScale || 1) * 100)} %</b></div><input type="range" min="60" max="150" step="5" value="${Math.round((p.btnScale || 1) * 100)}" data-r="btnScale"></div>
       <div class="set-row"><div class="set-label">Citlivost otáčení <b>${Math.round((p.sens || 1) * 100)} %</b></div><input type="range" min="40" max="250" step="10" value="${Math.round((p.sens || 1) * 100)}" data-r="sens"></div>
       <div class="set-sound">${VOL_LABELS.map(([k, t]) => { const v = Math.round(readVolumes(p)[k] * 100); return `<div class="set-row"><div class="set-label">${t} <b>${v} %</b></div><input type="range" min="0" max="100" step="5" value="${v}" data-r="${k}"></div>`; }).join('')}</div>

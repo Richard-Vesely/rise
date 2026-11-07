@@ -13,7 +13,7 @@ import { materialAt } from '../audio/materials.js';
 import { Sound } from '../audio/sound.js';
 import { MP } from '../game/boot.js';
 import { game } from '../game/debug.js';
-import { TOUCH, lookSens } from '../game/prefs.js';
+import { TOUCH, lookSens, prefStr } from '../game/prefs.js';
 import { save } from '../game/save-load.js';
 import { toggleView } from '../net/avatars.js';
 import { openChat } from '../net/mp-ui.js';
@@ -292,3 +292,14 @@ export function updatePlayer(dt) {
   camera.rotation.set(player.pitch, player.yaw, 0);
   return moving;
 }
+
+// Ovládání tělem přes webkameru (Nastavení → Ovládání tělem): modul se načte, až když ho hráč zapne.
+let bodyMode = '';
+function applyBodyMode() {
+  const m = ['knees', 'lean'].includes(prefStr('body')) ? prefStr('body') : '';
+  if (m === bodyMode) return;
+  bodyMode = m;
+  import('./body-control.js').then((B) => B.setBodyMode(m || null));
+}
+applyBodyMode();
+addEventListener('rise-prefs', applyBodyMode);

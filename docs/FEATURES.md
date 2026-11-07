@@ -463,6 +463,13 @@ under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hum
 `volume.js` (slider values). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
 
 ## 12. Controls (summary)
+- **Body control with a webcam** (Settings → *Ovládání tělem*: *Chůze na místě* or *Náklon*): MediaPipe Pose (Google; the library
+  and the model are downloaded from the internet only when switched on) finds the body in the camera picture; the video stays in
+  the computer. Walk: march on the spot (speed by the pace, fast = run) or lean forward / back; lean to the side = step aside; arm
+  out to the left / right = turn (you keep facing the screen); a small nod = look up / down; right hand above the head = attack /
+  mine, left hand above the head = right button; a jump = jump. First 3 s standing still = calibration (button *Kalibrovat*).
+  A small window bottom left shows the camera, the skeleton and what it understood. Gestures: `client/src/player/body-gestures.js`
+  (unit test `tests/unit/body.test.mjs`), camera: `client/src/player/body-control.js`.
 WASD move · Shift run · Space jump · mouse look · left button mine/attack · right button place/use/eat ·
 E inventory · Q / G drop (Ctrl+Q / Shift+G stack) · middle button pick block · C creative · H help · T chat · 1–9 / wheel hotbar · F vehicle · L lights · B horn · V view (first person / behind / front; car camera in a vehicle) · O suit (*Můj oblek*) · Esc menu.
 Phones and tablets: joystick + buttons (*Těžit, Použít, Skok, Běh, Batoh, Výroba, Pohled…*), landscape only.
