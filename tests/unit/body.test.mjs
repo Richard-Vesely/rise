@@ -25,8 +25,15 @@ test('body control: arm out to the side turns, hands above the head attack / use
   assert.ok(readPose(stand({ [P.LWR]: [0.9, 0.33] }), base, newState(), 1).turn > 0.5, 'left arm out = turn left');
   assert.ok(readPose(stand({ [P.RWR]: [0.1, 0.33] }), base, newState(), 1).turn < -0.5, 'right arm out = turn right');
   assert.equal(readPose(stand({ [P.LWR]: [0.62, 0.45] }), base, newState(), 1).turn, 0, 'a hand slightly away from the body does not turn');
-  assert.ok(readPose(stand({ [P.RWR]: [0.42, 0.05] }), base, newState(), 1).attack, 'right hand above the head = attack');
-  assert.ok(readPose(stand({ [P.LWR]: [0.58, 0.05] }), base, newState(), 1).use, 'left hand above the head = right button');
+  const hold = (ch, t0 = 1) => { const st = newState(); readPose(stand(ch), base, st, t0); return [st, readPose(stand(ch), base, st, t0 + 0.22)]; };
+  assert.ok(hold({ [P.RWR]: [0.42, 0.05] })[1].attack, 'right hand above the head (held 0.2 s) = attack');
+  assert.ok(hold({ [P.LWR]: [0.58, 0.05] })[1].use, 'left hand above the head = right button');
+  assert.equal(readPose(stand({ [P.RWR]: [0.42, 0.05] }), base, newState(), 1).attack, false, 'a hand flashing up for one frame does not attack');
+  const [st] = hold({ [P.RWR]: [0.42, 0.05] });
+  assert.ok(readPose(stand(), base, st, 1.3).attack, 'a short drop-out keeps attacking (shaky camera)');
+  assert.equal(readPose(stand(), base, st, 1.7).attack, false, '…a longer one stops');
+  assert.equal(readPose(stand({ [P.LWR]: [0.72, 0.33] }), base, newState(), 1).turn, 0, 'a half arm-out does nothing (coarse control)');
+  assert.equal(readPose(stand({ [P.LWR]: [0.9, 0.33] }), base, newState(), 1).turn, 1, 'a clear arm-out turns at one steady speed');
 });
 
 test('body control: walking in place (alternating knees) walks, stopping stops', () => {
@@ -61,6 +68,32 @@ test('body control: says what it cannot see', () => {
   const r = readPose(stand({ [P.NOSE]: [0.5, 0.2] }).map((l, i) => (i === P.LSH ? { ...l, visibility: 0 } : l)), base, newState(), 1);
   assert.equal(r.ok, false);
   assert.match(r.why, /Nevidím/);
-  const noKnees = stand(); noKnees[P.LKNEE].visibility = 0;
-  assert.match(readPose(noKnees, base, newState(), 1, 'knees').why, /kolena/);
+});
+
+test('body control: a laptop camera that cannot see the knees walks by the shoulders bobbing', () => {
+  const st = newState();
+  let r;
+  for (let i = 0; i < 90; i++) { // 3 s pochodu na místě, 2 kroky za sekundu: ramena se houpou o 1,2 cm
+    const t = i / 30, dy = Math.sin(t * Math.PI * 4) * 0.012; // houpne se při každém kroku
+    const L = stand({ [P.LSH]: [0.58, 0.32 + dy], [P.RSH]: [0.42, 0.32 + dy], [P.NOSE]: [0.5, 0.2 + dy] });
+    for (const i2 of [P.LKNEE, P.RKNEE]) L[i2].visibility = 0;
+    r = readPose(L, base, st, t, 'knees');
+  }
+  assert.ok(r.forward > 0.5 && r.byShoulders, `walks by the shoulders (${r.forward})`);
+  const still = stand(); for (const i2 of [P.LKNEE, P.RKNEE]) still[i2].visibility = 0;
+  assert.equal(readPose(still, base, st, 5, 'knees').forward, 0, 'and stops');
+});
+
+test('body control: a shaky camera on a player standing still does not walk', () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 0.006; // ±3 mm šumu v obraze
+  const st = newState();
+  let walked = 0;
+  for (let i = 0; i < 150; i++) {
+    const L = stand({ [P.LSH]: [0.58 + rnd(), 0.32 + rnd()], [P.RSH]: [0.42 + rnd(), 0.32 + rnd()], [P.NOSE]: [0.5 + rnd(), 0.2 + rnd()], [P.LWR]: [0.6 + rnd(), 0.6 + rnd()], [P.RWR]: [0.4 + rnd(), 0.6 + rnd()] });
+    for (const k of [P.LKNEE, P.RKNEE]) L[k].visibility = 0;
+    const r = readPose(L, base, st, i / 30, 'knees');
+    if (r.forward || r.turn || r.attack || r.use || r.look || r.strafe) walked++;
+  }
+  assert.equal(walked, 0, 'nothing happens while standing still');
 });
