@@ -14,10 +14,12 @@
 //   ADMIN_PASSWORD  heslo stránky /admin se seznamem hráčů a resetem PINu (prázdné = stránka vypnutá)
 //   SILENT_SECONDS  po kolika sekundách ticha se spojení s hráčem zavře (výchozí 30; testy na pomalém stroji víc)
 //   OWNER_ID        id profilu vlastníka serveru (z players.json): jen on bere dary z pokladničky u sochy (prázdné = nikdo)
+//   ARMY_PHRASE     tajná věta vlastníka pro Markovu armádu (server/army-owner.js; prázdné = vypnuto). Nikdy ji nedávej do repozitáře.
 // Profily hráčů (přezdívka + PIN) jsou v DATA_DIR/players.json; správa z příkazové řádky: node server/admin.js
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './server.js';
+import { armyPhraseFrom } from './army-owner.js';
 import { ownerIdFrom } from './owner.js';
 import { parseWorlds } from './worlds.js';
 
@@ -40,6 +42,7 @@ const srv = await startServer({
   adminPassword: env.ADMIN_PASSWORD || '',
   silentMs: 1000 * Number(env.SILENT_SECONDS || 30),
   ownerId: ownerIdFrom(env.OWNER_ID),
+  armyPhrase: armyPhraseFrom(env.ARMY_PHRASE),
   log,
 });
 log(`Server Říše běží: http://localhost:${srv.port}/  (hráči se připojí na ws://<adresa>:${srv.port}/ws, světy: ${srv.worlds.join(', ')})`);

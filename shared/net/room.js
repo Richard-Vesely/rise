@@ -216,12 +216,13 @@ export function arenaDeath(P) {
   broadcast(['kill', killer, P.name]);
   broadcast(['score', scoreList()]);
 }
-// ---------- Markova armáda: příkaz v chatu od hráče Marek (sim/army.js); nikomu se nerozesílá, odpověď dostane jen on
-export function armyChat(pid, name, text) {
+// ---------- Markova armáda: příkaz v chatu od hráče Marek (sim/army.js); nikomu se nerozesílá, odpověď dostane jen on.
+// leader (jen server kroužku, server/army-owner.js): true = smí velet i když se nejmenuje Marek
+export function armyChat(pid, name, text, leader = undefined) {
   const me = playerOf(pid), pose = me?.pose;
   const players = [...(room.local ? [{ pid: 'host', name: NET.name }] : []), ...[...others.values()].map((P) => ({ pid: P.pid, name: P.name }))];
   return armyCommand(pid, text, {
-    name, pose, players, mobs,
+    name, pose, players, mobs, leader,
     spawn: (type, x, z) => { spawnMob(type, x, z); return mobs[mobs.length - 1]; },
     give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
     reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },

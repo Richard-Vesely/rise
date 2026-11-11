@@ -507,7 +507,7 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
   his backpack), `/rozpustit`, `/svet <name>` (club server only: Marek's browser leaves and joins that world by name or id),
   `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. Runs where the world is held (server or browser host); the soldiers are normal mobs
-  whose goal comes from `armyPlan`. On the club server the name is protected by the PIN. Code: `shared/sim/army.js`.
+  whose goal comes from `armyPlan`. On the club server the name is protected by the PIN, and the server owner (`OWNER_ID`) can command the army too. Code: `shared/sim/army.js`, owner part `server/army-owner.js`.
 - **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
   Two players can hurt each other only when both have them on (pose `pv`, checked by the host in `hitPlayer`). After a hit both
   the attacker and the one hit can't switch them off for 20 s (`['pvlock', 20]`, the badge counts down; the host keeps them in the

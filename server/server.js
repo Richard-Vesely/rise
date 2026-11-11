@@ -30,8 +30,9 @@ const WORKER = new URL('./world-worker.js', import.meta.url);
  * @param {string} [o.adminPassword] heslo stránky /admin (prázdné = stránka vypnutá)
  * @param {number} [o.silentMs] po jak dlouhém tichu se spojení zavře (výchozí 30 s)
  * @param {string} [o.ownerId] id profilu vlastníka serveru (jen on bere z pokladničky darů; '' = nikdo, server/owner.js)
+ * @param {string} [o.armyPhrase] věta vlastníka pro armádu, už upravená (server/army-owner.js; '' = vypnuto)
  */
-export async function startServer({ port = 8787, password = '', dataDir = null, staticDir = null, maxPlayers = 8, worlds, allowCreative = false, tickHz = 20, saveEveryMs = 30_000, adminPassword = '', silentMs = 30_000, ownerId = '', log = console.log } = {}) {
+export async function startServer({ port = 8787, password = '', dataDir = null, staticDir = null, maxPlayers = 8, worlds, allowCreative = false, tickHz = 20, saveEveryMs = 30_000, adminPassword = '', silentMs = 30_000, ownerId = '', armyPhrase = '', log = console.log } = {}) {
   worlds ||= [{ id: 'svet', name: 'Hlavní svět', creative: allowCreative, pvp: false, pvpMark: false }];
   if (dataDir) migrateOldLayout(dataDir, worlds[0].id, log);
   const profiles = createProfiles(profilesFile(dataDir), { log });
@@ -47,7 +48,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   // ---------- vlákna světů
   function startWorld(w) {
     return new Promise((ok, fail) => {
-      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs, ownerId, ownerName: nameOf(ownerId) || '', top: donations.top(undefined, nameOf) } });
+      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs, ownerId, ownerName: nameOf(ownerId) || '', armyPhrase, top: donations.top(undefined, nameOf) } });
       w.worker = worker;
       worker.on('message', (m) => {
         switch (m.t) {

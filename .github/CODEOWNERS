@@ -9,3 +9,4 @@
 /shared/world/statue.js         @Richard-Vesely
 /client/src/ui/donation-ui.js   @Richard-Vesely
 /tests/unit/donations.test.mjs  @Richard-Vesely
+/tests/unit/army-owner.test.mjs @Richard-Vesely
