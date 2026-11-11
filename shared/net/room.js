@@ -5,7 +5,8 @@
 // Spojení (conn) má tvar jako PeerJS DataConnection: { peer: id, open, metadata: { name }, send(zpráva), on('data'|'close'|'error', fn), close() }.
 import { dayCount, dayTime } from '../sim/day.js';
 import { claimGroundItem } from '../sim/ground-items.js';
-import { hurtMob, mobs } from '../sim/mobs.js';
+import { armyCommand } from '../sim/army.js';
+import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
 import { Vec3 } from '../vec3.js';
@@ -152,7 +153,7 @@ function onClientMsg(P, msg) {
       if (msg[1] === 'host') room.onGift(id, P.name); else if (others.has(msg[1])) sendTo(msg[1], ['gift', id, P.name]);
       break;
     }
-    case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
+    case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; if (text.startsWith('/') && armyChat(P.pid, P.name, text)) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
   }
 }
 // ---------- souboje hráčů (svět s volbou pvp, pvp-mark = oba v Markově dimenzi, nebo kdekoli oba se zapnutými souboji – klávesa N,
@@ -214,6 +215,17 @@ export function arenaDeath(P) {
   room.onLog(killer ? `aréna: ${killer} vyřadil ${P.name}` : `aréna: ${P.name} padl`);
   broadcast(['kill', killer, P.name]);
   broadcast(['score', scoreList()]);
+}
+// ---------- Markova armáda: příkaz v chatu od hráče Marek (sim/army.js); nikomu se nerozesílá, odpověď dostane jen on
+export function armyChat(pid, name, text) {
+  const me = playerOf(pid), pose = me?.pose;
+  const players = [...(room.local ? [{ pid: 'host', name: NET.name }] : []), ...[...others.values()].map((P) => ({ pid: P.pid, name: P.name }))];
+  return armyCommand(pid, text, {
+    name, pose, players, mobs,
+    spawn: (type, x, z) => { spawnMob(type, x, z); return mobs[mobs.length - 1]; },
+    give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
+    reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },
+  });
 }
 export function setPerm(P, on) {
   P.perm = on;

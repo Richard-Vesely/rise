@@ -1,7 +1,7 @@
 // Chat, menu Esc se seznamem hráčů, informační okénko.
 import './avatars.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import { NET } from '../../../shared/net/net.js';
-import { broadcast, kick, others, setPerm } from '../../../shared/net/room.js';
+import { broadcast, kick, others, setPerm, armyChat } from '../../../shared/net/room.js';
 import { BOOT } from '../game/boot.js';
 import { saveGame } from '../game/save.js';
 import { lockPointer, unlockPointer } from '../player/player.js';
@@ -45,6 +45,7 @@ function closeChat(relock = true) {
 function sendChat(text) {
   text = text.trim().slice(0, 200);
   if (!text) return;
+  if (NET.host && text.startsWith('/') && armyChat('host', NET.name, text)) return; // příkaz armády (jen hostitel jménem Marek)
   chatLine(NET.name, text);
   if (NET.host) broadcast(['chat', NET.name, text]); else toHost(['chat', text]);
 }

@@ -498,6 +498,12 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
 *Kód:* `client/src/pc/` (computer, Tanks, editor, printer window, papers in the world, reading), printing `shared/sim/power.js`, document items `shared/world/papers.js`.
 
 ## 10. Multiplayer
+- **Marek's army** (secret in the game: not in the guide, no message to anyone else; for the lektor): the player named
+  *Marek* commands an army in every dimension with chat commands that are not sent to anyone (the answers go only to him):
+  `/armada [n]` (n Markomen, max. 20, plus a crystal golem per 4, max. 4; never attacks Marek), `/utok <player>`, `/stop`,
+  `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
+  his backpack), `/rozpustit`, `/pomoc`. Runs where the world is held (server or browser host); the soldiers are normal mobs
+  whose goal comes from `armyPlan`. On the club server the name is protected by the PIN. Code: `shared/sim/army.js`.
 - **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
   Two players can hurt each other only when both have them on (pose `pv`, checked by the host in `hitPlayer`). After a hit both
   the attacker and the one hit can't switch them off for 20 s (`['pvlock', 20]`, the badge counts down; the host keeps them in the

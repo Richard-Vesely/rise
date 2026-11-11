@@ -316,3 +316,36 @@ test('fights by choice (key N): only between two players who both switched them 
     for (const p of [a, b]) await p.close();
   } finally { await stop(srv); }
 });
+
+test('Marek\'s army: chat commands only from the player Marek, secret from the others; attack, mine, palace', { timeout: 90000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-army-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const mk = player(srv.port, 'Marek', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [mk, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const { terrainH } = await import('../../shared/world/terrain.js');
+    const at = (x, z) => ({ ...pose(x, z), y: terrainH(x, z) }); // na zemi (tvorové útočí jen ve stejné výšce)
+    mk.send(['pose', at(60, 60)]); b.send(['pose', at(75, 60)]);
+    await sleep(400);
+    const army = (p) => { const m = p.msgs.filter((x) => x[0] === 'mobs').at(-1); return m ? m[3].filter((q) => q[1] === 'markoman' || q[1] === 'golem') : []; };
+    b.send(['chat', '/armada 8']);
+    await sleep(800);
+    assert.equal(army(b).length, 0, 'someone else cannot call the army');
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[2] === '/armada 8'), '…their message is just normal chat');
+    mk.send(['chat', '/armada 8']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[1] === '⚔ Armáda' && /svolána/.test(m[2])), 'Marek gets the answer');
+    assert.ok(await mk.waitFor(() => army(mk).length >= 10), `8 Markomen and 2 golems appear (${army(mk).length})`);
+    await sleep(500);
+    assert.ok(!b.msgs.some((m) => m[0] === 'chat' && (m[1] === 'Marek' && m[2].startsWith('/') || m[1] === '⚔ Armáda')), 'the others never see the commands or answers');
+    mk.send(['chat', '/útok bára']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Útok na Bára/.test(m[2])));
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg', 20000), 'the army reaches Bára and attacks her');
+    mk.send(['chat', '/stop']);
+    mk.send(['chat', '/tezit']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'give', 10000), 'mining sends Marek what the army digs out');
+    mk.send(['chat', '/palac']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'm' && o[1] === 'blocks' && ['quartz_block', 'obsidian', 'bricks'].includes(o[3])), 10000), 'the palace grows block by block');
+    mk.send(['chat', '/rozpustit']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /rozpuštěna/.test(m[2])));
+    for (const p of [mk, b]) await p.close();
+  } finally { await stop(srv); }
+});
