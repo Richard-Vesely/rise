@@ -269,6 +269,42 @@ try {
     return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
   });
   check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
+  r = await ev(async () => { // smrt: batoh a brnění vypadnou na zem tam, kde hráč padl
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.give('apple', 5); g.armor[0] = { id: 'iron_helmet', n: 1 };
+    g.mobs.length = 0; T.tpg(-70, 30); T.step(5);
+    const at = g.player.pos.clone(), before = g.groundItems.length;
+    g.player.hp = 5; g.damagePlayer(50, 0, 0);
+    const near = g.groundItems.filter((it) => it.pos.distanceTo(at) < 4).map((it) => it.id).sort();
+    const empty = g.inv.slots.every((x) => !x) && !g.armor[0];
+    await new Promise((ok) => setTimeout(ok, 3000));
+    return { near, empty, added: g.groundItems.length - before, alive: g.player.alive, home: g.player.pos.distanceTo(at) > 20 };
+  });
+  check('death: the backpack and armor fall to the ground where you died, you come back home without them', r.empty && ['apple', 'iron_helmet', 'iron_sword'].every((id) => r.near.includes(id)) && r.alive && r.home, JSON.stringify(r));
+  r = await ev(async () => { // XP a kouzla: nová úroveň nabídne kouzla, Magická střela zraní kance, poražený kanec dá XP
+    const g = window.game; T.clearInv(); T.give('wand', 1); T.hold('wand');
+    g.mobs.length = 0; T.tpg(-60, 30); T.step(5);
+    const xp0 = g.magic.xp;
+    g.addXp(20);
+    await new Promise((ok) => setTimeout(ok, 800));
+    const cards = [...document.querySelectorAll('#spellWin [data-pick]')].map((b) => b.dataset.pick);
+    document.querySelector('#spellWin [data-pick=\"bolt\"]')?.click();
+    const learned = [...g.magic.learned], sel = g.magic.sel;
+    const p = g.player.pos;
+    g.spawnMob('boar', p.x, p.z - 7);
+    const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp, mana0 = g.magic.mana;
+    T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z);
+    g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false;
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const hp1 = m.hp, mana1 = g.magic.mana;
+    const xpBefore = g.magic.xp;
+    g.player.hp = 100;
+    for (let k = 0; k < 4 && !m.dead; k++) { g.magic.cd = {}; g.magic.mana = 100; T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; for (let i = 0; i < 40; i++) T.step(1, 0.016); }
+    T.step(2);
+    return { cards, learned, sel, hp0, hp1, mana0, mana1, dead: m.dead, xpGain: g.magic.xp - xpBefore, levelUp: g.magic.xp - xp0, bar: document.querySelector('#xpBars .spell')?.textContent };
+  });
+  check('magic: a new level offers 3 spells, picking one learns it', r.cards.length === 3 && r.cards.includes('bolt') && r.learned.includes('bolt') && r.sel === 'bolt', JSON.stringify(r));
+  check('magic: the wand casts the magic bolt: the boar takes 6, the mana goes down (8, it refills while the bolt flies)', r.hp0 - r.hp1 === 6 && r.mana0 - r.mana1 >= 4 && /Magická střela/.test(r.bar || ''), JSON.stringify(r));
+  check('magic: a boar knocked out by spells gives XP', r.dead && r.xpGain === 4, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);

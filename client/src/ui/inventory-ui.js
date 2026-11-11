@@ -30,6 +30,8 @@ import { tooltipHTML } from './item-tooltip.js';
 import { iconImg, paintHotbar, slotHTML, slotInner } from './slots.js';
 import { clearBookSearch, filterBook, installBookSearch } from './book-search.js';
 import { afterRender, installInvTricks, previewGhost, previewRecipe, slotDown, sortContainer } from './inv-tricks.js';
+import { XP_COOK, XP_CRAFT } from '../../../shared/data/magic.js';
+import { addXp } from '../player/xp.js';
 export { iconImg, slotHTML };
 
 // ============================================================ HUD – inventář, výroba, táborák (styl Minecraft)
@@ -251,6 +253,7 @@ export function slotClick(c, i, button, shift) {
   if ((c === 'fire' && i === 1) || c === 'kitchen' || (c === 'furnace' && i === 2) || (c === 'power' && i >= 1)) { // výstup táboráku, pece a sporáku se jen vybírá
     if (c === 'kitchen') i = 0;
     if (!s) return;
+    if (c !== 'power') addXp(XP_COOK); // XP za uvařené / upečené / roztavené
     if (shift) { arr[i] = null; const left = insertInto(s, 0, 36); if (left) arr[i] = { ...s, n: left }; }
     else if (!inv.cursor) { inv.cursor = s; arr[i] = null; }
     else if (inv.cursor.id === s.id) { const k = Math.min(ITEMS[s.id].stack - inv.cursor.n, s.n); inv.cursor.n += k; if (!(s.n -= k)) arr[i] = null; }
@@ -315,6 +318,7 @@ export function takeResult(shift) {
     made++;
   } while (shift && made < 64 && currentResult() === r);
   if (made) { if (r.repair) toolSound('repair'); else Sound.craft(); }
+  if (made && !r.repair) addXp(XP_CRAFT); // XP za výrobu (jednou za výrobu)
   if (made) track('item_crafted', { kind: r.repair ? 'repair' : 'craft', amount: countBucket(r.n * made) });
   if (shift && made) feed(r.out, `+${made * r.n} ${ITEMS[r.out].name}`);
   if (shift && currentResult() === r && made < 64) toast('Batoh je plný');

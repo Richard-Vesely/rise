@@ -1,7 +1,7 @@
 // Chat, menu Esc se seznamem hráčů, informační okénko.
 import './avatars.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import { NET } from '../../../shared/net/net.js';
-import { broadcast, kick, others, setPerm } from '../../../shared/net/room.js';
+import { broadcast, kick, others, setPerm, armyChat } from '../../../shared/net/room.js';
 import { BOOT } from '../game/boot.js';
 import { saveGame } from '../game/save.js';
 import { lockPointer, unlockPointer } from '../player/player.js';
@@ -45,6 +45,7 @@ function closeChat(relock = true) {
 function sendChat(text) {
   text = text.trim().slice(0, 200);
   if (!text) return;
+  if (NET.host && text.startsWith('/') && armyChat('host', NET.name, text)) return; // příkaz armády (jen hostitel jménem Marek)
   chatLine(NET.name, text);
   if (NET.host) broadcast(['chat', NET.name, text]); else toHost(['chat', text]);
 }
@@ -99,6 +100,43 @@ export function renderNetBox() {
   if (netBox.innerHTML !== html) netBox.innerHTML = html;
 }
 netBox.addEventListener('click', (e) => { const b = e.target.closest('[data-copy]'); if (b) copyCode(b); });
+
+// Server kroužku se restartuje (automatická aktualizace na novou verzi hry): přišlo ['restart'].
+// Batoh se hned pošle na server; až se spojení zavře, hra počká, až nový server běží, načte se znovu
+// (už v nové verzi) a menu se samo připojí zpátky do stejného světa (sessionStorage rise-znovu).
+let restartAt = 0;
+export function serverRestarting() {
+  if (restartAt) return;
+  restartAt = Date.now();
+  saveGame();
+  sysLine('Server se aktualizuje na novou verzi hry. Za chvíli tě připojím zpátky.');
+}
+export const restarting = () => !!restartAt;
+export async function rejoinAfterRestart() {
+  if (NET.leaving) return;
+  NET.leaving = true;
+  unlockPointer();
+  const note = document.createElement('div');
+  note.textContent = 'Nová verze hry · server se restartuje, za chvíli tě připojím zpátky…';
+  note.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;background:#000b;color:#fff;font:600 20px system-ui,sans-serif';
+  document.body.append(note);
+  // nový server poznáme podle toho, že běží kratší dobu, než uplynulo od zprávy ['restart'] (starý ještě chvíli ukládá)
+  const health = new URL(NET.code.replace(/^ws/i, 'http'));
+  health.pathname = health.pathname.replace(/\/?ws$/, '') + '/health';
+  for (let i = 0; i < 60; i++) { // nejvýš asi 2 minuty
+    await new Promise((ok) => setTimeout(ok, 2000));
+    try {
+      const h = await (await fetch(health.href, { cache: 'no-store' })).json();
+      if (h?.ok && h.uptime <= (Date.now() - restartAt) / 1000) {
+        try { sessionStorage.setItem('rise-znovu', JSON.stringify({ url: NET.code, world: BOOT.welcome?.worldInfo?.id || '' })); } catch {}
+        location.reload();
+        return;
+      }
+    } catch {}
+  }
+  try { sessionStorage.setItem('rise-menu-msg', 'Server se po aktualizaci zatím nevrátil. Zkus to za chvíli znovu.'); } catch {}
+  location.reload();
+}
 
 export function leaveGame(msg) {
   if (NET.leaving) return;

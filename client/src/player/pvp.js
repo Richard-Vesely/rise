@@ -1,5 +1,5 @@
-// Souboje hráčů na straně hráče (jen ve světě s volbou pvp, NET.pvp, nebo pvp-mark, NET.pvpMark = jen když jsme
-// oba v Markově dimenzi): kde jsou ostatní hráči (zaměření mečem, zásah šípem) a poslání zásahu hostiteli. Jestli zásah platí, rozhoduje hostitel (hitPlayer v shared/net/room.js).
+// Souboje hráčů na straně hráče (ve světě s volbou pvp, NET.pvp, nebo pvp-mark, NET.pvpMark = jen když jsme oba
+// v Markově dimenzi, nebo kdekoli s hráči, kteří mají jako my zapnuté souboje klávesou N – NET.pvpOn, pose.pv): kde jsou ostatní hráči (zaměření mečem, zásah šípem) a poslání zásahu hostiteli. Jestli zásah platí, rozhoduje hostitel (hitPlayer v shared/net/room.js).
 // Bez vedlejších účinků při načtení.
 import { NET } from '../../../shared/net/net.js';
 import { hitPlayer as hostHit, others } from '../../../shared/net/room.js';
@@ -7,6 +7,7 @@ import { isMark } from '../../../shared/world/terrain.js';
 import { toolSound } from '../audio/tool-sounds.js';
 import { emitChips } from '../render/chips.js';
 import { sparks } from '../render/particles.js';
+import { toast } from '../ui/hud.js';
 import { player } from './player.js';
 
 // Tělo hráče = dvě koule (nohy a trup s hlavou) nad místem, kde stojí.
@@ -15,11 +16,14 @@ const hurtAt = new Map(); // pid -> kdy jsme ho naposledy zasáhli (ať se nepos
 
 /** Ostatní hráči, do kterých se dá v tomhle světě bojovat: { pid, name, x, y, z }. */
 export function pvpPlayers() {
-  if (!NET.pvp && !(NET.pvpMark && isMark(player.pos.x))) return [];
+  const world = NET.pvp || (NET.pvpMark && isMark(player.pos.x));
+  if (!world && !NET.pvpOn) return [];
   const list = [];
   for (const P of others.values()) {
     const q = P.pose;
-    if (!q || q.alive === false || q.cr || q.veh || (NET.pvpMark && !isMark(q.x))) continue;
+    if (!q || q.alive === false || q.cr || q.veh) continue;
+    const ok = NET.pvp || (NET.pvpMark && isMark(player.pos.x) && isMark(q.x)) || (NET.pvpOn && q.pv);
+    if (!ok) continue;
     list.push({ pid: P.pid, name: P.name, x: q.x, y: q.y, z: q.z });
   }
   return list;
@@ -33,6 +37,36 @@ export function rayPlayer(sphere) {
     if (t < bt) { bt = t; best = p; }
   }
   return best && { player: best, t: bt };
+}
+
+// ---------- souboje na klávesu N (ve hře pro víc hráčů): zapnout / vypnout; po zásahu 20 s vypnout nejdou
+let lockUntil = 0, badge = null, timer = 0;
+/** Hostitel hlásí souboj (zasáhl jsem nebo mě zasáhli): souboje nejdou s sekund vypnout. */
+export function pvLock(s) {
+  lockUntil = performance.now() / 1000 + (Number(s) || 0);
+  if (!NET.pvpOn) NET.pvpOn = true;
+  showBadge();
+}
+/** Klávesa N: přepne souboje. */
+export function togglePvp() {
+  const left = Math.ceil(lockUntil - performance.now() / 1000);
+  if (NET.pvpOn && left > 0) { toast(`⚔ Jsi v souboji – vypnout jde za ${left} s`); return; }
+  NET.pvpOn = !NET.pvpOn;
+  toast(NET.pvpOn ? '⚔ Souboje zapnuté: bojuješ s hráči, kteří je mají taky zapnuté (N = vypnout)' : 'Souboje vypnuté');
+  showBadge();
+}
+function showBadge() {
+  if (!badge) { badge = document.createElement('div'); badge.id = 'pvpBadge'; document.body.append(badge); }
+  clearInterval(timer);
+  const draw = () => {
+    const left = Math.ceil(lockUntil - performance.now() / 1000);
+    badge.style.display = NET.pvpOn ? '' : 'none';
+    badge.textContent = left > 0 ? `⚔ Souboj · ${left} s` : '⚔ Souboje zapnuté (N)';
+    badge.classList.toggle('lock', left > 0);
+    if (!NET.pvpOn || left <= 0) clearInterval(timer);
+  };
+  draw();
+  if (NET.pvpOn && lockUntil > performance.now() / 1000) timer = setInterval(draw, 250);
 }
 
 /** Hráč, kterého protne úsečka a→b (šíp za jeden krok letu). */
