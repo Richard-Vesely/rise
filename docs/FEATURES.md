@@ -62,6 +62,11 @@ When you add or change a feature, update this file in the same pull request.
 *Kód:* `index.html` (menu, Návod text), `client/src/menu/menu.js`, `client/src/menu/settings.js`, costume picker `client/src/menu/costume.js` (data and checks `shared/data/costumes.js`), tips in `client/src/ui/hud.js`.
 
 ## 2. World
+- **Oceans** (only in worlds created with this version; the save keeps `oceans: true`, old worlds keep their terrain): more than
+  520 m from the home shrine there are big seas (slow waves about 1.5 km long) with sandy beaches, a sea floor about 9 m deep and
+  islands. The sea surface uses the pond water (ripples, sky reflection, colour by depth, foam at the shore); you can swim and dive
+  in it. No grass, trees, boulders or animals in the sea or on the beach. Code: `oceanK`, `beachK`, `WORLD_GEN` in
+  `shared/world/terrain.js` and their GLSL twins (uniform `uOceans`) in `client/src/render/glsl.js`, the surface `client/src/render/ocean.js`.
 - **Endless terrain** with smooth hills and a **voxel underground** (1 m blocks down to bedrock at y = −48).
   The world is the same for everyone (no seed): it is computed from coordinates.
 - **Biomes** (name shown next to the clock): meadow and forest, cherry grove, jungle, savanna, desert, tundra,
@@ -98,6 +103,11 @@ When you add or change a feature, update this file in the same pull request.
 - **Light shards** (*Úlomky světla*): glowing crystals with a light beam, scattered far apart. Walk into one to collect it.
 - **Shrine** (*Svatyně*) at the start. Bring **3 shards** and right-click the portal to wake it (*Svatyně se probudila!*).
   The portal leads to the **Mark dimension** (*Markova dimenze*): purple sky, markwood, markorite, markomen, golems.
+- **Země draka**: a second, always-open amber portal 16 m east of the home shrine. It leads to a rocky western
+  dimension (x < −20000, return portal at −40000, 0), with warm fog and a torch-marked path to a large basalt cave
+  72 m north of the return portal. Walk through the return portal to go home; dying here revives you by that portal.
+  The original Mark portal still works independently. The cave uses ordinary saved blocks; no new save format.
+  Code: `shared/world/dragon-land.js`, `dragon-den.js`, terrain + GLSL twin, `client/src/world/dragon-portal.js`, `shrine.js`.
 - **Structures** with chests and loot: ruins, Markoman fortress, watchtower, abandoned camp, dungeon (underground,
   with a spawner), desert pyramid, jungle temple, igloo, cherry pavilion, savanna hut, mushroom house, obsidian altar.
   The compass shows the nearest unexplored one.
@@ -324,6 +334,13 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Stínožrout (shadow-eater) | 10 | night monster, burns at sunrise, avoids light and the shrine; violet veins and a moonlit rim show its outline at night |
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
+| Drak Země draka | 300 | guards the dragon cave; bites for 65 before armor, with 0.35 s warning and 1.15 s between attacks; flies after players at 8.5 m/s up to 140 m from the cave and does not despawn when far away |
+
+The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
+It does not attack creative players or bite through walls. Defeating it awards 8 light shards, 6 gold ingots and
+3 markorite, and marks its cave cleared in the existing `ruinsOpened` set: it stays defeated after saving and reloading.
+Leaving an undefeated dragon and returning can restore its health, as for other monsters.
+Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`.
 
 Monsters stay away from the shrine; light blocks keep shadow-eaters away.
 
@@ -484,6 +501,12 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   sword 15, full arrow 25 of 100 hp; armor protects as against mobs). The host checks every hit: reach 7 m (arrows 90 m),
   0.45 s invulnerability after a hit, no hits on or by dead players or players in creative mode. Other worlds have no fights.
   *Kód:* rules `hitPlayer` in `shared/net/room.js`, the player's side `client/src/player/pvp.js`.
+- **Fights only in Markova dimenze** (a world with the `:pvp-mark` option, e.g. `svet:Hlavní svět:pvp-mark`): the same fights,
+  but only when both players are in Markova dimenze (behind the portal, `isMark(x)`); everywhere else the other player is no
+  target and the host ignores the hit. It stays a normal world: no arena, no kit, your own backpack, normal respawn at the
+  shrine, no score table. A knock-out by a player still gets the feed line (*⚔ Ája vyřadil(a) hráče Bára*); a death without a
+  player hit is not announced. The world button says *Přežij a stav spolu, v Markově dimenzi se bojuje*.
+  *Kód:* the same files; the check is in `hitPlayer` (host) and `pvpPlayers` (player).
 - **Arena** (every `:pvp` world): the server builds it once when the world starts, 40 m west of the shrine: a round brick floor
   (radius 13) with a 4-block wall, 8 cover pillars and torches; trees and boulders inside are gone. Joining and every respawn
   put you on a free spot in the arena with the kit (iron sword, bow, 32 arrows, 32 planks, 8 meat, full iron armor) and full

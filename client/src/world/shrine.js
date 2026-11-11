@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import { NET } from '../../../shared/net/net.js';
 import { mobs, removeMob } from '../../../shared/sim/mobs.js';
 import { portalActive, setPortalActive } from '../../../shared/world/state.js';
-import { SHRINES, shrineOf } from '../../../shared/world/terrain.js';
+import { SHRINES } from '../../../shared/world/terrain.js';
+import { DRAGON_HOME, DRAGON_SHRINE } from '../../../shared/world/dragon-land.js';
+import { buildDragonPortal } from './dragon-portal.js';
 import { Sound } from '../audio/sound.js';
 import { MP } from '../game/boot.js';
 import { countItem, removeItem } from '../player/inventory.js';
@@ -89,9 +91,11 @@ function buildShrine(shrine) {
   shrine.open = 0;
 }
 SHRINES.forEach(buildShrine);
-export const shrineActive = (s) => s.mark || portalActive;
+for (const s of [DRAGON_HOME, DRAGON_SHRINE]) buildDragonPortal(s, scene, stoneTex, portalShader, shrineColliders);
+export const portals = [...SHRINES, DRAGON_HOME, DRAGON_SHRINE];
+export const shrineActive = (s) => s.dragon || s.mark || portalActive;
 export function updatePortals(dt) {
-  for (const s of SHRINES) {
+  for (const s of portals) {
     const want = shrineActive(s) ? 1 : 0;
     s.open += (want - s.open) * Math.min(1, dt * 0.8);
     s.surface.material.uniforms.uOpen.value = s.open;
@@ -100,7 +104,7 @@ export function updatePortals(dt) {
     s.sockets.forEach((m) => (m.material.emissiveIntensity = shrineActive(s) ? 3 : 0));
     if (s.open > 0.5 && Math.random() < dt * 25) {
       const a = Math.random() * Math.PI * 2;
-      sparks.emit(s.x + Math.cos(a) * 2.4, 3.05 + Math.sin(a) * 2.4, s.z, s.mark ? [1, 0.5, 1] : [0.6, 0.6, 1], 1, 0.6, 0.5);
+      sparks.emit(s.x + Math.cos(a) * 2.4, 3.05 + Math.sin(a) * 2.4, s.z, s.dragon ? [1, 0.55, 0.15] : s.mark ? [1, 0.5, 1] : [0.6, 0.6, 1], 1, 0.6, 0.5);
     }
   }
 }
@@ -120,11 +124,13 @@ export function usePortal(s) {
 let portalCd = 0;
 export function checkPortal(dt) {
   if ((portalCd -= dt) > 0) return;
-  const p = player.pos, s = shrineOf(p.x);
-  if (s.open < 0.8 || Math.abs(p.x - s.x) > 1.7 || Math.abs(p.z - s.z) > 0.6 || p.y > 4) return;
-  const to = SHRINES[s.mark ? 0 : 1];
-  teleport(to.x, to.z + 3.5);
-  toast(to.mark ? 'Markova dimenze' : 'Zpět doma');
+  const p = player.pos;
+  const s = portals.find((s) => s.open >= 0.8 && Math.abs(p.x - s.x) <= 1.7 && Math.abs(p.z - s.z) <= 0.6 && p.y >= -1 && p.y <= 4);
+  if (!s) return;
+  const to = s.dragon ? (s.returnHome ? DRAGON_HOME : DRAGON_SHRINE) : SHRINES[s.mark ? 0 : 1];
+  teleport(to.x, to.z + (to === DRAGON_SHRINE ? -3.5 : 3.5));
+  if (to === DRAGON_SHRINE) player.yaw = 0; // pohled k osvětlené cestě do jeskyně
+  toast(s.dragon ? (s.returnHome ? 'Zpět doma' : 'Země draka — jeskyně leží před tebou. Připrav si zbroj!') : to.mark ? 'Markova dimenze' : 'Zpět doma');
 }
 export function teleport(x, z) {
   portalCd = 3;

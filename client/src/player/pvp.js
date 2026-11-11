@@ -1,11 +1,13 @@
-// Souboje hráčů na straně hráče (jen ve světě s volbou pvp, NET.pvp): kde jsou ostatní hráči (zaměření mečem,
-// zásah šípem) a poslání zásahu hostiteli. Jestli zásah platí, rozhoduje hostitel (hitPlayer v shared/net/room.js).
+// Souboje hráčů na straně hráče (jen ve světě s volbou pvp, NET.pvp, nebo pvp-mark, NET.pvpMark = jen když jsme
+// oba v Markově dimenzi): kde jsou ostatní hráči (zaměření mečem, zásah šípem) a poslání zásahu hostiteli. Jestli zásah platí, rozhoduje hostitel (hitPlayer v shared/net/room.js).
 // Bez vedlejších účinků při načtení.
 import { NET } from '../../../shared/net/net.js';
 import { hitPlayer as hostHit, others } from '../../../shared/net/room.js';
+import { isMark } from '../../../shared/world/terrain.js';
 import { toolSound } from '../audio/tool-sounds.js';
 import { emitChips } from '../render/chips.js';
 import { sparks } from '../render/particles.js';
+import { player } from './player.js';
 
 // Tělo hráče = dvě koule (nohy a trup s hlavou) nad místem, kde stojí.
 const BODY = [[0.55, 0.42], [1.3, 0.42]];
@@ -13,11 +15,11 @@ const hurtAt = new Map(); // pid -> kdy jsme ho naposledy zasáhli (ať se nepos
 
 /** Ostatní hráči, do kterých se dá v tomhle světě bojovat: { pid, name, x, y, z }. */
 export function pvpPlayers() {
-  if (!NET.pvp) return [];
+  if (!NET.pvp && !(NET.pvpMark && isMark(player.pos.x))) return [];
   const list = [];
   for (const P of others.values()) {
     const q = P.pose;
-    if (!q || q.alive === false || q.cr || q.veh) continue;
+    if (!q || q.alive === false || q.cr || q.veh || (NET.pvpMark && !isMark(q.x))) continue;
     list.push({ pid: P.pid, name: P.name, x: q.x, y: q.y, z: q.z });
   }
   return list;

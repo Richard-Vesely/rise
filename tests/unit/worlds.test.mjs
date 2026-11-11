@@ -15,16 +15,18 @@ const has = (p, fn) => p.msgs.some(fn);
 const blockOp = (k) => (m) => m[0] === 'ops' && m[1].some((o) => o[2] === k);
 
 test('WORLDS: parsing and defaults', () => {
-  assert.deepEqual(parseWorlds(undefined, false), [{ id: 'svet', name: 'Hlavní svět', creative: false, pvp: false }]);
-  assert.deepEqual(parseWorlds('', true), [{ id: 'svet', name: 'Hlavní svět', creative: true, pvp: false }]);
+  assert.deepEqual(parseWorlds(undefined, false), [{ id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, pvpMark: false }]);
+  assert.deepEqual(parseWorlds('', true), [{ id: 'svet', name: 'Hlavní svět', creative: true, pvp: false, pvpMark: false }]);
   assert.deepEqual(parseWorlds(`"${WORLDS}"`), parseWorlds(WORLDS), 'quotes around the whole value are fine');
-  assert.deepEqual(parseWorlds(WORLDS), [{ id: 'svet', name: 'Hlavní svět', creative: false, pvp: false }, { id: 'kreativ', name: 'Kreativní svět', creative: true, pvp: false }]);
-  assert.deepEqual(parseWorlds(' Les : Velký les , hory'), [{ id: 'les', name: 'Velký les', creative: false, pvp: false }, { id: 'hory', name: 'hory', creative: false, pvp: false }]);
+  assert.deepEqual(parseWorlds(WORLDS), [{ id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, pvpMark: false }, { id: 'kreativ', name: 'Kreativní svět', creative: true, pvp: false, pvpMark: false }]);
+  assert.deepEqual(parseWorlds(' Les : Velký les , hory'), [{ id: 'les', name: 'Velký les', creative: false, pvp: false, pvpMark: false }, { id: 'hory', name: 'hory', creative: false, pvp: false, pvpMark: false }]);
   assert.throws(() => parseWorlds('a:A,a:B'), /dvakrát/);
   assert.throws(() => parseWorlds('../x:X'), /neplatné id/);
   assert.throws(() => parseWorlds('backups:Zálohy'), /neplatné id/);
   assert.throws(() => parseWorlds('a:A:nevim'), /neznámá volba/);
-  assert.deepEqual(parseWorlds('arena:Aréna:pvp,k:K:creative:PVP'), [{ id: 'arena', name: 'Aréna', creative: false, pvp: true }, { id: 'k', name: 'K', creative: true, pvp: true }]);
+  assert.deepEqual(parseWorlds('svet:Hlavní svět:pvp-mark'), [{ id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, pvpMark: true }]);
+  assert.throws(() => parseWorlds('a:A:pvp:pvp-mark'), /vyber jedno/);
+  assert.deepEqual(parseWorlds('arena:Aréna:pvp,k:K:creative:PVP'), [{ id: 'arena', name: 'Aréna', creative: false, pvp: true, pvpMark: false }, { id: 'k', name: 'K', creative: true, pvp: true, pvpMark: false }]);
 });
 
 test('old single-world data moves into the first world (only when it has no data yet)', () => {
@@ -51,8 +53,8 @@ test('two worlds: list, choice, isolation, creative, limits, save and restart', 
   try {
     const list = await getJSON(srv.port, '/worlds');
     assert.deepEqual(list, [
-      { id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, players: 0, max: 2 },
-      { id: 'kreativ', name: 'Kreativní svět', creative: true, pvp: false, players: 0, max: 2 },
+      { id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, pvpMark: false, players: 0, max: 2 },
+      { id: 'kreativ', name: 'Kreativní svět', creative: true, pvp: false, pvpMark: false, players: 0, max: 2 },
     ]);
 
     // a new client without a world gets the list (after the password), then says hello again on the same connection
@@ -65,7 +67,7 @@ test('two worlds: list, choice, isolation, creative, limits, save and restart', 
     assert.equal(a.welcome, null, 'and does not join yet');
     a.send(['hello', { name: 'Ája', pass: 'tajne', pin: '1234', v: 2, world: 'svet' }]);
     assert.ok(await a.waitFor((m) => m[0] === 'welcome'), 'Ája joins after choosing');
-    assert.deepEqual(a.welcome.worldInfo, { id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, first: true });
+    assert.deepEqual(a.welcome.worldInfo, { id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, pvpMark: false, first: true });
     assert.equal(a.welcome.perm, false, 'no creative in the survival world');
 
     const lost = player(srv.port, 'Ztracený', 'tajne', { v: 2, world: 'neexistuje' });
@@ -76,7 +78,7 @@ test('two worlds: list, choice, isolation, creative, limits, save and restart', 
 
     const b = player(srv.port, 'Bára', 'tajne', { v: 2, world: 'kreativ' }), d = player(srv.port, 'Dan', 'tajne', { v: 2, world: 'KREATIV' });
     assert.ok(await b.waitFor((m) => m[0] === 'welcome') && await d.waitFor((m) => m[0] === 'welcome'));
-    assert.deepEqual(b.welcome.worldInfo, { id: 'kreativ', name: 'Kreativní svět', creative: true, pvp: false, first: false });
+    assert.deepEqual(b.welcome.worldInfo, { id: 'kreativ', name: 'Kreativní svět', creative: true, pvp: false, pvpMark: false, first: false });
     assert.equal(b.welcome.perm, true, 'creative is allowed in the creative world');
     const full = player(srv.port, 'Eva', 'tajne', { v: 2, world: 'svet' });
     assert.ok(await full.waitFor((m) => m[0] === 'full'), 'MAX_PLAYERS counts per world');
@@ -212,6 +214,44 @@ test('pvp world: players can hit each other there (reach, invulnerability, creat
     await sleep(500);
     assert.equal(dmgs(d).length, 0, 'no fights in a world without pvp');
     for (const p of [a, b, c, d]) await p.close();
+  } finally { await stop(srv); }
+});
+
+test('pvp-mark world: hits count only when both players are in Markova dimenze; no arena, no scores', { timeout: 60000 }, async () => {
+  const { MARK_X } = await import('../../shared/world/terrain.js');
+  const srv = await startServer({ DATA_DIR: tmp('louka-pvpmark-'), WORLDS: 'svet:Hlavní svět:pvp-mark' });
+  try {
+    assert.deepEqual((await getJSON(srv.port, '/worlds')).map((w) => [w.id, w.pvp, w.pvpMark]), [['svet', false, true]]);
+    assert.doesNotMatch(srv.out(), /Postavena aréna/, 'no arena in a pvp-mark world');
+    const a = player(srv.port, 'Ája', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    assert.equal(a.welcome.worldInfo.pvpMark, true);
+    assert.equal(a.welcome.worldInfo.pvp, false);
+    const dmgs = (p) => p.msgs.filter((m) => m[0] === 'dmg');
+    const tryHit = async (ax, bx) => {
+      a.send(['pose', pose(ax, 14)]); b.send(['pose', pose(bx, 14)]);
+      await sleep(600); // i po nezranitelnosti z minulého zásahu
+      const n = dmgs(b).length;
+      a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+      await sleep(300);
+      return dmgs(b).length > n;
+    };
+    const M = MARK_X + 50;
+    assert.equal(await tryHit(0, 2), false, 'no fights outside Markova dimenze');
+    assert.equal(await tryHit(M, M + 2), true, 'a sword hit counts when both are in Markova dimenze');
+    assert.equal(dmgs(b).at(-1)[1], 15, 'same damage as in the arena (×2.5)');
+    assert.equal(await tryHit(MARK_X - 1, MARK_X + 1), false, 'attacker outside, target inside: ignored');
+    assert.equal(await tryHit(MARK_X + 1, MARK_X - 1), false, 'attacker inside, target outside: ignored');
+    assert.equal(await tryHit(M, M + 2), true);
+    b.send(['pose', { ...pose(M + 2, 14), alive: false, hp: 0 }]);
+    assert.ok(await a.waitFor((m) => m[0] === 'kill' && m[1] === 'Ája' && m[2] === 'Bára'), 'the knock-out message stays');
+    b.send(['pose', pose(M + 2, 14)]);
+    await sleep(300);
+    b.send(['pose', { ...pose(M + 2, 14), alive: false, hp: 0 }]); // padla sama
+    await sleep(500);
+    assert.equal(a.msgs.filter((m) => m[0] === 'kill').length, 1, 'a death without a player hit is not announced');
+    assert.ok(!a.msgs.some((m) => m[0] === 'score') && !b.msgs.some((m) => m[0] === 'score'), 'no score table');
+    for (const p of [a, b]) await p.close();
   } finally { await stop(srv); }
 });
 

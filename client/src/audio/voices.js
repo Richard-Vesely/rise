@@ -18,6 +18,7 @@ export const VOICES = {
       case 'crawler': this.tone(R(70, 100), 0.6, 0.11, 'sawtooth', 0, 45, { filter: ['lowpass', 500, 4], vib: [11, 6] }); this.burst({ dur: 0.5, f0: 600, f1: 200, q: 3, vol: 0.04, attack: 0.1 }); break;
       case 'markoman': this.tone(R(150, 190), 0.5, 0.07, 'square', 0, 90, { filter: ['bandpass', 800, 4], am: [34, 0.8] }); this.tone(R(600, 700), 0.3, 0.02, 'sine', 0.1, 1200, { vib: [12, 40] }); break;
       case 'golem': this.tone(55, 0.9, 0.16, 'sawtooth', 0, 40, { filter: ['lowpass', 220, 2], attack: 0.1 }); [1760, 2637, 3520].forEach((f, i) => this.tone(f, 0.6, 0.02, 'sine', 0.15 + i * 0.07)); break;
+      case 'dragon': this.tone(85, 1.1, 0.18, 'sawtooth', 0, 38, { attack: 0.08, vib: [16, 12], filter: ['lowpass', 650, 2] }); this.burst({ dur: 0.9, f0: 1100, f1: 170, q: 1.2, vol: 0.16, attack: 0.08 }); break;
       default: this.tone(110, 0.25, 0.1, 'sawtooth', 0, 70, { filter: ['lowpass', 700, 1] });
     }
   },

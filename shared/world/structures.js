@@ -6,6 +6,8 @@ import { hash2, rng } from '../util.js';
 import { bkey, blockMeta, blocks, chests, ruinsBuilt, spawners } from './state.js';
 import { VOLC_CELL, biomeAt, inLake, isMark, regionOf, shrineDist } from './terrain.js';
 import { V, setVox, surfY, topY } from './voxels.js';
+import { DRAGON_DEN, isDragon } from './dragon-land.js';
+import { buildDragonDen } from './dragon-den.js';
 
 // Kořist: [předmět, min, max, šance]
 export const LOOT = {
@@ -46,6 +48,7 @@ export function rollLoot(rnd, table) {
 
 // Druhy staveb: velikost buňky mřížky, šance, dimenze (true = Markova, false = domov, null = obě).
 export const STRUCTS = {
+  dragon_den: { icon: '◆', name: 'Dračí jeskyně' },
   ruin: { cell: 70, chance: 0.5, mark: true, salt: [333, 77], icon: '▣', name: 'Ruiny' },
   fortress: { cell: 240, chance: 0.65, mark: true, salt: [911, 19], icon: '⛫', name: 'Markomanská pevnost' },
   tower: { cell: 190, chance: 0.55, mark: false, salt: [515, 41], icon: '♜', name: 'Strážní věž' },
@@ -73,8 +76,10 @@ function structAt(type, cx, cz) {
   return { type, key: type === 'ruin' ? `ru${cx},${cz}` : `${type}${cx},${cz}`, x, z };
 }
 export function structuresNear(px, pz, R) {
+  if (isDragon(px)) return Math.hypot(px - DRAGON_DEN.x, pz - DRAGON_DEN.z) < R ? [{ ...DRAGON_DEN }] : [];
   const out = [];
   for (const type of Object.keys(STRUCTS)) {
+    if (type === 'dragon_den') continue;
     const C = STRUCTS[type].cell;
     for (let cz = Math.floor((pz - R) / C); cz <= Math.floor((pz + R) / C); cz++)
       for (let cx = Math.floor((px - R) / C); cx <= Math.floor((px + R) / C); cx++) {
@@ -93,6 +98,7 @@ function putSpawner(x, y, z, mob) { const k = bkey(x, y, z); blocks.set(k, 'spaw
 
 const putM = (x, y, z, type, meta) => { put(x, y, z, type); blockMeta.set(bkey(x, y, z), meta); }; // blok s otočením / horní půlblok
 export const BUILDERS = {
+  dragon_den: buildDragonDen,
   // Pouštní pyramida: stupňovitá, dutá, vchod z jihu, uvnitř truhla a pochodně
   pyramid(r, rnd) {
     const b = surfY(r.x, r.z);

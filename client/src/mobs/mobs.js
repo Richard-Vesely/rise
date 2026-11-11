@@ -69,6 +69,13 @@ export function poseMob(V, m, dt, sp) {
     animateCharacter(V.rig, { speed: sp, yaw: 0, pitch: 0, run: sp > 4, swing: m.atkT > 0.2, held: 'iron_sword' }, dt);
     V.rig.group.rotation.y = 0;
     V.rig.anim.bodyYaw = 0;
+  } else if (V.kind === 'dragon') {
+    V.legs.forEach((l, i) => { l.rotation.x = Math.sin(m.phase * 1.3 + (i === 0 || i === 3 ? 0 : Math.PI)) * amt * 0.45; });
+    const flying = m.pos.y - m.groundY > 0.5;
+    V.body.position.y = V.bodyY + Math.sin(V.t * 2) * 0.06;
+    V.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * (0.25 + Math.sin(V.t * (flying ? 8 : 1.7)) * (flying ? 0.52 : 0.12) + (m.windup > 0 ? 0.5 : 0)); });
+    m.atkT = Math.max(0, (m.atkT || 0) - dt);
+    V.jaw.rotation.x = m.windup > 0 ? 0.6 : m.atkT > 0 ? 0.9 : 0.08;
   } else if (V.kind === 'biped') { // golem
     const swing = Math.sin(m.phase * 1.1) * amt * 0.8;
     V.legs[0].rotation.x = swing; V.legs[1].rotation.x = -swing;
@@ -91,7 +98,7 @@ export function poseMob(V, m, dt, sp) {
   if (V.head && V.kind !== 'blob') {
     const dx = player.pos.x - m.pos.x, dz = player.pos.z - m.pos.z, d = Math.hypot(dx, dz);
     const still = sp < 0.4;
-    if (still && (V.idleT -= dt) < 0) { V.idleT = 3 + Math.random() * 5; V.idle = V.idle ? null : ['graze', 'look', 'graze', 'sniff'][Math.floor(Math.random() * 4)]; V.idleDir = (Math.random() - 0.5) * 1.6; }
+    if (still && m.type !== 'dragon' && (V.idleT -= dt) < 0) { V.idleT = 3 + Math.random() * 5; V.idle = V.idle ? null : ['graze', 'look', 'graze', 'sniff'][Math.floor(Math.random() * 4)]; V.idleDir = (Math.random() - 0.5) * 1.6; }
     if (!still) V.idle = null;
     let yaw = 0, pitch = 0;
     if (d < 8 && d > 0.5 && (V.idle !== 'graze' || d < 3)) { // hráč blízko: zvedne hlavu a dívá se na něj
@@ -114,7 +121,8 @@ export function poseMob(V, m, dt, sp) {
   V.ear = Math.max(0, V.ear - dt * 6);
   V.ears.forEach((e, i) => (e.rotation.x = Math.sin(V.ear * Math.PI) * (i ? 0.5 : -0.5)));
   if (V.tail) {
-    if (m.type === 'wolf') V.tail.rotation.y = Math.sin(V.t * (sp > 3 ? 4 : 1.5)) * 0.3;
+    if (m.type === 'dragon') V.tail.rotation.y = Math.sin(V.t * 1.5) * 0.15;
+    else if (m.type === 'wolf') V.tail.rotation.y = Math.sin(V.t * (sp > 3 ? 4 : 1.5)) * 0.3;
     else V.tail.rotation.z = Math.sin(V.t * (m.type === 'cow' ? 1.8 : 6)) * (m.type === 'cow' ? 0.25 : 0.15);
   }
   // golemovi pulzují praskliny, stínožroutovi žilky
@@ -214,7 +222,7 @@ on('mobKilled', (m) => {
 });
 on('chestLoot', () => { if (invOpen && ui.mode === 'chest') renderInventory(); });
 on('mobBurn', (m) => debris.emit(m.pos.x, m.pos.y + 0.8, m.pos.z, [0.1, 0.1, 0.1], 2, 1, 2));
-on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler') Sound.mobVoice(m.type); }));
+on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'dragon' || m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler') Sound.mobVoice(m.type); }));
 on('mobSound', (m) => mobAt(m, () => Sound.mobVoice(m.type), m.type === 'wolf' || m.type === 'cow' ? 8 : 4)); // vytí a bučení je slyšet dál
 on('spawnerSpawn', (x, y, z) => sparks.emit(x, y, z, [0.8, 0.3, 1], 25, 2, 1));
 // Kořist pro hráče u této obrazovky, když je do 24 m; zranění od tvora.

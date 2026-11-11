@@ -6,6 +6,8 @@ import { wrapAngle } from '../../../shared/util.js';
 import { portalActive, ruinsOpened } from '../../../shared/world/state.js';
 import { STRUCTS, structuresNear } from '../../../shared/world/structures.js';
 import { BIOME_NAMES, biomeAt, isMark, shrineOf } from '../../../shared/world/terrain.js';
+import { isDragon } from '../../../shared/world/dragon-land.js';
+import { mobs } from '../../../shared/sim/mobs.js';
 import { Sound } from '../audio/sound.js';
 import { countItem } from '../player/inventory.js';
 import { creative, player } from '../player/player.js';
@@ -85,8 +87,24 @@ export function updateTips() {
 }
 
 export let vignette = 0, tipT = 0;
+let dragonHealth;
+function updateDragonHealth() {
+  const m = mobs.find((m) => m.type === 'dragon' && !m.dead && Math.hypot(m.pos.x - player.pos.x, m.pos.z - player.pos.z) < 48);
+  if (!dragonHealth && !m) return;
+  if (!dragonHealth) {
+    dragonHealth = document.createElement('div'); dragonHealth.id = 'dragonHealth';
+    dragonHealth.innerHTML = '<b></b><progress max="300"></progress><small></small>';
+    document.body.append(dragonHealth);
+  }
+  dragonHealth.hidden = !m;
+  if (!m) return;
+  dragonHealth.querySelector('b').textContent = `Drak Země draka · ${Math.ceil(m.hp)} / ${m.def.hp}`;
+  dragonHealth.querySelector('progress').value = m.hp;
+  dragonHealth.querySelector('small').textContent = m.windup > 0 ? 'Chystá útok — uskoč!' : 'Strážce dračí jeskyně';
+}
 export function setVignette(v) { vignette = v; }
 export function updateHUD(dt) {
+  updateDragonHealth();
   for (const item of compassItems) if (item !== shrineMark && item !== shardMark && item !== ruinMark) placeCompass(item);
   // Nejbližší neprozkoumaná stavba (ruiny, pevnost, věž, tábor, kobka)
   const near = structuresNear(player.pos.x, player.pos.z, 320).filter((r) => !ruinsOpened.has(r.key));
@@ -103,7 +121,7 @@ export function updateHUD(dt) {
   setMarker(shrineMark, shrineOf(player.pos.x).x, 0);
   setMarker(shardMark, best ? best.x : null, best ? best.z : null);
   const h = Math.floor(dayTime * 24), mi = Math.floor((dayTime * 24 * 60) % 60);
-  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
+  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
   $('hpfill').style.width = `${Math.max(0, player.hp)}%`;
   $('foodfill').style.width = `${player.hunger}%`;
   $('armorfill').style.width = `${(armorPoints() / 23) * 100}%`;

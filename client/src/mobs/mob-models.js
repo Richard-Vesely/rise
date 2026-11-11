@@ -3,6 +3,7 @@
 // hlava na kloubu (sleduje hráče, pase se), uši, ocas, křídla. Nepřátelé mají svítící oči.
 // Bez vedlejších účinků při načtení (textury se vyrobí až při prvním tvorovi).
 import * as THREE from 'three';
+import { buildDragonModel } from './dragon-model.js';
 import { RIM, addRim, animateCharacter, armorMat, blobShadow, buildCharacter, crackTex, mergeStatic, rbox, setCharacterArmor, skinRig } from '../render/character.js';
 
 export { RIM };
@@ -96,6 +97,7 @@ const IRIS = { sheep: 0x9a7a3a, cow: 0x5a3420, chicken: 0xe08a20, deer: 0x3a2412
  */
 export function buildMobModel(type) {
   const g = new THREE.Group(), K = kit(g, IRIS[type]), legs = [], ears = [], wings = [];
+  if (type === 'dragon') return buildDragonModel(g, K);
   const { mat, box, pivot, eye, leg } = K;
   let body, head = null, tail = null, kind = 'quad', extra = {};
   if (type === 'sheep') {

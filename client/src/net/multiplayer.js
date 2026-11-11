@@ -31,7 +31,7 @@ import { chatLine, leaveGame, renderPause, sysLine } from './mp-ui.js';
 // (shared/net/room.js, změny světa: shared/net/ops.js). Tady je strana připojeného hráče a obrázky ke změnám.
 const puppets = new Map(); // klient: tvorové podle hostitele (nid -> tvor)
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp });
+Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp, pvpMark: !!BOOT.welcome?.worldInfo?.pvpMark });
 
 // ---------- zprávy
 export function toHost(msg) { if (BOOT.conn?.open) BOOT.conn.send(msg); }
@@ -108,7 +108,7 @@ export function onHostMsg(msg) {
     }
     case 'toast': toast(msg[1]); break;
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
-    case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl
+    case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl; pvp-mark: hráč vyřadil hráče
     case 'chat': chatLine(msg[1], msg[2]); break;
     case 'join': sysLine(`${msg[1]} se připojil`); break;
     case 'leave': sysLine(`${msg[1]} odešel`); break;

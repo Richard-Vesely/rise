@@ -15,8 +15,8 @@ skyU.rayleigh.value = LK.sky.rayleigh;
 // jas oblohy podle vzhledu (bez toho je obloha proti krajině moc světlá)
 // Navíc červánky (oranžový až růžový pás u obzoru, fialová nahoře), noční modř místo černé a šedá zatažená obloha za deště.
 // Polární záře (Markova dimenze, tundra v noci): vlnící se závěsy světla v pásu nad obzorem.
-Object.assign(skyU, { skyGain: { value: 1 }, uTwilight: { value: 0 }, uNightSky: { value: 0 }, uOvercast: { value: 0 }, uAurora: { value: 0 }, uAuroraMark: { value: 0 }, uSkyTime: { value: 0 } });
-sky.material.fragmentShader = `#define SUN_CAP 14.0\n#define TWI_K ${FX.post ? '1.6' : '1.0'}\n` + 'uniform float skyGain, uTwilight, uNightSky, uOvercast, uAurora, uAuroraMark, uSkyTime;\n' + sky.material.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );', /* glsl */`
+Object.assign(skyU, { skyGain: { value: 1 }, uTwilight: { value: 0 }, uNightSky: { value: 0 }, uOvercast: { value: 0 }, uAurora: { value: 0 }, uAuroraMark: { value: 0 }, uSkyTime: { value: 0 }, uDragon: { value: 0 } });
+sky.material.fragmentShader = `#define SUN_CAP 14.0\n#define TWI_K ${FX.post ? '1.6' : '1.0'}\n` + 'uniform float skyGain, uTwilight, uNightSky, uOvercast, uAurora, uAuroraMark, uSkyTime, uDragon;\n' + sky.material.fragmentShader.replace('gl_FragColor = vec4( retColor, 1.0 );', /* glsl */`
   vec3 dirS = normalize( vWorldPosition - cameraPosition );
   float hS = max( dirS.y, 0.0 );
   float toSun = dot( normalize( dirS.xz + 1e-5 ), normalize( vSunDirection.xz + 1e-5 ) ) * 0.5 + 0.5;
@@ -47,6 +47,7 @@ sky.material.fragmentShader = `#define SUN_CAP 14.0\n#define TWI_K ${FX.post ? '
   float knee = mxS > 0.85 ? 0.85 + ( mxS - 0.85 ) / ( 1.0 + ( mxS - 0.85 ) / 0.35 ) : mxS;
   float capS = mix( knee, min( mxS, SUN_CAP ), disc );
   if ( mxS > 1e-4 ) col *= capS / mxS;
+  col = mix(col, vec3(1.25, 0.55, 0.22) * dot(col, vec3(0.2126, 0.7152, 0.0722)), uDragon * 0.85);
   gl_FragColor = vec4( col, 1.0 );`);
 skyU.mieCoefficient.value = 0.004;
 skyU.mieDirectionalG.value = 0.82;

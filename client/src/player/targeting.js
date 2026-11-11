@@ -7,13 +7,13 @@ import { REACH } from '../../../shared/world/constants.js';
 import { TREE_NAMES } from '../../../shared/world/nature.js';
 import { bkey, blockMeta, blocks, vehicles } from '../../../shared/world/state.js';
 import { torchBox, torchMeta } from '../../../shared/world/torch.js';
-import { biomeAt, isMark, shrineDist, shrineOf } from '../../../shared/world/terrain.js';
+import { biomeAt, isMark, shrineDist } from '../../../shared/world/terrain.js';
 import { NO_DIG_R, V, VOX, getVox, groundHeight, topY } from '../../../shared/world/voxels.js';
 import { forestRocks, forestTrees } from '../render/forest.js';
 import { isCut } from '../render/grass.js';
 import { camera } from '../render/renderer.js';
 import { myDriverId, rayVehicle, vehDim } from '../vehicles/car.js';
-import { shrineActive } from '../world/shrine.js';
+import { portals, shrineActive } from '../world/shrine.js';
 import { countItem } from './inventory.js';
 import { rayPlayer } from './pvp.js';
 
@@ -113,7 +113,7 @@ export function pickTarget() {
     if (tt >= bt) continue;
     bt = tt;
     const hint = m.type === 'chicken' ? `vejce: ${m.eggs || 0} · pravé tl. = sebrat` : m.type === 'cow' ? (m.milkT > 0 ? 'podojená' : 'pravé tl. s kbelíkem = podojit')
-      : ['crawler', 'markoman', 'golem', 'wolf'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
+      : ['dragon', 'crawler', 'markoman', 'golem', 'wolf'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
     best = { kind: 'mob', mob: m, name: m.def.name, hint };
   }
   // Ostatní hráči (jen ve světě se souboji, pvp.js)
@@ -129,14 +129,13 @@ export function pickTarget() {
     best = { kind: 'vehicle', id: vh.id, key: 'veh' + vh.id, name: K.name, hint: `${enter} · pravé tl. = ${K.trunk.toLowerCase()}${K.fuelMax ? ` a palivo (${v.fuel.toFixed(0)} l)` : ''} · drž levé = rozebrat`, hard: K.wid < 1 ? 1.5 : 4, at: [o.x + d.x * vh.t, o.y + d.y * vh.t, o.z + d.z * vh.t] };
   }
   // Portál ve svatyni (kruh o poloměru 2,4 m, stojí v rovině x–y)
-  const sh = shrineOf(o.x);
-  if (Math.abs(d.z) > 0.05) {
+  for (const sh of portals) if (Math.abs(d.z) > 0.05) {
     const tt = (sh.z - o.z) / d.z, hx = o.x + d.x * tt - sh.x, hy = o.y + d.y * tt - 3.05;
     if (tt > 0 && tt < bt && hx * hx + hy * hy < 2.6 * 2.6) {
       bt = tt;
       const act = shrineActive(sh);
       best = {
-        kind: 'portal', shrine: sh, name: sh.mark ? 'Portál domů' : act ? 'Portál do Markovy dimenze' : 'Spící portál svatyně',
+        kind: 'portal', shrine: sh, name: sh.dragon ? (sh.returnHome ? 'Portál domů' : 'Portál do Země draka') : sh.mark ? 'Portál domů' : act ? 'Portál do Markovy dimenze' : 'Spící portál svatyně',
         hint: act ? 'projdi jím' : `pravé tlačítko: vlož 3 úlomky světla (máš ${countItem('shard')})`,
       };
     }

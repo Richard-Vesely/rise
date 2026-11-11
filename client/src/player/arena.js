@@ -53,7 +53,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
  * @param {string} victim
  */
 export function arenaKill(killer, victim) {
-  if (killer === NET.name) toast(`+1 bod · vyřadil(a) jsi hráče ${victim}`);
+  if (killer === NET.name) toast(`${NET.pvp ? '+1 bod · ' : ''}vyřadil(a) jsi hráče ${victim}`);
   else if (victim === NET.name && killer) toast(`Vyřadil(a) tě ${killer}`);
   const feed = $('feed');
   if (!feed) return;
