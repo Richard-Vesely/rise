@@ -11,8 +11,8 @@ import { launch, checker, openPage, waitGame, shot, sleep, SLOW } from './lib.mj
 const out = process.argv[2] || 'playtest-server';
 const { check, results, failed } = checker('server: ');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'louka-mp-'));
-function startServer(pass = 'kroužek') {
-  const child = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ROOM_PASSWORD: pass, SAVE_SECONDS: '1', SILENT_SECONDS: String(30 * SLOW) }, stdio: ['ignore', 'pipe', 'pipe'] });
+function startServer(pass = 'kroužek', port = 0) {
+  const child = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, ROOM_PASSWORD: pass, SAVE_SECONDS: '1', SILENT_SECONDS: String(30 * SLOW) }, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = '';
   return new Promise((ok, fail) => {
     const t = setTimeout(() => fail(new Error('server did not start: ' + log)), 20000);
@@ -158,10 +158,17 @@ try {
   check('torch: Bára removes the wall, the server drops the torch as an item for both', torchOk, JSON.stringify({ waitB: twB, waitA: twA, err: until.err, A: await A.evaluate(torchState), B: await B.evaluate(torchState) }));
 
   // restart: the world is saved every second (SAVE_SECONDS=1) and on shutdown
+  // Na stejném portu (jako automatická aktualizace na VPS): hráči dostanou ['restart'], hra počká na nový server,
+  // načte se znovu a sama se připojí zpátky do stejného světa.
   await sleep(1500);
+  await A.evaluate(() => { window.__predRestartem = 1; });
+  const port = Number(new URL(srv.url).port);
   await stop(srv);
-  check('players notice the server is gone', await until(A, () => document.getElementById('menu') !== null || window.game === undefined, null, 15000) || true);
-  srv = await startServer('');
+  check('players hear about the restart in the chat', await until(A, () => /Server se aktualizuje/.test(document.body.textContent), null, 10000), until.err);
+  srv = await startServer('', port);
+  check('after the restart the page reloads and joins the same world again by itself',
+    await until(A, () => window.__predRestartem === undefined && !document.getElementById('menu') && window.game?.NET?.client === true && !!window.game?.NET?.ready, null, 90000),
+    until.err + ' · menu: ' + await A.evaluate(() => document.getElementById('menuMsg')?.textContent).catch(() => '?'));
   const C = await openPage(browser, srv.url, { label: 'Cyril: ' });
   await joinWorld(C, 'Cyril', null);
   await waitGame(C, 60000);

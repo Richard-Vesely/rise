@@ -38,6 +38,9 @@ When you add or change a feature, update this file in the same pull request.
   (the same code next time). Max 6 players. **Připojit se ke kamarádovi kódem**: type the friend's code (just the 4
   characters is enough).
 - After leaving a multiplayer game the menu shows why (e.g. *Spojení se přerušilo. Zkus se připojit znovu.*).
+- **Club server update while playing:** the server warns in the chat (*Server se aktualizuje na novou verzi hry. Za chvíli
+  tě připojím zpátky.*), saves the backpack, and the game shows *Nová verze hry · server se restartuje…*; as soon as the
+  new server runs, the page reloads in the new version and joins the same world again by itself.
 - **Nastavení**: graphics quality (auto by graphics card/low/medium/high), controls (auto/touch/mouse), touch button size, mouse sensitivity,
   and the sound sliders **Hlasitost** (80 %), **Zvuky** (100 %) and **Hudba** (60 %); they apply at once (a short click plays at the new volume).
 - **Můj oblek** (link in the main menu, **O** or the *Oblek* button under the armor slots in the backpack): pick a futuristic suit

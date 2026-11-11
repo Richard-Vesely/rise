@@ -305,5 +305,11 @@ function joinServer(pass, world, creds) {
     }
   };
 }
+// Po aktualizaci serveru kroužku (client/src/net/mp-ui.js rejoinAfterRestart) se hráč sám připojí zpátky do svého světa.
+try {
+  const back = JSON.parse(sessionStorage.getItem('rise-znovu') || 'null');
+  sessionStorage.removeItem('rise-znovu');
+  if (club && back?.url === club.url && back.world) joinWorld(back.world);
+} catch {}
 // Po restartu kvůli nastavení grafiky pokračuje hra pro jednoho rovnou, bez menu.
 try { if (sessionStorage.getItem('rise-autostart') === 'sp') { sessionStorage.removeItem('rise-autostart'); finish({ mode: 'sp' }); } } catch {}

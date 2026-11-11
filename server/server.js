@@ -196,8 +196,15 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
     worlds: W.map((w) => w.id),
     /** Hned uloží všechny světy. */
     save() { for (const w of W) w.worker.postMessage({ t: 'save' }); },
-    /** Uloží světy, odpojí hráče a vypne server. */
-    async close() {
+    /**
+     * Uloží světy, odpojí hráče a vypne server.
+     * Hráči nejdřív dostanou ['restart'] a `graceMs` na poslání svého batohu (['me']); prohlížeč pak počká,
+     * až server zase poběží, a připojí se zpátky do stejného světa (nová verze hry při automatické aktualizaci).
+     */
+    async close({ graceMs = 1500 } = {}) {
+      const playing = W.flatMap((w) => [...w.sockets.values()]).filter((ws) => ws.readyState === ws.OPEN);
+      for (const ws of playing) ws.send(JSON.stringify(['restart']));
+      if (playing.length && graceMs > 0) await new Promise((ok) => setTimeout(ok, graceMs));
       closing = true;
       clearInterval(heartbeat);
       await closeAdmin();
