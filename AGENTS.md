@@ -101,13 +101,13 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/net/room.js`, client = `client/src/net/multiplayer.js`.
 
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
-  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking; the host passes the pose on unchanged), `['pk', gid]` pick up,
+  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on by the key N; the host passes the pose on unchanged), `['pk', gid]` pick up,
   `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (only in a
   `pvp` or `pvp-mark` world: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
   `['dmg', dmg × 2.5, dx, dz]`; in a `pvp-mark` world the host also needs attacker and target in Markova dimenze, `isMark(x)`; `hitPlayer` in `shared/net/room.js`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
 - Host → client: `['welcome', { pid, name, perm, world, spawn, max }]`, `['full']`, `['join'|'leave', name]`, `['ops', ops]`,
   `['kv', changes]` (2×/s), `['pl', [[pid, name, pose, perm]…]]` (12×/s), `['mobs', dayTime, day, [[nid, type, x, y, z, ry, hp, flash, dead, eggs, milk]…]]` (5×/s),
-  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`; in a `pvp-mark` world only `kill` with a killer, no `score`), `['gift', docId, from]`,
+  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['pvlock', s]` (you were in a fight started by N: fights can't be switched off for s seconds), `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`; in a `pvp-mark` world only `kill` with a killer, no `score`), `['gift', docId, from]`,
   `['kick', reason?]` (the browser host sends no reason; the Node server sends `['kick', 'Přihlásil ses jinde.']` when the same player logs in again in that world).
 - **Vehicles in the pose** (the host passes it on unchanged, `client/src/vehicles/car.js` `vehPose`): the driver sends
   `veh: { id, x, y, z, yaw, pitch, roll, spd, steer, thr, lights }` (or `null`) with optional `bm` (sailboat boom angle),

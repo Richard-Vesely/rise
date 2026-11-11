@@ -466,3 +466,7 @@ body.touch #arenaScore { top: 46px; }
 #dragonHealth { position: fixed; top: 122px; left: 50%; transform: translateX(-50%); width: min(380px, 75vw); padding: 10px 16px; background: #241b18e8; border: 1px solid #d7985b; border-radius: 8px; color: #ffe4ba; text-align: center; pointer-events: none; z-index: 15; }
 #dragonHealth progress { display: block; width: 100%; height: 12px; margin: 6px 0; accent-color: #ed713c; }
 #dragonHealth small { font-size: 12px; }
+
+/* souboje zapnuté klávesou H (client/src/player/pvp.js) */
+#pvpBadge { position: fixed; top: 58px; right: 18px; z-index: 3; padding: 6px 12px; background: var(--panel); border-radius: 4px; border: 1px solid rgba(255, 120, 90, 0.5); color: #ffb49a; font: 700 13px 'Cinzel', serif; pointer-events: none; }
+#pvpBadge.lock { color: #ff6a5a; border-color: #ff6a5a; box-shadow: 0 0 12px rgba(255, 90, 70, 0.45); }

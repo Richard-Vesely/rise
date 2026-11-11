@@ -114,8 +114,9 @@ function onClientMsg(P, msg) {
       if (!q || typeof q !== 'object') return;
       if (!P.pose) room.onChange();
       const wasAlive = P.pose?.alive !== false;
+      if (!q.pv && (P.pvLock || 0) > performance.now() / 1000) q.pv = 1; // po zásahu jdou souboje 20 s vypnout až potom (PVP.lock)
       P.pose = q;
-      if ((NET.pvp || NET.pvpMark) && wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl
+      if ((NET.pvp || NET.pvpMark || P.lastHit) && wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl
       if (typeof q.ui === 'string') {
         if (!isBusy(q.ui)) NET.kvT = 0; // hráč právě otevřel truhlu / stroj: hned mu poslat aktuální stav
         uiBusy.set(q.ui, performance.now() + 1200);
@@ -154,8 +155,9 @@ function onClientMsg(P, msg) {
     case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
   }
 }
-// ---------- souboje hráčů (jen svět s volbou pvp, nebo pvp-mark = oba v Markově dimenzi): hostitel zkontroluje zásah a pošle zraněnému 'dmg'
-export const PVP = { mult: 2.5, invuln: 0.45, reach: 7, range: 90 }; // zranění ×mult (meč a šíp jsou laděné na tvory), dosah ruky / šípu v m
+// ---------- souboje hráčů (svět s volbou pvp, pvp-mark = oba v Markově dimenzi, nebo kdekoli oba se zapnutými souboji – klávesa N,
+// pose.pv): hostitel zkontroluje zásah, pošle zraněnému 'dmg' a oběma ['pvlock', s] (souboje jdou vypnout až za PVP.lock s)
+export const PVP = { mult: 2.5, invuln: 0.45, reach: 7, range: 90, lock: 20 }; // zranění ×mult (meč a šíp jsou laděné na tvory), dosah ruky / šípu v m
 const hostP = { pose: null, hurtAt: 0 };
 /** Hráč podle pid ('host' = hráč u obrazovky hostitele v prohlížeči; na serveru není): { pose, hurtAt }. */
 function playerOf(pid) {
@@ -174,10 +176,11 @@ function playerOf(pid) {
  * @param {boolean} ranged šíp (větší dosah) nebo úder zblízka
  */
 export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
-  if (!(NET.pvp || NET.pvpMark) || from === to) return false;
+  if (from === to) return false;
   const A = playerOf(from), T = playerOf(to), a = A?.pose, t = T?.pose;
   if (!a || !t || a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
-  if (NET.pvpMark && !(isMark(a.x) && isMark(t.x))) return false; // pvp-mark: útočník i zasažený musí být v Markově dimenzi
+  const world = NET.pvp || (NET.pvpMark && isMark(a.x) && isMark(t.x)); // aréna, nebo pvp-mark: oba v Markově dimenzi
+  if (!world && !(a.pv && t.pv)) return false; // jinde jen když mají souboje zapnuté oba (klávesa N)
   if (Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
   const now = performance.now() / 1000;
   if (now - (T.hurtAt || -9) < PVP.invuln) return false;
@@ -186,6 +189,10 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
   const n = clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
   const dx = -Math.sin(y) * k, dz = -Math.cos(y) * k;
   if (to === 'host') NET.hurtLocal?.(n, dx, dz); else sendTo(to, ['dmg', n, dx, dz]);
+  if (!world) for (const [pid, X] of [[from, A], [to, T]]) { // souboj zapnutý klávesou N: útočník i zasažený ho 20 s nevypnou
+    X.pvLock = now + PVP.lock;
+    if (pid === 'host') NET.onPvLock?.(PVP.lock); else sendTo(pid, ['pvlock', PVP.lock]);
+  }
   return true;
 }
 // ---------- aréna: body za vyřazení (počítají se od startu serveru; klíč = jméno hráče)

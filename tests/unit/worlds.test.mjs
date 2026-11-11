@@ -290,3 +290,29 @@ test('arena (pvp world): built once, kill credit to the last hitter, scores for 
   s2 = await startServer({ DATA_DIR: dir, WORLDS: 'arena:Aréna:pvp' });
   try { assert.doesNotMatch(s2.out(), /Postavena aréna/, 'the arena is built only once per world'); } finally { await stop(s2); }
 });
+
+test('fights by choice (key N): only between two players who both switched them on; after a hit 20 s locked on', { timeout: 60000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-pvph-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const a = player(srv.port, 'Ája', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const dmgs = (p) => p.msgs.filter((m) => m[0] === 'dmg').length;
+    a.send(['pose', { ...pose(0, 14), pv: 1 }]); b.send(['pose', pose(2, 14)]);
+    await sleep(300);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    await sleep(400);
+    assert.equal(dmgs(b), 0, 'Bára has fights off: no hit');
+    b.send(['pose', { ...pose(2, 14), pv: 1 }]);
+    await sleep(300);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg' && m[1] === 15), 'both have fights on: the hit counts');
+    assert.ok(await a.waitFor((m) => m[0] === 'pvlock' && m[1] === 20), 'the attacker gets the 20 s lock');
+    assert.ok(await b.waitFor((m) => m[0] === 'pvlock' && m[1] === 20), '…and so does the one who was hit');
+    b.send(['pose', pose(2, 14)]); // Bára se pokusí souboje vypnout
+    await sleep(800);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    await sleep(400);
+    assert.equal(dmgs(b), 2, 'switching off during the lock does not help: the host keeps her in the fight');
+    for (const p of [a, b]) await p.close();
+  } finally { await stop(srv); }
+});

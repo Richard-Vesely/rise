@@ -483,6 +483,10 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
 *Kód:* `client/src/pc/` (computer, Tanks, editor, printer window, papers in the world, reading), printing `shared/sim/power.js`, document items `shared/world/papers.js`.
 
 ## 10. Multiplayer
+- **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
+  Two players can hurt each other only when both have them on (pose `pv`, checked by the host in `hitPlayer`). After a hit both
+  the attacker and the one hit can't switch them off for 20 s (`['pvlock', 20]`, the badge counts down; the host keeps them in the
+  fight even if a client tries). The arena and pvp-mark rules stay as they were. H is still the guide.
 - Host in the browser via code, max 6 players, the host's tab is the server, world saved in the host's browser.
 - **Server** (Node.js, `npm start`, v2): always-on world on a VPS or a laptop, saved to disk every 30 s with daily backups,
   serves the game itself; its worlds are buttons in the main menu (when the game comes from the server, from a
