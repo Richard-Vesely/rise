@@ -24,6 +24,7 @@ import { cutGrass } from '../render/grass.js';
 import { scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
+import { applyDary } from '../ui/donation-ui.js';
 import { chatLine, leaveGame, renderPause, sysLine } from './mp-ui.js';
 
 // ============================================================ hra pro více hráčů (hostitel = server)
@@ -107,6 +108,7 @@ export function onHostMsg(msg) {
       break;
     }
     case 'toast': toast(msg[1]); break;
+    case 'dary': applyDary(msg[1]); if (invOpen && ui.mode === 'dar') renderInventory(); break; // pokladnička darů u sochy (jen server kroužku)
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl; pvp-mark: hráč vyřadil hráče
     case 'chat': chatLine(msg[1], msg[2]); break;

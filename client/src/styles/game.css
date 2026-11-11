@@ -103,6 +103,12 @@ img.sm { image-rendering: auto !important; } /* 3D ikony bloků a strojů jsou h
 .mc-note { margin: 8px 2px 10px; font-size: 13px; color: #a9a9b2; line-height: 1.35; }
 #craftArea { min-height: 150px; margin-bottom: 4px; }
 .craft-ui, .fire-ui { display: flex; align-items: center; gap: 14px; padding-left: 20px; }
+/* pokladnička darů u sochy (ui/donation-ui.js) */
+.dar-ui { display: flex; align-items: center; gap: 12px; padding-left: 4px; }
+.dar-ui .mc-note { margin: 0; }
+.dar-top { margin: 0 0 10px 24px; padding: 0; font-size: 14px; color: #e6e6e6; line-height: 1.5; }
+.dar-top b { color: #ffd76a; }
+.dar-box { max-height: 180px; overflow-y: auto; }
 .kitchen { width: 420px; }
 .k-head { display: flex; align-items: center; gap: 10px; }
 .k-head img { width: 40px; height: 40px; image-rendering: pixelated; }

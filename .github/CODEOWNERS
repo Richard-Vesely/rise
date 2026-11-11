@@ -1,0 +1,11 @@
+# Richard approves every change to these paths (server, deploy, network protocol, the rules for AI helpers,
+# and the owner/donation features that give one player power over others: AGENTS.md, rule 11).
+/.github/                       @Richard-Vesely
+/server/                        @Richard-Vesely
+/deploy/                        @Richard-Vesely
+/shared/net/                    @Richard-Vesely
+/AGENTS.md                      @Richard-Vesely
+/CLAUDE.md                      @Richard-Vesely
+/shared/world/statue.js         @Richard-Vesely
+/client/src/ui/donation-ui.js   @Richard-Vesely
+/tests/unit/donations.test.mjs  @Richard-Vesely

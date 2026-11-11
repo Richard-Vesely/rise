@@ -514,6 +514,18 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   line (*⚔ Ája vyřadil(a) hráče Bára*) and the score table (top left: player, points, falls). Scores count from the server start.
   The world button in the menu says *Aréna: bojuj mečem a lukem, sbírej body*.
   *Kód:* building `shared/world/arena.js` (from `server/sim.js`), points `arenaDeath` in `shared/net/room.js`, kit, respawn and table `client/src/player/arena.js`.
+- **Donation statue** (every world of the club server): the server builds it once near spawn (first free spot from
+  `STATUE_SPOTS`, normally 9 m east and 23 m south of the shrine, about 11 m from spawn): a stone pedestal with a golden figure
+  (7 blocks tall) and a golden **donation box** (*Pokladnička darů*) 2 blocks in front of it. The statue cannot be mined or
+  dug under (the server undoes any change). Right-click the box: put an item into its slot and it is donated (it leaves your
+  backpack; you cannot take it back). Only the **owner** of the server (`OWNER_ID` = Richard's profile id) sees the box contents
+  and takes them out (one stack per click); the server refuses a take from anyone else. The box window and the aim hint on the
+  statue show the top donors (*Nejštědřejší: …*). Every donation goes to the ledger (`DATA_DIR/donations.json`, daily backup);
+  the box contents are saved with the world. For Richard: `/admin/dary` (totals per player, every donation newest first,
+  and *Dát hráči předmět*: a bonus delivered to the backpack now, or at the player's next login).
+  Owner powers belong to Richard only (rule in `AGENTS.md`).
+  *Kód:* statue `shared/world/statue.js` (from `server/sim.js`), owner `server/owner.js`, box `server/donation-box.js`
+  (in `server/world-worker.js`), ledger and gifts `server/donations.js`, admin page `server/donations-admin.js`, window `client/src/ui/donation-ui.js`.
 - **Pause menu** (Esc): code + copy, player list, host can allow creative for one player or everyone, and kick.
 - **Chat** (T), only to players in the same world.
 - Everyone sees other players in **their own suit** (*Můj oblek*, sent in the position as `lk`), with a modern
@@ -521,7 +533,7 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   armor plates, the held item, and all the animations (walking, running with dust, swinging per tool, eating with
   crumbs, flying with jet sparks, sitting, red flash when hurt); their blocks, vehicles, animals, day/night. Only one player can have a chest or machine open at a time.
 
-*Kód:* host logic `shared/net/room.js` (browser host and server), world changes `shared/net/ops.js`, `shared/net/net.js`; browser side `client/src/net/` (client messages, avatars, chat and Esc menu, net loop); server `server/` (worlds: `server/worlds.js`, `server/world-worker.js`; profiles: `server/profiles.js`, `server/me.js`; admin: `server/admin-http.js`, `server/admin.js`); menu `client/src/menu/menu.js` (world buttons: `renderWorlds`, login: `askProfile`).
+*Kód:* host logic `shared/net/room.js` (browser host and server), world changes `shared/net/ops.js`, `shared/net/net.js`; browser side `client/src/net/` (client messages, avatars, chat and Esc menu, net loop); server `server/` (worlds: `server/worlds.js`, `server/world-worker.js`; profiles: `server/profiles.js`, `server/me.js`; admin: `server/admin-http.js`, `server/admin.js`; donations: `server/donation-box.js`, `server/donations.js`); menu `client/src/menu/menu.js` (world buttons: `renderWorlds`, login: `askProfile`).
 
 ## 11. Sound and music
 All sound is made in the browser (WebAudio synthesis, no recordings). Every sound varies a little in pitch (±10 %) and

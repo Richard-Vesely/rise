@@ -29,19 +29,20 @@ import { uiSound } from '../audio/ui-sound.js';
 import { tooltipHTML } from './item-tooltip.js';
 import { iconImg, paintHotbar, slotHTML, slotInner } from './slots.js';
 import { clearBookSearch, filterBook, installBookSearch } from './book-search.js';
+import { DON, renderDonationUI, takeDonation } from './donation-ui.js';
 import { afterRender, installInvTricks, previewGhost, previewRecipe, slotDown, sortContainer } from './inv-tricks.js';
 export { iconImg, slotHTML };
 
 // ============================================================ HUD – inventář, výroba, táborák (styl Minecraft)
 export const invEl = $('inventory'), cursorEl = $('cursorItem');
 export let invOpen = false;
-// mode: 'inv' = inventář s brněním a mřížkou 2×2, 'bench' = pracovní stůl 3×3, 'fire' = táborák, 'chest' = truhla
+// mode: 'inv' = inventář s brněním a mřížkou 2×2, 'bench' = pracovní stůl 3×3, 'fire' = táborák, 'chest' = truhla, 'dar' = pokladnička darů u sochy
 export const ui = { mode: 'inv', size: 2, craft: Array(9).fill(null), fireKey: null, ghost: null, cat: 'all' };
 export const armor = save?.armor || [null, null, null, null]; // helma, brnění, kalhoty, boty
 export const armorPoints = () => armor.reduce((n, s) => n + (s ? ITEMS[s.id].armor.pts : 0), 0);
 // Celá sada speciálního brnění (všechny 4 kusy stejné sady) dává bonus.
 export const fullSet = () => { const s0 = armor[0] && ITEMS[armor[0].id].armor.set; return s0 && armor.every((a) => a && ITEMS[a.id].armor.set === s0) ? s0 : null; };
-export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots })[c]();
+export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots, dar: () => DON.slot })[c]();
 
 export function renderHotbar() { paintHotbar(inv.slots, inv.sel); }
 /** Pec bere nahoru jen to, co se taví, a dolů jen palivo (jako v Minecraftu). Vrací důvod odmítnutí, nebo null. */
@@ -65,6 +66,7 @@ export function renderCraftArea() {
   if (ui.mode === 'power') return renderPowerUI(area);
   if (ui.mode === 'car') return renderCarUI(area);
   if (ui.mode === 'garage') return renderGarageUI(area, ui.fireKey);
+  if (ui.mode === 'dar') return renderDonationUI(area);
   if (ui.mode === 'chest') {
     const c = chestOf(ui.fireKey);
     area.innerHTML = `<div class="mc-title">Truhla <button class="mc-btn mini" data-sort="chest" title="Sloučí a seřadí předměty v truhle"><i class="ico-sort"></i>Seřadit</button></div><div class="grid">${c.map((s, i) => slotHTML(s, i, '', 'chest')).join('')}</div><div class="mc-note">Shift + klik přesune předmět mezi truhlou a batohem · Shift + 2× klik přesune všechny stejné.</div>`;
@@ -116,8 +118,8 @@ function renderCatTabs(show) {
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 function renderBook() {
-  document.querySelector('.mc-book').style.display = ui.mode === 'chest' || ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage' ? 'none' : '';
-  if (ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage') return;
+  document.querySelector('.mc-book').style.display = ui.mode === 'chest' || ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage' || ui.mode === 'dar' ? 'none' : '';
+  if (ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage' || ui.mode === 'dar') return;
   renderCatTabs(['inv', 'bench', 'adv'].includes(ui.mode) && !(creative && ui.mode === 'inv'));
   if (ui.mode === 'chest') return;
   if (ui.mode === 'kitchen') {
@@ -217,6 +219,7 @@ export function quickMove(c, i, s) {
   if (c !== 'inv') left = insertInto(s, 0, 36);
   else if (ui.mode === 'inv' && piece && !armor[piece.slot]) { armor[piece.slot] = s; left = 0; }
   else if (ui.mode === 'chest') left = insertStack(chestOf(ui.fireKey), s);
+  else if (ui.mode === 'dar' && !DON.slot[0]) { DON.slot[0] = s; left = 0; } // dar (pošle se při překreslení okna)
   else if (ui.mode === 'car' && vehicles.get(ui.fireKey)) { // do kufru (autobaterie do jejího místa)
     const sl = vehicles.get(ui.fireKey).slots;
     if (!sl[0] && vehicles.get(ui.fireKey).type === 'car' && (s.id === 'car_battery' || s.id === 'car_battery_empty')) { sl[0] = s; left = 0; }
@@ -376,6 +379,8 @@ invEl.addEventListener('mousedown', (e) => {
   if (out) { e.preventDefault(); return takeResult(shiftOf(e)); }
   const sl = e.target.closest('.slot[data-c][data-i]');
   if (sl && sl.dataset.c !== 'cursor') return slotDown(e, sl, btnOf(e), shiftOf(e));
+  const tk = e.target.closest('[data-take]');
+  if (tk) return takeDonation(+tk.dataset.take); // pokladnička darů: vlastník bere (server to ověří)
   const so = e.target.closest('[data-sort]');
   if (so) return sortContainer(so.dataset.sort);
   const kr = e.target.closest('[data-k]');

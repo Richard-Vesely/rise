@@ -131,7 +131,8 @@ Players open `https://hry.example.cz`, type a name, click a world button, then t
 | `MAX_PLAYERS` | 8 | players at once **in each world** |
 | `ALLOW_CREATIVE` | 0 | `1` = everyone may use creative mode (only without `WORLDS`; with `WORLDS` use `:creative`) |
 | `SAVE_SECONDS` | 30 | how often each world is saved |
-| `ADMIN_PASSWORD` | – | password of the admin page `/admin` (player list, PIN reset). Empty = the page is off (404) |
+| `ADMIN_PASSWORD` | – | password of the admin page `/admin` (player list, PIN reset, donations `/admin/dary`). Empty = the page is off (404) |
+| `OWNER_ID` | – | profile id of the server owner (`node server/admin.js players`, column *Id*): only this player takes items out of the donation box at the statue. Empty = nobody |
 
 ### 4. Updating
 ```bash

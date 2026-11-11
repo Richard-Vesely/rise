@@ -11,7 +11,7 @@ const VERSION = 2;
  * Načte uložený svět, nebo null (první spuštění). Starý soubor z verze 1 (jiná hra) se odloží stranou.
  * @param {string} dir složka s daty
  * @param {(msg: string) => void} [log]
- * @returns {{ world: object, players: Record<string, object> } | null} stav světa (worldState()) a batohy hráčů (id profilu -> me)
+ * @returns {{ world: object, players: Record<string, object>, donations: { box?: unknown[] } | null } | null} stav světa (worldState()), batohy hráčů (id profilu -> me) a pokladnička darů
  */
 export function loadWorldFile(dir, log = () => {}) {
   const file = path.join(dir, 'world.json');
@@ -24,7 +24,8 @@ export function loadWorldFile(dir, log = () => {}) {
     return null;
   }
   const players = data.players && typeof data.players === 'object' && !Array.isArray(data.players) ? data.players : {};
-  return { world: data.world, players };
+  const donations = data.donations && typeof data.donations === 'object' && !Array.isArray(data.donations) ? data.donations : null;
+  return { world: data.world, players, donations };
 }
 
 /**
@@ -32,9 +33,10 @@ export function loadWorldFile(dir, log = () => {}) {
  * @param {string} dir složka s daty
  * @param {object} world stav světa (worldState())
  * @param {Record<string, object>} [players] id profilu -> stav hráče (batoh, pozice…)
+ * @param {{ box: unknown[] }} [donations] předměty v pokladničce darů (server/donation-box.js)
  */
-export function saveWorldFile(dir, world, players = {}) {
-  writeJSON(path.join(dir, 'world.json'), { version: VERSION, savedAt: new Date().toISOString(), world, players }, 'world');
+export function saveWorldFile(dir, world, players = {}, donations = undefined) {
+  writeJSON(path.join(dir, 'world.json'), { version: VERSION, savedAt: new Date().toISOString(), world, players, ...(donations ? { donations } : {}) }, 'world');
 }
 
 /**
