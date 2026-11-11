@@ -110,6 +110,7 @@ export function onHostMsg(msg) {
     case 'toast': toast(msg[1]); break;
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'pvlock': pvLock(msg[1]); break; // byl jsi v souboji: souboje 20 s nejdou vypnout
+    case 'goto': try { sessionStorage.setItem('rise-goto', String(msg[1] || '').slice(0, 40)); } catch {} leaveGame(); break; // Marek: /svet (menu se samo připojí, menu.js)
     case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl; pvp-mark: hráč vyřadil hráče
     case 'chat': chatLine(msg[1], msg[2]); break;
     case 'join': sysLine(`${msg[1]} se připojil`); break;

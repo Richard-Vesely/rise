@@ -225,6 +225,7 @@ export function armyChat(pid, name, text) {
     spawn: (type, x, z) => { spawnMob(type, x, z); return mobs[mobs.length - 1]; },
     give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
     reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },
+    goto: pid === 'host' ? null : (w) => sendTo(pid, ['goto', w]), // jen server kroužku: prohlížeč se přepojí (client/src/net/multiplayer.js)
   });
 }
 export function setPerm(P, on) {

@@ -1,8 +1,9 @@
 // Markova armáda (ve všech dimenzích): Markomani a krystaloví golemové, kterým velí hráč jménem Marek příkazy v chatu.
 // Příkazy ani odpovědi nikdo jiný nevidí (shared/net/room.js je nerozesílá). Běží u toho, kdo drží svět (server nebo
 // hostitel v prohlížeči); tvorové se pohybují běžnou simulací (shared/sim/mobs.js: armyPlan místo vlastní volby cíle).
-//   /armada [počet]  svolá armádu (výchozí a nejvýš 40 jednotek: každá pátá je krystalový golem, ostatní Markomani) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
-//   palác před Markem) · /tezit (vykope důl, rudy jdou Markovi) · /rozpustit · /pomoc
+//   /armada [počet]  svolá armádu (výchozí a nejvýš ARMY_MAX = 90 jednotek: každá pátá je krystalový golem, ostatní Markomani) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
+//   palác před Markem) · /tezit (vykope důl, rudy jdou Markovi) · /rozpustit · /svet <název> (přepojí Marka do jiného
+//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /pomoc
 import { BLOCKS } from '../data/index.js';
 import { NET } from '../net/net.js';
 import { Vec3 } from '../vec3.js';
@@ -11,6 +12,7 @@ import { V, VOX, getVox, setVox, surfY, topY } from '../world/voxels.js';
 
 /** Je to hráč, který velí armádě? */
 export const isMarek = (name) => String(name || '').trim().toLowerCase() === 'marek';
+export const ARMY_MAX = 90;
 export const ARMY = { leader: undefined, mode: 'follow', target: null, job: null, last: null };
 const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -32,8 +34,8 @@ export function armyCommand(pid, text, ctx) {
   switch (cmd) {
     case 'armada': case 'army': {
       if (!p) return true;
-      const total = Math.max(1, Math.min(40 - army.length, parseInt(arg, 10) || 40)), golems = Math.floor(total / 5), n = total - golems;
-      if (army.length >= 40) { say(`Armáda už má ${army.length} jednotek (nejvýš 40). Nejdřív /rozpustit.`); return true; }
+      const total = Math.max(1, Math.min(ARMY_MAX - army.length, parseInt(arg, 10) || ARMY_MAX)), golems = Math.floor(total / 5), n = total - golems;
+      if (army.length >= ARMY_MAX) { say(`Armáda už má ${army.length} jednotek (nejvýš ${ARMY_MAX}). Nejdřív /rozpustit.`); return true; }
       for (let i = 0; i < n + golems; i++) {
         const a = (i / (n + golems)) * Math.PI * 2, r = 4 + (i % 4) * 1.5;
         const m = ctx.spawn(i < n ? 'markoman' : 'golem', p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
@@ -69,8 +71,20 @@ export function armyCommand(pid, text, ctx) {
       say('Kopeme důl, rudy ti budou chodit do batohu.');
       return true;
     }
+    case 'svet': case 'world': // přepojení do jiného světa serveru: prohlížeč Marka si najde svět podle jména a připojí se
+      if (!ctx.goto) { say('Jiné světy jsou jen na serveru kroužku.'); return true; }
+      if (!arg) { say('Napiš název světa, třeba /svet kreativni'); return true; }
+      say(`Přepojuji do světa „${arg}“…`);
+      ctx.goto(arg);
+      return true;
+    case 'markorit': { // vzácný markorit pro Marka
+      const n = Math.max(1, Math.min(640, parseInt(arg, 10) || 64));
+      ctx.give('markorite', n);
+      say(`Markorit: +${n}`);
+      return true;
+    }
     case 'pomoc': case 'help':
-      say('/armada [počet, nejvýš 40] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit');
+      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet]`);
       return true;
   }
   return false;
@@ -141,7 +155,7 @@ export function armyPlan(m, TG) {
     if (T && T.alive) return { T, attack: true, near: 1.2 };
     ARMY.mode = 'follow';
   }
-  const slot = m.slot || 0, a = slot * 2.4, ring = Math.floor(slot / 10); // 40 vojáků: čtyři kruhy kolem cíle
+  const slot = m.slot || 0, a = slot * 2.4, ring = Math.floor(slot / 15); // až 90 vojáků: šest kruhů kolem cíle
   let cx, cz, r;
   if (ARMY.job && (ARMY.mode === 'build' || ARMY.mode === 'mine')) { cx = ARMY.job.x; cz = ARMY.job.z; r = (ARMY.mode === 'build' ? 11 : 5) + ring * 1.5; }
   else if (lead) { cx = lead.pos.x; cz = lead.pos.z; r = 3 + ring * 1.8; ARMY.last = { x: cx, z: cz }; }

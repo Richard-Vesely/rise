@@ -318,7 +318,7 @@ test('fights by choice (key N): only between two players who both switched them 
 });
 
 test('Marek\'s army: chat commands only from the player Marek, secret from the others; attack, mine, palace', { timeout: 90000 }, async () => {
-  const srv = await startServer({ DATA_DIR: tmp('louka-army-'), WORLDS: 'svet:Hlavní svět' });
+  const srv = await startServer({ DATA_DIR: tmp('louka-army-'), WORLDS: 'svet:Hlavní svět,kreativ:Kreativní svět:creative' });
   try {
     const mk = player(srv.port, 'Marek', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
     for (const p of [mk, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
@@ -333,10 +333,18 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[2] === '/armada 8'), '…their message is just normal chat');
     mk.send(['chat', '/armada']);
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[1] === '⚔ Armáda' && /svolána/.test(m[2])), 'Marek gets the answer');
-    assert.ok(await mk.waitFor(() => army(mk).length >= 40), `40 units appear (${army(mk).length})`);
-    assert.equal(army(mk).filter((q) => q[1] === 'golem').length, 8, 'every fifth is a golem');
+    assert.ok(await mk.waitFor(() => army(mk).length >= 90), `90 units appear (${army(mk).length})`);
+    assert.ok(army(mk).filter((q) => q[1] === 'golem').length >= 18, 'every fifth is a golem');
     mk.send(['chat', '/armada 5']);
-    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /nejvýš 40/.test(m[2])), 'never more than 40');
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /nejvýš 90/.test(m[2])), 'never more than 90');
+    await sleep(3000);
+    const h = await getJSON(srv.port, '/health');
+    console.log('army of 90: world step', JSON.stringify(h.worlds.map((w) => [w.id, w.tickMs])));
+    assert.ok(h.worlds[0].tickMs.avg < 25, `the server keeps up with 90 soldiers (avg ${h.worlds[0].tickMs.avg} ms of 50)`);
+    mk.send(['chat', '/markorit']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'give' && m[1] === 'markorite' && m[2] === 64), '/markorit gives 64 markorite');
+    mk.send(['chat', '/svet kreativ']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'goto' && m[1] === 'kreativ'), '/svet tells the browser of Marek to switch worlds');
     await sleep(500);
     assert.ok(!b.msgs.some((m) => m[0] === 'chat' && (m[1] === 'Marek' && m[2].startsWith('/') || m[1] === '⚔ Armáda')), 'the others never see the commands or answers');
     mk.send(['chat', '/útok bára']);
