@@ -500,7 +500,7 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
 ## 10. Multiplayer
 - **Marek's army** (secret in the game: not in the guide, no message to anyone else; for the lektor): the player named
   *Marek* commands an army in every dimension with chat commands that are not sent to anyone (the answers go only to him):
-  `/armada [n]` (n Markomen, max. 20, plus a crystal golem per 4, max. 4; never attacks Marek), `/utok <player>`, `/stop`,
+  `/armada [n]` (40 units by default and at most: every fifth a crystal golem, the rest Markomen; never attacks Marek), `/utok <player>`, `/stop`,
   `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
   his backpack), `/rozpustit`, `/pomoc`. Runs where the world is held (server or browser host); the soldiers are normal mobs
   whose goal comes from `armyPlan`. On the club server the name is protected by the PIN. Code: `shared/sim/army.js`.

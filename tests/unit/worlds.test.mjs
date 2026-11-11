@@ -331,9 +331,12 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     await sleep(800);
     assert.equal(army(b).length, 0, 'someone else cannot call the army');
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[2] === '/armada 8'), '…their message is just normal chat');
-    mk.send(['chat', '/armada 8']);
+    mk.send(['chat', '/armada']);
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[1] === '⚔ Armáda' && /svolána/.test(m[2])), 'Marek gets the answer');
-    assert.ok(await mk.waitFor(() => army(mk).length >= 10), `8 Markomen and 2 golems appear (${army(mk).length})`);
+    assert.ok(await mk.waitFor(() => army(mk).length >= 40), `40 units appear (${army(mk).length})`);
+    assert.equal(army(mk).filter((q) => q[1] === 'golem').length, 8, 'every fifth is a golem');
+    mk.send(['chat', '/armada 5']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /nejvýš 40/.test(m[2])), 'never more than 40');
     await sleep(500);
     assert.ok(!b.msgs.some((m) => m[0] === 'chat' && (m[1] === 'Marek' && m[2].startsWith('/') || m[1] === '⚔ Armáda')), 'the others never see the commands or answers');
     mk.send(['chat', '/útok bára']);

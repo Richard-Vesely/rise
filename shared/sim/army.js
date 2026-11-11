@@ -1,7 +1,7 @@
 // Markova armáda (ve všech dimenzích): Markomani a krystaloví golemové, kterým velí hráč jménem Marek příkazy v chatu.
 // Příkazy ani odpovědi nikdo jiný nevidí (shared/net/room.js je nerozesílá). Běží u toho, kdo drží svět (server nebo
 // hostitel v prohlížeči); tvorové se pohybují běžnou simulací (shared/sim/mobs.js: armyPlan místo vlastní volby cíle).
-//   /armada [počet]  svolá Markomany (+ golema na každé 4, nejvýš 4) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
+//   /armada [počet]  svolá armádu (výchozí a nejvýš 40 jednotek: každá pátá je krystalový golem, ostatní Markomani) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
 //   palác před Markem) · /tezit (vykope důl, rudy jdou Markovi) · /rozpustit · /pomoc
 import { BLOCKS } from '../data/index.js';
 import { NET } from '../net/net.js';
@@ -32,15 +32,15 @@ export function armyCommand(pid, text, ctx) {
   switch (cmd) {
     case 'armada': case 'army': {
       if (!p) return true;
-      const n = Math.max(1, Math.min(20, parseInt(arg, 10) || 8)), golems = Math.min(4, Math.floor(n / 4));
-      if (army.length + n + golems > 24) { say(`Armáda je moc velká (${army.length}). Nejdřív /rozpustit.`); return true; }
+      const total = Math.max(1, Math.min(40 - army.length, parseInt(arg, 10) || 40)), golems = Math.floor(total / 5), n = total - golems;
+      if (army.length >= 40) { say(`Armáda už má ${army.length} jednotek (nejvýš 40). Nejdřív /rozpustit.`); return true; }
       for (let i = 0; i < n + golems; i++) {
-        const a = (i / (n + golems)) * Math.PI * 2, r = 4 + (i % 3);
+        const a = (i / (n + golems)) * Math.PI * 2, r = 4 + (i % 4) * 1.5;
         const m = ctx.spawn(i < n ? 'markoman' : 'golem', p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
         if (m) { m.army = true; m.slot = army.length + i; }
       }
       ARMY.mode = 'follow';
-      say(`Armáda svolána: ${n} Markomanů${golems ? ` a ${golems} golemové` : ''}. /pomoc = příkazy.`);
+      say(`Armáda svolána: ${n} Markomanů${golems ? ` a ${golems} golemů` : ''} (celkem ${army.length + total}). /pomoc = příkazy.`);
       return true;
     }
     case 'utok': case 'attack': {
@@ -70,7 +70,7 @@ export function armyCommand(pid, text, ctx) {
       return true;
     }
     case 'pomoc': case 'help':
-      say('/armada [počet] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit');
+      say('/armada [počet, nejvýš 40] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit');
       return true;
   }
   return false;
@@ -141,11 +141,11 @@ export function armyPlan(m, TG) {
     if (T && T.alive) return { T, attack: true, near: 1.2 };
     ARMY.mode = 'follow';
   }
-  const slot = m.slot || 0, a = slot * 2.4;
+  const slot = m.slot || 0, a = slot * 2.4, ring = Math.floor(slot / 10); // 40 vojáků: čtyři kruhy kolem cíle
   let cx, cz, r;
-  if (ARMY.job && (ARMY.mode === 'build' || ARMY.mode === 'mine')) { cx = ARMY.job.x; cz = ARMY.job.z; r = ARMY.mode === 'build' ? 11 : 5; }
-  else if (lead) { cx = lead.pos.x; cz = lead.pos.z; r = 3 + (slot % 3); ARMY.last = { x: cx, z: cz }; }
-  else if (ARMY.last) { cx = ARMY.last.x; cz = ARMY.last.z; r = 3 + (slot % 3); }
+  if (ARMY.job && (ARMY.mode === 'build' || ARMY.mode === 'mine')) { cx = ARMY.job.x; cz = ARMY.job.z; r = (ARMY.mode === 'build' ? 11 : 5) + ring * 1.5; }
+  else if (lead) { cx = lead.pos.x; cz = lead.pos.z; r = 3 + ring * 1.8; ARMY.last = { x: cx, z: cz }; }
+  else if (ARMY.last) { cx = ARMY.last.x; cz = ARMY.last.z; r = 3 + ring * 1.8; }
   else return null;
   const goal = (m.goal ||= new Vec3()).set(cx + Math.cos(a) * r, m.pos.y, cz + Math.sin(a) * r);
   return { T: { pos: goal, alive: false, pid: undefined, army: true }, attack: false, near: 0.8 };
