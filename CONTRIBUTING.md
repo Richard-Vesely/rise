@@ -134,8 +134,9 @@ Tím se změna nahraje do **tvého forku**. Otevři ho na GitHubu a klikni **Com
   Nechceš, aby robot sloučil rozdělanou věc? Založ pull request jako **Draft**.
 - Když chceš, ať se na to někdo podívá (kamarád nebo Richard), napiš mu. Připomínky oprav ve stejné větvi
   (`git commit` + `git push`), pull request se sám aktualizuje a CI proběhne znovu.
-- Za pár minut je změna ve hře na webu (https://richard-vesely.github.io/rise/) a na serveru kroužku,
-  jakmile na něm nikdo nehraje (server se aktualizuje sám).
+- Za pár minut je změna ve hře na webu (https://richard-vesely.github.io/rise/) a asi do 12 minut i na serveru
+  kroužku (server se aktualizuje sám, hned jak projdou testy, i když se zrovna hraje: hráče na chvíli odpojí
+  a sám je připojí zpátky).
 
 ## Pravidla
 
