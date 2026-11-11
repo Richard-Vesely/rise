@@ -6,6 +6,8 @@ export const NET = {
   ready: false, silent: 0, ops: [], mobN: 0, uidN: 0, killer: null,
   perm: true, // smí hráč používat kreativní režim?
   pvp: false, // můžou se hráči v tomhle světě navzájem zranit? (svět s volbou pvp na serveru; pravidla: hitPlayer v shared/net/room.js)
+  pvpOn: false, // hráč u obrazovky si zapnul souboje (klávesa N ve hře pro víc hráčů; bojuje s hráči, kteří je mají také zapnuté)
+  onPvLock: null, // (s) => void: hostitel v prohlížeči byl v souboji, souboje nejdou s sekund vypnout
   pvpMark: false, // souboje jen v Markově dimenzi (volba pvp-mark): bez arény, bez tabulky, normální hra
   uidPrefix: 'h', // začátek jedinečných id (vyhozené předměty, dokumenty, auta…)
   // Změna světa: ve hře pro více hráčů se rozešle ostatním (při přehrávání cizí změny se neposílá).

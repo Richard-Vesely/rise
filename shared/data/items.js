@@ -51,6 +51,8 @@ for (const [t, key, mat] of TIERS) {
 // Luk a šípy (client/src/player/bow.js): pravé tlačítko natahuje, puštění vystřelí. bow.dmg = zranění plně nataženým šípem.
 ITEMS.bow = { name: 'Luk', bow: { dmg: 10, draw: 1, speed: 46 }, stack: 1, dur: 250 };
 ITEMS.arrow = { name: 'Šíp' };
+// Čarovná hůl (client/src/player/magic.js): pravé tlačítko sešle vybrané kouzlo; kouzla se učí za XP (shared/data/magic.js)
+ITEMS.wand = { name: 'Čarovná hůl', wand: true, stack: 1 };
 // Brnění: helma, brnění, kalhoty, boty. Každý bod ochrany ubere 3,5 % zranění (max. 80 %).
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
 export const ARMOR_SLOT_NAMES = ['Helma', 'Brnění', 'Kalhoty', 'Boty'];

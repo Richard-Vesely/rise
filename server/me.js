@@ -3,6 +3,7 @@
 // Pořád platí, že hráči se věří (KNOWN-ISSUES.md): upravený prohlížeč může poslat jiné předměty, ale ne rozbitý soubor.
 import { ITEMS, cleanCostume } from '../shared/data/index.js';
 import { maxDur } from '../shared/tools.js';
+import { cleanMagic } from '../shared/data/magic.js';
 
 export const ME_MAX_BYTES = 64 * 1024;
 export const INV_SLOTS = 36, ARMOR_SLOTS = 4;
@@ -55,6 +56,7 @@ export function cleanMe(me, bytes = 0) {
       creative: me.creative === true,
       flying: me.flying === true,
       flyT: num(me.flyT, 0, 1e5) ? me.flyT : 0,
+      magic: cleanMagic(me.magic), // XP, naučená kouzla, aktivní kouzlo (shared/data/magic.js)
     };
     if (me.look != null && typeof me.look === 'object') out.look = cleanCostume(me.look); // oblek (jen vzhled), nepovinný
 

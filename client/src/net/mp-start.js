@@ -66,7 +66,7 @@ if (MP) {
   netBox.style.display = 'flex';
   document.body.classList.add('mp');
   $('newWorld').style.display = 'none';
-  $('hint').textContent += ' · T chat · Esc menu a hráči';
+  $('hint').textContent += ' · T chat · N souboje · Esc menu a hráči';
   document.addEventListener('pointerlockchange', () => {
     if (isLocked()) { hidePause(); return; }
     if (!invOpen && !guideOpen && !chatOpen && !pcOpen && !docOpen && !NET.leaving) showPause();

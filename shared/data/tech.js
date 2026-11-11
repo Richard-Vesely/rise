@@ -370,3 +370,5 @@ RECIPES.push(
   { out: 'bow', n: 1, shape: [' TF', 'T F', ' TF'], key: { T: 'stick', F: 'fiber' }, cat: 'tools' },
   { out: 'arrow', n: 4, shape: ['K', 'T', 'F'], key: { K: 'stone', T: 'stick', F: 'fiber' }, cat: 'tools' },
 );
+// Čarovná hůl: klacek a stínová esence (od stínožroutů)
+RECIPES.push({ out: 'wand', n: 1, shape: [' E', 'T '], key: { E: 'essence', T: 'stick' }, cat: 'tools' });
