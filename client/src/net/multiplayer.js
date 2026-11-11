@@ -24,7 +24,7 @@ import { cutGrass } from '../render/grass.js';
 import { scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
-import { chatLine, leaveGame, renderPause, sysLine } from './mp-ui.js';
+import { chatLine, leaveGame, renderPause, serverRestarting, sysLine } from './mp-ui.js';
 import { pvLock } from '../player/pvp.js';
 
 // ============================================================ hra pro více hráčů (hostitel = server)
@@ -115,6 +115,7 @@ export function onHostMsg(msg) {
     case 'chat': chatLine(msg[1], msg[2]); break;
     case 'join': sysLine(`${msg[1]} se připojil`); break;
     case 'leave': sysLine(`${msg[1]} odešel`); break;
+    case 'restart': serverRestarting(); break; // server kroužku se aktualizuje: uložit batoh, pak se připojit zpátky (mp-ui.js)
     case 'kick': NET.kicked = true; leaveGame(typeof msg[1] === 'string' ? msg[1].slice(0, 200) : 'Hostitel tě vyhodil ze hry.'); break; // server: ['kick', 'Přihlásil ses jinde.']
   }
 }

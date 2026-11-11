@@ -101,6 +101,43 @@ export function renderNetBox() {
 }
 netBox.addEventListener('click', (e) => { const b = e.target.closest('[data-copy]'); if (b) copyCode(b); });
 
+// Server kroužku se restartuje (automatická aktualizace na novou verzi hry): přišlo ['restart'].
+// Batoh se hned pošle na server; až se spojení zavře, hra počká, až nový server běží, načte se znovu
+// (už v nové verzi) a menu se samo připojí zpátky do stejného světa (sessionStorage rise-znovu).
+let restartAt = 0;
+export function serverRestarting() {
+  if (restartAt) return;
+  restartAt = Date.now();
+  saveGame();
+  sysLine('Server se aktualizuje na novou verzi hry. Za chvíli tě připojím zpátky.');
+}
+export const restarting = () => !!restartAt;
+export async function rejoinAfterRestart() {
+  if (NET.leaving) return;
+  NET.leaving = true;
+  unlockPointer();
+  const note = document.createElement('div');
+  note.textContent = 'Nová verze hry · server se restartuje, za chvíli tě připojím zpátky…';
+  note.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;background:#000b;color:#fff;font:600 20px system-ui,sans-serif';
+  document.body.append(note);
+  // nový server poznáme podle toho, že běží kratší dobu, než uplynulo od zprávy ['restart'] (starý ještě chvíli ukládá)
+  const health = new URL(NET.code.replace(/^ws/i, 'http'));
+  health.pathname = health.pathname.replace(/\/?ws$/, '') + '/health';
+  for (let i = 0; i < 60; i++) { // nejvýš asi 2 minuty
+    await new Promise((ok) => setTimeout(ok, 2000));
+    try {
+      const h = await (await fetch(health.href, { cache: 'no-store' })).json();
+      if (h?.ok && h.uptime <= (Date.now() - restartAt) / 1000) {
+        try { sessionStorage.setItem('rise-znovu', JSON.stringify({ url: NET.code, world: BOOT.welcome?.worldInfo?.id || '' })); } catch {}
+        location.reload();
+        return;
+      }
+    } catch {}
+  }
+  try { sessionStorage.setItem('rise-menu-msg', 'Server se po aktualizaci zatím nevrátil. Zkus to za chvíli znovu.'); } catch {}
+  location.reload();
+}
+
 export function leaveGame(msg) {
   if (NET.leaving) return;
   saveGame();
