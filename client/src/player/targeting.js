@@ -38,7 +38,7 @@ function rayBoxes(o, d, cx, cy, cz, boxes) {
   }
   return best;
 }
-function raycastBlocks(o, d, max) {
+export function raycastBlocks(o, d, max) {
   let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
   const sx = Math.sign(d.x), sy = Math.sign(d.y), sz = Math.sign(d.z);
   const tdx = Math.abs(1 / d.x), tdy = Math.abs(1 / d.y), tdz = Math.abs(1 / d.z);
@@ -67,12 +67,12 @@ function raycastBlocks(o, d, max) {
   }
   return null;
 }
-export function pickTarget() {
+export function pickTarget(reach = REACH) { // reach: kouzla (těžba na dálku, blesk) míří dál
   camera.getWorldPosition(rayO);
   camera.getWorldDirection(rayD);
   const o = rayO, d = rayD;
-  let best = null, bt = REACH;
-  const bh = raycastBlocks(o, d, REACH);
+  let best = null, bt = reach;
+  const bh = raycastBlocks(o, d, reach);
   if (bh?.vox) {
     bt = bh.t;
     best = voxTarget(bh.vox, [bh.x, bh.y, bh.z], bh.normal, [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t], false);
