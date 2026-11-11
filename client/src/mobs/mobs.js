@@ -19,6 +19,7 @@ import { emitChips, emitStars } from '../render/chips.js';
 import { debris, sparks } from '../render/particles.js';
 import { scene } from '../render/renderer.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
+import { noteHit } from '../player/xp.js';
 
 // ============================================================ tvorové: modely (mob-models.js), animace a „život“
 // Oči mrkají, hlava sleduje hráče do 8 m, uši a ocas sebou škubnou, zvířata se na místě pasou a rozhlížejí,
@@ -184,6 +185,7 @@ export function mobLife() {
 // kb = síla odhození, fx = { crit, charge } jen pro efekty. Vrací false, když byl tvor ještě nezranitelný.
 let localFx = null;
 export function hitMob(m, dmg, yaw = player.yaw, kb = 1, fx = {}) {
+  noteHit(m); // XP, když tvor do 4 s padne (player/xp.js)
   if (NET.client) { // útok jde hostiteli, tady jen odezva
     const now = performance.now() / 1000;
     if (m.dead || now - (m.hitAt || -9) < MOB_INVULN) return false;

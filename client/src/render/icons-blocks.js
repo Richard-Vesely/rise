@@ -266,6 +266,12 @@ function isoBoxes(top, side, boxes) {
     if (d > 10.3 && d < 12.1 && s <= 15) return Math.hypot(x - 4, y - 4) < 1.8 ? '#3a2614' : d < 10.9 || d > 11.6 ? '#5a3a1e' : '#9a6a38';
     return Math.abs(s - 15) < 0.6 && x >= 1 && x <= 14 ? '#e8e2d0' : null;
   }));
+  icon('wand', face((x, y) => { // hůl po úhlopříčce se svítícím krystalem nahoře
+    const s = x + y;
+    if (Math.hypot(x - 12, y - 3) < 2.6) return Math.hypot(x - 11.4, y - 2.4) < 1 ? '#ffffff' : '#b98cff';
+    if (Math.abs(s - 15) <= 0.6 && x >= 2 && x <= 10) return x === 5 || x === 8 ? '#e0b040' : '#5a3a20';
+    return null;
+  }));
   icon('arrow', face((x, y) => {
     const s = x + y;
     if (Math.abs(s - 15) > 1.6) return null;

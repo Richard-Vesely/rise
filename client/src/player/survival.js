@@ -19,10 +19,12 @@ import { wearArmor } from './durability.js';
 import { arenaReset } from './arena.js';
 import { addItem } from './inventory.js';
 import { creative, player } from './player.js';
+import { magic } from './xp.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
   if (!player.alive || creative) return;
+  if (magic.wardT > 0) amount *= 0.5; // kouzlo Ochranný štít (xp.js)
   if (dx || dz) { // brnění tlumí útoky a přitom se opotřebuje
     const raw = amount;
     amount *= 1 - Math.min(0.8, armorPoints() * 0.035);

@@ -31,6 +31,7 @@ import { shrineColliders } from '../world/shrine.js';
 import { resetUseCd, target } from './interaction.js';
 import { inv } from './inventory.js';
 import { togglePvp } from './pvp.js';
+import { holdingWand, nextSpell, toggleBook } from './xp.js';
 
 // ============================================================ hráč a ovládání
 const canvas = renderer.domElement;
@@ -93,6 +94,8 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyE' && !e.repeat) { invOpen ? closeInventory() : (isLocked() || game.testMode) && openInventory(); return; }
   if (e.code === 'Escape' && invOpen) { closeInventory(); return; }
   if (e.code === 'KeyH' && !e.repeat) { toggleGuide(); return; }
+  if (e.code === 'KeyK' && !e.repeat && !invOpen && !guideOpen) { toggleBook(); return; } // kniha kouzel (xp.js)
+  if (e.code === 'KeyR' && !e.repeat && !invOpen && holdingWand()) { nextSpell(); return; } // další kouzlo hole
   if (e.code === 'KeyN' && !e.repeat && MP && !guideOpen && (isLocked() || game.testMode)) { togglePvp(); return; } // ve hře pro víc hráčů N = souboje (pvp.js)
   if (guideOpen) return;
   if (e.code === 'KeyC' && !e.repeat && !invOpen) { setCreative(!creative); return; }

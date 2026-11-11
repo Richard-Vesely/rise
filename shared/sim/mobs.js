@@ -145,6 +145,7 @@ export function updateMobs(dt, day) {
     }
 
     const k = Math.min(1, dt * 4);
+    if (m.slowT > 0) { m.slowT -= dt; speed *= 0.35; } // ledová střela (kouzlo) zpomalí
     m.vel.x += (dirX * speed - m.vel.x) * k;
     m.vel.z += (dirZ * speed - m.vel.z) * k;
     const nx = m.pos.x + m.vel.x * dt, nz = m.pos.z + m.vel.z * dt;

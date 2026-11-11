@@ -355,6 +355,18 @@ Monsters stay away from the shrine; light blocks keep shadow-eaters away.
   sound). At night mobs and players get a faint blue moonlight rim so their outline reads in the dark.
 
 
+- **XP, levels and the magic wand** (*Čarovná hůl*: stick + shadow essence, 2×2): XP for a knocked-out mob you hit
+  (chicken 1 … boar 4, shadow-eater 6, Markoman 10, golem 25, dragon 120; within 4 s of your hit, any weapon or spell), for
+  ore (coal 1, iron 2, crystal 6, markorite 8…), for crafting (1 per craft) and for taking cooked / smelted output (2). Levels
+  need 20, 35, 50… XP (green bar with the level above the hotbar). Each new level offers **3 spells, you pick one** (mixed
+  kinds; stronger ones need a level and an easier spell first). The wand casts the chosen spell with the right button for
+  **mana** (blue bar, 40 + 10 per level, refills 4/s); **R** = next spell, **K** = spell book (learned spells, pick the active
+  one). Spells: attack – *Magická střela* (6), *Ohnivá koule* (10 in 3 m + burning), *Ledová střela* (8 + slow 4 s; slow only
+  in single player / browser host), *Blesk* (18 in 3 m where you aim, up to 40 m); healing – *Léčení* (+35), *Regenerace*
+  (3/s for 10 s), *Ochranný štít* (half damage 10 s); movement – *Vysoký skok*, *Přenesení* (up to 20 m), *Krátký let* (6 s);
+  utility – *Světlo* (glowing orb 60 s), *Těžba na dálku* (16 m, like an iron pickaxe), *Duchovní vlk* (20 s, attacks hostile
+  mobs). Bolts also hit players when fights are on. Saved as `magic` in the browser and on the server. Code: data
+  `shared/data/magic.js`, XP and windows `client/src/player/xp.js`, spells `client/src/player/magic.js`.
 **Combat feel**
 - **Attack charge**: every weapon has a speed (fist 4, sword 1.7, pickaxe 1.3, shovel 1.2, axe 1 hits per second). A thin cyan
   meter under the crosshair fills up; a hit does 20–100 % damage depending on the charge (Minecraft formula). Holding the

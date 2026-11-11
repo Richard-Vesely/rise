@@ -137,8 +137,8 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   connection then closes; the client asks again. The same profile already in that world: the old connection gets
   `['kick', 'Přihlásil ses jinde.']` and is closed. The welcome also has `me`: that player's saved state in this world
   (`null` = first time; added by `server/world-worker.js`). The client sends `['me', { inv, armor, pos, yaw, hp, hunger,
-  crafted, placedAny, creative, flying, flyT, look }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
-  `cleanCostume`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
+  crafted, placedAny, creative, flying, flyT, look, magic }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
+  `cleanCostume`; `magic` = `{ xp, learned, sel, picks }`, optional, cleaned by `cleanMagic` in `shared/data/magic.js`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
   ≤ 64 KB, 36 + 4 slots, known item ids; a slot is `{ id, n, w? }`, `w` = tool wear) and saves it in `world.json` → `players[profile id]`. The browser host ignores `me`.
 - Each world of the Node server runs in its own `worker_threads` thread, because `shared/` keeps one world in module
   state. Rooms, chat and players are per world; there are no messages between worlds.
