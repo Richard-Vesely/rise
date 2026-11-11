@@ -355,6 +355,9 @@ Monsters stay away from the shrine; light blocks keep shadow-eaters away.
   sound). At night mobs and players get a faint blue moonlight rim so their outline reads in the dark.
 
 
+- **Death**: the whole backpack, the cursor item and the armor fall to the ground where you died (like Minecraft); you wake up
+  at the shrine without them and can go back for them (anyone can pick them up; they vanish after 5 minutes). Not in the
+  arena (a fresh kit) and not in creative mode. Code: `dropEverything` in `client/src/player/survival.js`.
 - **XP, levels and the magic wand** (*Čarovná hůl*: stick + shadow essence, 2×2): XP for a knocked-out mob you hit
   (chicken 1 … boar 4, shadow-eater 6, Markoman 10, golem 25, dragon 120; within 4 s of your hit, any weapon or spell), for
   ore (coal 1, iron 2, crystal 6, markorite 8…), for crafting (1 per craft) and for taking cooked / smelted output (2). Levels

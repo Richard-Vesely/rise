@@ -269,6 +269,17 @@ try {
     return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
   });
   check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
+  r = await ev(async () => { // smrt: batoh a brnění vypadnou na zem tam, kde hráč padl
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.give('apple', 5); g.armor[0] = { id: 'iron_helmet', n: 1 };
+    g.mobs.length = 0; T.tpg(-70, 30); T.step(5);
+    const at = g.player.pos.clone(), before = g.groundItems.length;
+    g.player.hp = 5; g.damagePlayer(50, 0, 0);
+    const near = g.groundItems.filter((it) => it.pos.distanceTo(at) < 4).map((it) => it.id).sort();
+    const empty = g.inv.slots.every((x) => !x) && !g.armor[0];
+    await new Promise((ok) => setTimeout(ok, 3000));
+    return { near, empty, added: g.groundItems.length - before, alive: g.player.alive, home: g.player.pos.distanceTo(at) > 20 };
+  });
+  check('death: the backpack and armor fall to the ground where you died, you come back home without them', r.empty && ['apple', 'iron_helmet', 'iron_sword'].every((id) => r.near.includes(id)) && r.alive && r.home, JSON.stringify(r));
   r = await ev(async () => { // XP a kouzla: nová úroveň nabídne kouzla, Magická střela zraní kance, poražený kanec dá XP
     const g = window.game; T.clearInv(); T.give('wand', 1); T.hold('wand');
     g.mobs.length = 0; T.tpg(-60, 30); T.step(5);

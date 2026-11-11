@@ -12,14 +12,15 @@ import { scene } from '../render/renderer.js';
 import { shardObjs } from '../render/shards.js';
 import { $ } from '../ui/dom.js';
 import { setVignette, toast, vignette } from '../ui/hud.js';
-import { armorPoints, fullSet } from '../ui/inventory-ui.js';
+import { armor, armorPoints, fullSet, refreshUI } from '../ui/inventory-ui.js';
 import { exitVehicle } from '../vehicles/car.js';
 import { hurtPulse } from './camera-feel.js';
 import { wearArmor } from './durability.js';
 import { arenaReset } from './arena.js';
-import { addItem } from './inventory.js';
+import { addItem, inv } from './inventory.js';
 import { creative, player } from './player.js';
 import { magic } from './xp.js';
+import { popGroundItem } from '../../../shared/sim/ground-items.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
@@ -52,6 +53,7 @@ function die() {
   if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
+  const lost = NET.pvp ? 0 : dropEverything(); // batoh a brnění vypadnou na zem (v aréně je nová výbava)
   $('fade').style.opacity = 1;
   setTimeout(() => {
     if (NET.pvp) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
@@ -64,8 +66,20 @@ function die() {
     player.alive = true;
     if (!MP) for (const m of [...mobs]) if (m.type === 'crawler') removeMob(m);
     $('fade').style.opacity = 0;
-    toast('Svatyně tě přivedla zpět');
+    toast(lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
   }, 2600);
+}
+// Smrt: všechno z batohu, kurzoru a brnění vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
+// (shared/sim/ground-items.js DESPAWN). Vrací, kolik políček vypadlo.
+function dropEverything() {
+  const { x, y, z } = player.pos;
+  let n = 0;
+  const drop = (s) => { if (s) { popGroundItem(s.id, s.n, x, y + 0.8, z, s.w || 0); n++; } };
+  inv.slots.forEach((s, i) => { drop(s); inv.slots[i] = null; });
+  drop(inv.cursor); inv.cursor = null;
+  armor.forEach((s, i) => { drop(s); armor[i] = null; });
+  refreshUI();
+  return n;
 }
 let starveT = 0, hungerWarned = false;
 let lavaWarned = 0;
