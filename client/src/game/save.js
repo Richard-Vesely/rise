@@ -11,6 +11,7 @@ import { crafted, placedAny } from '../world/world-state.js';
 import { BOOT } from './boot.js';
 import { OLD_SAVE_KEY, SAVE_KEY } from './prefs.js';
 import { MIGRATED, PROFILE } from './save-load.js';
+import { magicState } from '../player/xp.js';
 
 // ============================================================ ukládání
 // (stav světa: worldState() v shared/world/save.js)
@@ -18,7 +19,7 @@ let saveWarned = false;
 export function saveGame() {
   if (resetting || NET.leaving) return;
   // hráč: batoh, pozice, zdraví… (klient na cizím serveru ukládá jen tohle)
-  const me = { inv: inv.slots, pos: player.pos.toArray(), yaw: player.yaw, hp: Math.max(player.hp, 1), hunger: player.hunger, crafted, placedAny, creative, flying: player.flying, flyT: player.flyT || 0, armor, look: loadCostume(NET.name) }; // look = oblek (jen vzhled)
+  const me = { inv: inv.slots, pos: player.pos.toArray(), yaw: player.yaw, hp: Math.max(player.hp, 1), hunger: player.hunger, crafted, placedAny, creative, flying: player.flying, flyT: player.flyT || 0, armor, look: loadCostume(NET.name), magic: magicState() }; // look = oblek (jen vzhled)
   if (PROFILE) { if (BOOT.conn?.open) BOOT.conn.send(['me', me]); return; } // server kroužku: hráč se ukládá na serveru
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(NET.client ? me : { ...me, ...worldState(), ...(NET.host ? NET.hostSave() : {}) }));

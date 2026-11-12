@@ -38,6 +38,9 @@ When you add or change a feature, update this file in the same pull request.
   (the same code next time). Max 6 players. **Připojit se ke kamarádovi kódem**: type the friend's code (just the 4
   characters is enough).
 - After leaving a multiplayer game the menu shows why (e.g. *Spojení se přerušilo. Zkus se připojit znovu.*).
+- **Club server update while playing:** the server warns in the chat (*Server se aktualizuje na novou verzi hry. Za chvíli
+  tě připojím zpátky.*), saves the backpack, and the game shows *Nová verze hry · server se restartuje…*; as soon as the
+  new server runs, the page reloads in the new version and joins the same world again by itself.
 - **Nastavení**: graphics quality (auto by graphics card/low/medium/high), controls (auto/touch/mouse), touch button size, mouse sensitivity,
   and the sound sliders **Hlasitost** (80 %), **Zvuky** (100 %) and **Hudba** (60 %); they apply at once (a short click plays at the new volume).
 - **Můj oblek** (link in the main menu, **O** or the *Oblek* button under the armor slots in the backpack): pick a futuristic suit
@@ -334,11 +337,17 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Stínožrout (shadow-eater) | 10 | night monster, burns at sunrise, avoids light and the shrine; violet veins and a moonlit rim show its outline at night |
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
-| Drak Země draka | 300 | guards the dragon cave; bites for 65 before armor, with 0.35 s warning and 1.15 s between attacks; flies after players at 8.5 m/s up to 140 m from the cave and does not despawn when far away |
+| Drak Země draka | 500 | guards the dragon cave; bites for 75 before armor, with 0.35 s warning and 1.15 s between attacks; within 3.2 m uses a stronger bite for 90 with 0.2 s warning and 0.9 s between attacks; continuously pursues players throughout the dragon dimension at up to 10 m/s, including during bite warnings, descends and closes to about 1.2 m for melee, and does not despawn when far away |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
-It does not attack creative players or bite through walls. Defeating it awards 8 light shards, 6 gold ingots and
-3 markorite, and marks its cave cleared in the existing `ruinsOpened` set: it stays defeated after saving and reloading.
+It starts following as soon as a player enters the dragon dimension, including at the return portal and in creative mode.
+Its body and head face its target immediately, even when the player circles behind it; it follows without biting in creative mode. In survival it also attacks at the return portal, including directly underneath its body.
+Its bite reaches players directly underneath it, up to 6 m below its feet; the line of sight follows the downward strike and cannot pass through a solid floor.
+After killing a bitten player it restores all 500 HP. Local kills heal immediately; remote kills count when the player's death arrives within 1 s of the bite, even if the dragon has switched targets. Escaping or surviving a bite does not heal it.
+It does not attack creative players or bite through walls. Defeating it guarantees a complete sky armor set
+(helmet, chestplate, leggings, boots; double jump, slow fall and healing), a markorite sword and pick,
+16 markorite ingots, 16 gold ingots, 12 light shards and 5 Mark apples. Equipment is unworn.
+It marks its cave cleared in the existing `ruinsOpened` set: it stays defeated after saving and reloading.
 Leaving an undefeated dragon and returning can restore its health, as for other monsters.
 Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`.
 
@@ -355,6 +364,21 @@ Monsters stay away from the shrine; light blocks keep shadow-eaters away.
   sound). At night mobs and players get a faint blue moonlight rim so their outline reads in the dark.
 
 
+- **Death**: the whole backpack, the cursor item and the armor fall to the ground where you died (like Minecraft); you wake up
+  at the shrine without them and can go back for them (anyone can pick them up; they vanish after 5 minutes). Not in the
+  arena (a fresh kit) and not in creative mode. Code: `dropEverything` in `client/src/player/survival.js`.
+- **XP, levels and the magic wand** (*Čarovná hůl*: stick + shadow essence, 2×2): XP for a knocked-out mob you hit
+  (chicken 1 … boar 4, shadow-eater 6, Markoman 10, golem 25, dragon 120; within 4 s of your hit, any weapon or spell), for
+  ore (coal 1, iron 2, crystal 6, markorite 8…), for crafting (1 per craft) and for taking cooked / smelted output (2). Levels
+  need 20, 35, 50… XP (green bar with the level above the hotbar). Each new level offers **3 spells, you pick one** (mixed
+  kinds; stronger ones need a level and an easier spell first). The wand casts the chosen spell with the right button for
+  **mana** (blue bar, 40 + 10 per level, refills 4/s); **R** = next spell, **K** = spell book (learned spells, pick the active
+  one). Spells: attack – *Magická střela* (6), *Ohnivá koule* (10 in 3 m + burning), *Ledová střela* (8 + slow 4 s; slow only
+  in single player / browser host), *Blesk* (18 in 3 m where you aim, up to 40 m); healing – *Léčení* (+35), *Regenerace*
+  (3/s for 10 s), *Ochranný štít* (half damage 10 s); movement – *Vysoký skok*, *Přenesení* (up to 20 m), *Krátký let* (6 s);
+  utility – *Světlo* (glowing orb 60 s), *Těžba na dálku* (16 m, like an iron pickaxe), *Duchovní vlk* (20 s, attacks hostile
+  mobs). Bolts also hit players when fights are on. Saved as `magic` in the browser and on the server. Code: data
+  `shared/data/magic.js`, XP and windows `client/src/player/xp.js`, spells `client/src/player/magic.js`.
 **Combat feel**
 - **Attack charge**: every weapon has a speed (fist 4, sword 1.7, pickaxe 1.3, shovel 1.2, axe 1 hits per second). A thin cyan
   meter under the crosshair fills up; a hit does 20–100 % damage depending on the charge (Minecraft formula). Holding the
@@ -483,6 +507,17 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
 *Kód:* `client/src/pc/` (computer, Tanks, editor, printer window, papers in the world, reading), printing `shared/sim/power.js`, document items `shared/world/papers.js`.
 
 ## 10. Multiplayer
+- **Marek's army** (secret in the game: not in the guide, no message to anyone else; for the lektor): the player named
+  *Marek* commands an army in every dimension with chat commands that are not sent to anyone (the answers go only to him):
+  `/armada [n]` (90 units by default and at most: every fifth a crystal golem, the rest Markomen; never attacks Marek), `/utok <player>`, `/stop`,
+  `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
+  his backpack), `/rozpustit`, `/svet <name>` (club server only: Marek's browser leaves and joins that world by name or id),
+  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. Runs where the world is held (server or browser host); the soldiers are normal mobs
+  whose goal comes from `armyPlan`. On the club server the name is protected by the PIN. Code: `shared/sim/army.js`.
+- **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
+  Two players can hurt each other only when both have them on (pose `pv`, checked by the host in `hitPlayer`). After a hit both
+  the attacker and the one hit can't switch them off for 20 s (`['pvlock', 20]`, the badge counts down; the host keeps them in the
+  fight even if a client tries). The arena and pvp-mark rules stay as they were. H is still the guide.
 - Host in the browser via code, max 6 players, the host's tab is the server, world saved in the host's browser.
 - **Server** (Node.js, `npm start`, v2): always-on world on a VPS or a laptop, saved to disk every 30 s with daily backups,
   serves the game itself; its worlds are buttons in the main menu (when the game comes from the server, from a

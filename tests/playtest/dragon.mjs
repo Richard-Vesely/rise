@@ -56,11 +56,23 @@ try {
   assert.equal(arrival.x, -40000); assert.ok(arrival.z < -2); assert.ok(arrival.y >= 0);
   assert.match(arrival.clock, /Země draka/); assert.equal(arrival.count, 1);
   console.log('PASS walking through the new portal, safe arrival, one dragon');
+  const facing = await page.evaluate(() => {
+    const m = game.mobs.find(m => m.type === 'dragon');
+    let minDot = 1;
+    for (const [dx, dz] of [[0, 5], [5, 0], [0, -5], [-5, 0]]) {
+      T.tp(m.pos.x + dx, m.pos.z + dz, 0); T.step(1);
+      const V = game.mobView(m), x = game.player.pos.x - m.pos.x, z = game.player.pos.z - m.pos.z;
+      minDot = Math.min(minDot, (-Math.sin(V.group.rotation.y) * x - Math.cos(V.group.rotation.y) * z) / Math.hypot(x, z));
+    }
+    return minDot;
+  });
+  assert.ok(facing > 0.999, 'visible dragon faces player immediately after circling behind it');
+  console.log('PASS dragon always faces the player, including in creative mode');
   await page.evaluate(() => { T.tp(-40000, -44, 0); T.aim(-40000, 3, -72); T.step(10); });
   await shot(page, 'test-results/dragon-cave.png');
   const fight = await page.evaluate(() => {
     const m = game.mobs.find(m => m.type === 'dragon');
-    T.tp(-40000, -60, 0); T.aim(m.pos.x, 2, m.pos.z); game.setCreative(false); game.player.hp = 200;
+    T.tp(m.pos.x, m.pos.z + 12, 0); T.aim(m.pos.x, 2, m.pos.z); game.setCreative(false); game.player.hp = 200;
     const z0 = m.pos.z; T.step(75); T.tp(m.pos.x, m.pos.z + 3, 0); T.step(24);
     const hp = game.player.hp; game.setCreative(true);
     return { hp, moved: m.pos.z > z0, kind: game.mobView(m).kind, bar: T.text('dragonHealth') };
@@ -78,12 +90,33 @@ try {
   });
   assert.ok(sword.after < sword.hp, 'normal sword input damages the dragon');
   console.log('PASS dragon can be fought with an ordinary sword');
-  const death = await page.evaluate(() => {
-    const m = game.mobs.find(m => m.type === 'dragon'); m.invT = 0; game.hitMob(m, 300); T.step(20);
-    game.saveGame();
-    return { flag: game.worldState().ruinsOpened.includes('dragon-den-v1'), shards: T.count('shard'), gold: T.count('gold_ingot') };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const kill = await page.evaluate((attempt) => {
+      const m = game.mobs.find(m => m.type === 'dragon');
+      game.setCreative(false); T.tp(-40000, attempt === 0 ? -3 : -72, 0.45); game.player.hp = 1;
+      m.pos.set(game.player.pos.x, game.player.pos.y + 5, game.player.pos.z);
+      m.vel.set(0, 0, 0); m.hp = 120; m.cd = 0; m.windup = 0;
+      T.step(20);
+      return { alive: game.player.alive, dragonHP: m.hp };
+    }, attempt);
+    assert.deepEqual(kill, { alive: false, dragonHP: 500 }, 'bite from above kills and fully heals dragon every time');
+    await page.waitForFunction(() => game.player.alive, null, { timeout: 10000 });
+  }
+  await page.evaluate(() => {
+    game.setCreative(true);
+    const m = game.mobs.find(m => m.type === 'dragon'); T.tp(m.pos.x + 3, m.pos.z, 0);
   });
-  assert.equal(death.flag, true); assert.equal(death.shards, 8); assert.equal(death.gold, 6);
+  console.log('PASS attacks directly underneath and full healing after two player kills');
+  const death = await page.evaluate(() => {
+    T.clearInv();
+    const m = game.mobs.find(m => m.type === 'dragon'); m.invT = 0; game.hitMob(m, m.hp); T.step(20);
+    game.saveGame();
+    const ids = ['sky_helmet', 'sky_chestplate', 'sky_leggings', 'sky_boots', 'markorite_sword', 'markorite_pick', 'markorite', 'gold_ingot', 'shard', 'markapple'];
+    return { flag: game.worldState().ruinsOpened.includes('dragon-den-v1'), loot: Object.fromEntries(ids.map(id => [id, T.count(id)])) };
+  });
+  assert.equal(death.flag, true);
+  assert.deepEqual(death.loot, { sky_helmet: 1, sky_chestplate: 1, sky_leggings: 1, sky_boots: 1,
+    markorite_sword: 1, markorite_pick: 1, markorite: 16, gold_ingot: 16, shard: 12, markapple: 5 });
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.click('#mSolo'); await waitGame(page);
   const restored = await page.evaluate(() => { T.step(90); return { dragon: game.mobs.some(m => m.type === 'dragon'), cleared: game.worldState().ruinsOpened.includes('dragon-den-v1'), cave: game.blocks.has('-40000,12,-72') }; });
   assert.deepEqual(restored, { dragon: false, cleared: true, cave: true });

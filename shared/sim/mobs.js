@@ -15,10 +15,16 @@ import { groundHeight, topY } from '../world/voxels.js';
 import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
 import { updateDragon } from './dragon.js';
+import { armyPlan, updateArmy } from './army.js';
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
-  dragon: { name: 'Drak Země draka', hp: 300, radius: 2.4, cy: 2, dmg: 65, tall: true, drops: [['shard', 8, 8], ['gold_ingot', 6, 6], ['markorite', 3, 3]] },
+  dragon: {
+    name: 'Drak Země draka', hp: 500, radius: 2.4, cy: 2, dmg: 75, tall: true,
+    drops: [['sky_helmet', 1, 1], ['sky_chestplate', 1, 1], ['sky_leggings', 1, 1], ['sky_boots', 1, 1],
+      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 16, 16], ['gold_ingot', 16, 16],
+      ['shard', 12, 12], ['markapple', 5, 5]],
+  },
   sheep: { name: 'Ovce', hp: 5, radius: 0.75, cy: 0.75, drops: [['raw_mutton', 1, 2], ['wool', 1, 2]] },
   boar: { name: 'Kanec', hp: 12, radius: 0.8, cy: 0.7, dmg: 10, drops: [['raw_pork', 2, 3], ['bone', 0, 1]] },
   chicken: { name: 'Slepice', hp: 4, radius: 0.45, cy: 0.45, drops: [['raw_chicken', 1, 1], ['egg', 0, 1]] },
@@ -100,16 +106,18 @@ export function killMob(m, drops, trap = false) {
 export function updateMobs(dt, day) {
   const TG = NET.targets(); // hráči, na které tvorové reagují
   if (!TG.length) { for (const m of [...mobs]) removeMob(m); return; } // na serveru nikdo není
+  updateArmy(dt, mobs); // Markova armáda: stavba a kopání (sim/army.js)
   for (const m of [...mobs]) {
     if (m.dead) {
       m.deathT += dt;
       if (m.deathT > DEATH_TIME) removeMob(m);
       continue;
     }
-    const T = nearestTarget(TG, m.pos), tp = T.pos;
+    const A = m.army ? armyPlan(m, TG) : null; // voják armády: cíl určuje velitel
+    const T = A ? A.T : nearestTarget(TG, m.pos), tp = T.pos;
     const dx = tp.x - m.pos.x, dz = tp.z - m.pos.z, dist = Math.hypot(dx, dz) || 0.01;
     const dyP = tp.y - m.pos.y;
-    if (dist > 120 && m.type !== 'dragon') { removeMob(m); continue; }
+    if (dist > 120 && m.type !== 'dragon' && !m.army) { removeMob(m); continue; }
     m.tdist = dist;
     if (m.type === 'dragon') { updateDragon(m, T, dt); continue; }
     let dirX = 0, dirZ = 0, speed = 0;
@@ -118,12 +126,14 @@ export function updateMobs(dt, day) {
       if (m.moving) { dirX = Math.cos(m.wander); dirZ = Math.sin(m.wander); speed = sp; }
     };
     const night = day < 0.4;
-    let hostile = !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
+    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
     if (m.type === 'crawler' && T.set === 'shadow') hostile = false; // stínové brnění
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
     if (m.type === 'cow' && m.milkT > 0) m.milkT -= dt;
-    if ((m.type === 'sheep' || m.type === 'deer' || m.type === 'chicken' || m.type === 'cow') && m.fleeT > 0) {
+    if (m.army) { // voják: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
+      if (A && dist > A.near) { dirX = dx / dist; dirZ = dz / dist; speed = A.attack ? HOSTILE_SPEED[m.type] : Math.min(5, dist); }
+    } else if ((m.type === 'sheep' || m.type === 'deer' || m.type === 'chicken' || m.type === 'cow') && m.fleeT > 0) {
       m.fleeT -= dt; dirX = -dx / dist; dirZ = -dz / dist; speed = m.type === 'deer' ? 7 : 5.5;
     } else if (hostile && T.alive && Math.abs(dyP) < 5 && dist < (m.type === 'crawler' ? 26 : 30) && !(m.type !== 'boar' && shrineDist(tp.x, tp.z) < 11) && !(m.type === 'crawler' && T.safe)) {
       dirX = dx / dist; dirZ = dz / dist; speed = HOSTILE_SPEED[m.type];
@@ -145,6 +155,7 @@ export function updateMobs(dt, day) {
     }
 
     const k = Math.min(1, dt * 4);
+    if (m.slowT > 0) { m.slowT -= dt; speed *= 0.35; } // ledová střela (kouzlo) zpomalí
     m.vel.x += (dirX * speed - m.vel.x) * k;
     m.vel.z += (dirZ * speed - m.vel.z) * k;
     const nx = m.pos.x + m.vel.x * dt, nz = m.pos.z + m.vel.z * dt;

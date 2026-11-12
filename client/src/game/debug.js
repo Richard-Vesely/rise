@@ -62,6 +62,8 @@ import { teleport, usePortal } from '../world/shrine.js';
 import { frame, tick } from './loop.js';
 import { GFX, QUALITY, TOUCH } from './prefs.js';
 import { saveGame } from './save.js';
+import { addXp, magic, offerPick } from '../player/xp.js';
+import { cast } from '../player/magic.js';
 
 // Na břeh nejbližšího jezera (na straně k hráči), hráč se dívá na vodu. Vrátí jezero.
 function toLake() {
@@ -84,6 +86,7 @@ function spawnOnLake(type = 'motorboat') {
 }
 // Pro ladění v konzoli prohlížeče.
 export const game = window.game = {
+  magic, addXp, cast, offerPick, // XP a kouzla (player/xp.js, player/magic.js)
   testMode: false, tick, input, keys, player, inv, ui, fires, ICONS, addItem, countItem, RECIPES, mobs, spawnMob, blocks, rebuildBlocks, forestTrees, forestRocks,
   slotClick, takeResult, fillRecipe, fillCooking, invTricks, findRecipe, cutGrass, getVox, setVox, topY, columnDug, voxChunks, V, specials,
   get underground() { return underground; }, armor, armorPoints, chests, damagePlayer, SHRINES, usePortal, teleport, ruinsNear, ruinsBuilt, ITEMS,

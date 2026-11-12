@@ -67,9 +67,9 @@ function shoot(B, k) {
   wearHeld(1);
 }
 
-const solid = (x, y, z) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z); return solidAt(X, Y, Z) || solidVox(X, Y, Z); };
+export const solid = (x, y, z) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z); return solidAt(X, Y, Z) || solidVox(X, Y, Z); };
 /** Tvor, kterého úsečka a→b protne (koule kolem těla tvora). */
-function mobOn(a, b) {
+export function mobOn(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
   for (const m of mobs) {
     if (m.dead) continue;

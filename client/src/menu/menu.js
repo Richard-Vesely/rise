@@ -190,6 +190,16 @@ async function loadWorlds(first = false) {
     if (r.ok) list = await r.json();
   } catch {}
   if ($m('menu')) renderWorlds(list, first);
+  if (first) gotoWorld(list);
+}
+// Příkaz /svet (Markova armáda, shared/sim/army.js): po odpojení se menu samo připojí do světa podle jména nebo id
+function gotoWorld(list) {
+  let want = null;
+  try { want = sessionStorage.getItem('rise-goto'); sessionStorage.removeItem('rise-goto'); } catch {}
+  if (!want || !Array.isArray(list)) return;
+  const plain = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(), q = plain(want);
+  const w = list.find((x) => plain(x.id) === q || plain(x.name) === q) || list.find((x) => plain(x.name).startsWith(q) || plain(x.id).startsWith(q));
+  if (w) joinWorld(w.id); else msg(`Svět „${want}“ na serveru není. Světy: ${list.map((x) => x.name).join(', ')}`);
 }
 let refresh = null;
 // Přihlášený hráč serveru kroužku: „Hraješ jako Ája · Odhlásit / jiný hráč“ (zapomene token, příště jméno + PIN).
@@ -305,5 +315,11 @@ function joinServer(pass, world, creds) {
     }
   };
 }
+// Po aktualizaci serveru kroužku (client/src/net/mp-ui.js rejoinAfterRestart) se hráč sám připojí zpátky do svého světa.
+try {
+  const back = JSON.parse(sessionStorage.getItem('rise-znovu') || 'null');
+  sessionStorage.removeItem('rise-znovu');
+  if (club && back?.url === club.url && back.world) joinWorld(back.world);
+} catch {}
 // Po restartu kvůli nastavení grafiky pokračuje hra pro jednoho rovnou, bez menu.
 try { if (sessionStorage.getItem('rise-autostart') === 'sp') { sessionStorage.removeItem('rise-autostart'); finish({ mode: 'sp' }); } } catch {}

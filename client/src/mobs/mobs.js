@@ -19,6 +19,7 @@ import { emitChips, emitStars } from '../render/chips.js';
 import { debris, sparks } from '../render/particles.js';
 import { scene } from '../render/renderer.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
+import { noteHit } from '../player/xp.js';
 
 // ============================================================ tvorové: modely (mob-models.js), animace a „život“
 // Oči mrkají, hlava sleduje hráče do 8 m, uši a ocas sebou škubnou, zvířata se na místě pasou a rozhlížejí,
@@ -56,6 +57,8 @@ export function poseMob(V, m, dt, sp) {
   V.t += dt;
   const k = (r) => 1 - Math.exp(-dt * r);
   if (m.dead) { animateDeath(V, m); return; }
+  // Drak míří tělem i hlavou hned na cíl, bez opožděného otáčení zády.
+  if (m.type === 'dragon') V.yaw = m.ry;
   m.phase += dt * (sp * 2.2 + (m.type === 'crawler' ? 2 : 0));
   const amt = Math.min(sp / 2, 1);
   let hop = 0;
@@ -102,14 +105,14 @@ export function poseMob(V, m, dt, sp) {
     if (!still) V.idle = null;
     let yaw = 0, pitch = 0;
     if (d < 8 && d > 0.5 && (V.idle !== 'graze' || d < 3)) { // hráč blízko: zvedne hlavu a dívá se na něj
-      yaw = Math.max(-1, Math.min(1, wrapAngle(Math.atan2(-dx, -dz) - V.yaw)));
+      yaw = m.type === 'dragon' ? 0 : Math.max(-1, Math.min(1, wrapAngle(Math.atan2(-dx, -dz) - V.yaw)));
       pitch = Math.atan2(player.pos.y + 1.4 - (m.pos.y + (m.def.cy || 0.6) * 1.5), d) * 0.6;
     } else if (V.idle === 'graze') pitch = m.type === 'chicken' ? -1 + Math.abs(Math.sin(V.t * 7)) * 0.4 : -1.05 + Math.sin(V.t * 3) * 0.06;
     else if (V.idle === 'look') yaw = V.idleDir;
     else if (V.idle === 'sniff') pitch = -0.35 + Math.sin(V.t * 14) * 0.04;
     if (V.rig) { V.rig.head.rotation.y = lerpA(V.rig.head.rotation.y, yaw, k(5)); }
     else {
-      V.head.rotation.y = lerpA(V.head.rotation.y, yaw, k(5));
+      V.head.rotation.y = m.type === 'dragon' ? 0 : lerpA(V.head.rotation.y, yaw, k(5));
       V.head.rotation.x += (V.headRest + pitch - V.head.rotation.x) * k(5);
     }
   }
@@ -184,6 +187,7 @@ export function mobLife() {
 // kb = síla odhození, fx = { crit, charge } jen pro efekty. Vrací false, když byl tvor ještě nezranitelný.
 let localFx = null;
 export function hitMob(m, dmg, yaw = player.yaw, kb = 1, fx = {}) {
+  noteHit(m); // XP, když tvor do 4 s padne (player/xp.js)
   if (NET.client) { // útok jde hostiteli, tady jen odezva
     const now = performance.now() / 1000;
     if (m.dead || now - (m.hitAt || -9) < MOB_INVULN) return false;

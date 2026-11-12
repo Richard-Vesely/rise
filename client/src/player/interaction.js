@@ -49,6 +49,9 @@ import { wearHeld } from './durability.js';
 import { addItem, addStack, consumeSelected, heldStack, inv } from './inventory.js';
 import { creative, input, isLocked, player, playerIntersects } from './player.js';
 import { pickTarget } from './targeting.js';
+import { updateMagic, updateWand } from './magic.js';
+import { addXp, updateXp } from './xp.js';
+import { XP_ORE } from '../../../shared/data/magic.js';
 
 // ============================================================ těžba, útok, pokládání
 export const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004)), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
@@ -220,7 +223,10 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
+  updateMagic(dt); updateXp(dt, player); // kouzla a XP (magic.js, xp.js)
+  const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
+  if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
+  else if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
   else {
     if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
     if (input.rmb) pillarPlace();
@@ -243,6 +249,8 @@ const TREE_DROPS = {
   spruce: [['log', 4, 6], ['snowball', 0, 2], ['resin', 0, 1]], dead: [['stick', 3, 6]], deadbush: [['stick', 1, 3]], cactus: [['cactus', 1, 3]], mushroom: [['mushroom_block', 2, 4], ['mushroom', 1, 3]],
 };
 // Co vytěžíš, vyskočí jako předmět (dropper v world/ground-items.js) a magnet ho k tobě přitáhne.
+// Ruda v podzemí → klíč XP_ORE
+const ORE_OF = { [V.COAL]: 'coal', [V.IRON]: 'iron', [V.CRYSTAL]: 'crystal', [V.MARKORITE]: 'markorite', [V.COPPER]: 'copper', [V.GOLD]: 'gold', [V.QUARTZ]: 'quartz' };
 export function breakTarget(t) {
   if (t.kind === 'tree') {
     removed.add(t.key);
@@ -274,7 +282,7 @@ export function breakTarget(t) {
   } else if (t.kind === 'rock') {
     removed.add(t.key);
     const r = t.rock, { drop } = dropper(r.x, r.y + 0.4, r.z);
-    if (r.iron) { drop('iron_ore', randInt(2, 3)); drop('stone', 1); }
+    if (r.iron) { drop('iron_ore', randInt(2, 3)); drop('stone', 1); addXp(XP_ORE.iron); }
     else drop('stone', 2 + Math.floor(r.s * 3));
     if (Math.random() < 0.3) drop('salt', randInt(1, 2)); // solné krystalky v kameni
     breakFx(t, [r.x, r.y + 0.3, r.z]);
@@ -328,6 +336,7 @@ export function breakTarget(t) {
     setVox(x, y, z, V.AIR);
     const [id, a, b] = def.drop;
     drop(id, randInt(a, b));
+    addXp(XP_ORE[ORE_OF[t.vox]] || 0); // XP za rudu (shared/data/magic.js)
     if (t.vox === V.STONE && Math.random() < 0.08) drop('salt', 1);
     if (t.vox === V.DIRT && nearPond(x + 0.5, z + 0.5, 4) && Math.random() < 0.4) drop('clay', randInt(1, 2)); // jíl u rybníka
     if (t.surface) cutGrass(x + 0.5, z + 0.5, 1.2);

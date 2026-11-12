@@ -137,11 +137,14 @@ Players open `https://hry.example.cz`, type a name, click a world button, then t
 ```bash
 sudo bash /opt/louka/deploy/update.sh       # git pull (code + dist branch), npm ci --omit=dev, restart (world saved on stop)
 ```
-Connected players see *"Spojení se přerušilo. Zkus se připojit znovu."* and join again (their backpack is on the server).
+Connected players get `['restart']` (chat: *Server se aktualizuje na novou verzi hry…*), send their backpack, and after
+the restart their browser reloads the new version and joins the same world again by itself (about 5–10 s). Older
+browsers without this see *"Spojení se přerušilo. Zkus se připojit znovu."* and join again (their backpack is on the server).
 
-**Automatic updates** (`louka-update.timer`, installed by `setup-vps.sh`): every 5 minutes `deploy/auto-update.sh` checks
+**Automatic updates** (`louka-update.timer`, installed by `setup-vps.sh`): every minute `deploy/auto-update.sh` checks
 GitHub. It updates only to a tested version (the `dist-<branch>` build of the newest code, so a merge waits until CI is
-green) and only when nobody is playing; between 4:00 and 4:59 Prague time it updates even with players online.
+green: the fast `test` job, about 3 minutes; the browser play-tests run in a separate `playtest` job and do not block), and then **right away, even with players online** (Richard, 11.11.2026). It also installs
+changed `louka-update.service`/`.timer` files by itself.
 Log: `journalctl -u louka-update`. Off: `systemctl disable --now louka-update.timer`.
 
 ### 5. Data and backups

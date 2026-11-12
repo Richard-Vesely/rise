@@ -290,3 +290,73 @@ test('arena (pvp world): built once, kill credit to the last hitter, scores for 
   s2 = await startServer({ DATA_DIR: dir, WORLDS: 'arena:Aréna:pvp' });
   try { assert.doesNotMatch(s2.out(), /Postavena aréna/, 'the arena is built only once per world'); } finally { await stop(s2); }
 });
+
+test('fights by choice (key N): only between two players who both switched them on; after a hit 20 s locked on', { timeout: 60000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-pvph-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const a = player(srv.port, 'Ája', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const dmgs = (p) => p.msgs.filter((m) => m[0] === 'dmg').length;
+    a.send(['pose', { ...pose(0, 14), pv: 1 }]); b.send(['pose', pose(2, 14)]);
+    await sleep(300);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    await sleep(400);
+    assert.equal(dmgs(b), 0, 'Bára has fights off: no hit');
+    b.send(['pose', { ...pose(2, 14), pv: 1 }]);
+    await sleep(300);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg' && m[1] === 15), 'both have fights on: the hit counts');
+    assert.ok(await a.waitFor((m) => m[0] === 'pvlock' && m[1] === 20), 'the attacker gets the 20 s lock');
+    assert.ok(await b.waitFor((m) => m[0] === 'pvlock' && m[1] === 20), '…and so does the one who was hit');
+    b.send(['pose', pose(2, 14)]); // Bára se pokusí souboje vypnout
+    await sleep(800);
+    a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+    await sleep(400);
+    assert.equal(dmgs(b), 2, 'switching off during the lock does not help: the host keeps her in the fight');
+    for (const p of [a, b]) await p.close();
+  } finally { await stop(srv); }
+});
+
+test('Marek\'s army: chat commands only from the player Marek, secret from the others; attack, mine, palace', { timeout: 90000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-army-'), WORLDS: 'svet:Hlavní svět,kreativ:Kreativní svět:creative' });
+  try {
+    const mk = player(srv.port, 'Marek', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [mk, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const { terrainH } = await import('../../shared/world/terrain.js');
+    const at = (x, z) => ({ ...pose(x, z), y: terrainH(x, z) }); // na zemi (tvorové útočí jen ve stejné výšce)
+    mk.send(['pose', at(60, 60)]); b.send(['pose', at(75, 60)]);
+    await sleep(400);
+    const army = (p) => { const m = p.msgs.filter((x) => x[0] === 'mobs').at(-1); return m ? m[3].filter((q) => q[1] === 'markoman' || q[1] === 'golem') : []; };
+    b.send(['chat', '/armada 8']);
+    await sleep(800);
+    assert.equal(army(b).length, 0, 'someone else cannot call the army');
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[2] === '/armada 8'), '…their message is just normal chat');
+    mk.send(['chat', '/armada']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[1] === '⚔ Armáda' && /svolána/.test(m[2])), 'Marek gets the answer');
+    assert.ok(await mk.waitFor(() => army(mk).length >= 90), `90 units appear (${army(mk).length})`);
+    assert.ok(army(mk).filter((q) => q[1] === 'golem').length >= 18, 'every fifth is a golem');
+    mk.send(['chat', '/armada 5']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /nejvýš 90/.test(m[2])), 'never more than 90');
+    await sleep(3000);
+    const h = await getJSON(srv.port, '/health');
+    console.log('army of 90: world step', JSON.stringify(h.worlds.map((w) => [w.id, w.tickMs])));
+    assert.ok(h.worlds[0].tickMs.avg < 25, `the server keeps up with 90 soldiers (avg ${h.worlds[0].tickMs.avg} ms of 50)`);
+    mk.send(['chat', '/markorit']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'give' && m[1] === 'markorite' && m[2] === 64), '/markorit gives 64 markorite');
+    mk.send(['chat', '/svet kreativ']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'goto' && m[1] === 'kreativ'), '/svet tells the browser of Marek to switch worlds');
+    await sleep(500);
+    assert.ok(!b.msgs.some((m) => m[0] === 'chat' && (m[1] === 'Marek' && m[2].startsWith('/') || m[1] === '⚔ Armáda')), 'the others never see the commands or answers');
+    mk.send(['chat', '/útok bára']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Útok na Bára/.test(m[2])));
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg', 20000), 'the army reaches Bára and attacks her');
+    mk.send(['chat', '/stop']);
+    mk.send(['chat', '/tezit']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'give', 10000), 'mining sends Marek what the army digs out');
+    mk.send(['chat', '/palac']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'm' && o[1] === 'blocks' && ['quartz_block', 'obsidian', 'bricks'].includes(o[3])), 10000), 'the palace grows block by block');
+    mk.send(['chat', '/rozpustit']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /rozpuštěna/.test(m[2])));
+    for (const p of [mk, b]) await p.close();
+  } finally { await stop(srv); }
+});
