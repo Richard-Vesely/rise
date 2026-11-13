@@ -80,6 +80,7 @@ $('inventory').addEventListener('click', (e) => { if (e.target.closest('#costume
 $('modeBtn').textContent = `Režim: ${creative ? 'Kreativní' : 'Přežití'}`;
 export function setCreative(on) {
   if (on && !NET.perm) { toast('Kreativní režim zakázal hostitel'); return; }
+  if (on && NET.jail) { toast('Ve vězení kreativní režim nejde'); return; } // vězení serveru kroužku (player/prison.js)
   creative = on;
   if (!on) player.flying = false;
   toast(on ? 'Kreativní režim · 2× Mezerník = létání' : 'Režim přežití');

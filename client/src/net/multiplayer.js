@@ -26,6 +26,8 @@ import { cutGrass } from '../render/grass.js';
 import { scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
+import { applyDary } from '../ui/donation-ui.js';
+import { applyJail } from '../player/prison.js';
 import { chatLine, leaveGame, renderPause, serverRestarting, sysLine } from './mp-ui.js';
 import { pvLock } from '../player/pvp.js';
 
@@ -110,6 +112,8 @@ export function onHostMsg(msg) {
       break;
     }
     case 'toast': toast(msg[1]); break;
+    case 'dary': applyDary(msg[1]); if (invOpen && ui.mode === 'dar') renderInventory(); break; // pokladnička darů u sochy (jen server kroužku)
+    case 'vezeni': applyJail(msg[1]); if (invOpen && ui.mode === 'dar') renderInventory(); break; // vězení (jen server kroužku, player/prison.js)
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'tp': pulledTo(msg[1], msg[2], msg[3], msg[4]); break; // přitáhl tě někdo prutem
     case 'fx': boomFx(msg[1], msg[2], msg[3], msg[4], msg[5]); break; // atomovka / meteor (shared/sim/strikes.js)
@@ -126,7 +130,7 @@ export function onHostMsg(msg) {
 // Tvorové na klientovi: loutky, které plynule následují pozice od hostitele.
 function syncPuppets(list) {
   const seen = new Set();
-  for (const [nid, type, x, y, z, ry, hp, fl, dead, eggs, milk] of list) {
+  for (const [nid, type, x, y, z, ry, hp, fl, dead, eggs, milk, hunt] of list) { // hunt = rudé oči (štvanice; starý hostitel ho neposílá)
     if (!MOBS[type]) continue;
     seen.add(nid);
     let m = puppets.get(nid);
@@ -138,7 +142,7 @@ function syncPuppets(list) {
       puppets.set(nid, m);
     }
     m.tgt.set(x, y, z);
-    m.ry = ry; m.hp = hp; m.eggs = eggs; m.milkT = milk ? 1 : 0;
+    m.ry = ry; m.hp = hp; m.eggs = eggs; m.milkT = milk ? 1 : 0; m.hunt = hunt ? 1 : 0;
     m.flash = Math.max(m.flash, fl);
     if (dead && !m.dead) { m.dead = true; m.deathT = 0; }
   }

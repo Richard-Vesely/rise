@@ -50,6 +50,17 @@ export function syncMobViews() {
   }
 }
 const lerpA = (a, b, k) => a + wrapAngle(b - a) * k;
+// Rudé svítící oči: tvor loví hráče (štvanice). Vidí je všichni (server posílá stav v ['mobs']).
+const RED_EYE = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff1a10).multiplyScalar(2.2) });
+function redEyes(V, on) {
+  V.red = on;
+  if (!V.eyeMeshes) {
+    V.eyeMeshes = [];
+    for (const g of V.eyes) g.traverse((o) => { if (o.isMesh) V.eyeMeshes.push(o); });
+    V.group.traverse((o) => { if (o.isMesh && o.userData.eye) V.eyeMeshes.push(o); }); // oči mimo skupinu očí (stínožrout)
+  }
+  for (const o of V.eyeMeshes) { o.userData.mat0 ??= o.material; o.material = on ? RED_EYE : o.userData.mat0; }
+}
 /**
  * Jeden snímek animace tvora. sp = rychlost (m/s), podle ní se hýbou nohy.
  * @param {ReturnType<typeof viewOf>} V
@@ -58,6 +69,8 @@ export function poseMob(V, m, dt, sp) {
   V.t += dt;
   const k = (r) => 1 - Math.exp(-dt * r);
   if (m.dead) { animateDeath(V, m); return; }
+  // Drak míří tělem i hlavou hned na cíl, bez opožděného otáčení zády.
+  if (m.type === 'dragon') V.yaw = m.ry;
   m.phase += dt * (sp * 2.2 + (m.type === 'crawler' ? 2 : 0));
   const amt = Math.min(sp / 2, 1);
   let hop = 0;
@@ -78,6 +91,13 @@ export function poseMob(V, m, dt, sp) {
     V.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * (0.25 + Math.sin(V.t * (flying ? 8 : 1.7)) * (flying ? 0.52 : 0.12) + (m.windup > 0 ? 0.5 : 0)); });
     m.atkT = Math.max(0, (m.atkT || 0) - dt);
     V.jaw.rotation.x = m.windup > 0 ? 0.6 : m.atkT > 0 ? 0.9 : 0.08;
+  } else if (V.kind === 'spider') { // obří pavouk: nohy kmitají střídavě dopředu a dozadu a zvedají se, tělo se pohupuje
+    V.legs.forEach((l, i) => {
+      const ph = m.phase * 3.2 + ((i >> 1) + i) % 2 * Math.PI;
+      l.rotation.y = Math.sin(ph) * amt * 0.35;
+      l.rotation.z = (i % 2 ? -1 : 1) * Math.max(0, Math.cos(ph)) * amt * 0.22;
+    });
+    V.body.position.y = V.bodyY + Math.abs(Math.sin(m.phase * 3.2)) * 0.06 * amt;
   } else if (V.kind === 'biped') { // golem
     const swing = Math.sin(m.phase * 1.1) * amt * 0.8;
     V.legs[0].rotation.x = swing; V.legs[1].rotation.x = -swing;
@@ -104,14 +124,14 @@ export function poseMob(V, m, dt, sp) {
     if (!still) V.idle = null;
     let yaw = 0, pitch = 0;
     if (d < 8 && d > 0.5 && (V.idle !== 'graze' || d < 3)) { // hráč blízko: zvedne hlavu a dívá se na něj
-      yaw = Math.max(-1, Math.min(1, wrapAngle(Math.atan2(-dx, -dz) - V.yaw)));
+      yaw = m.type === 'dragon' ? 0 : Math.max(-1, Math.min(1, wrapAngle(Math.atan2(-dx, -dz) - V.yaw)));
       pitch = Math.atan2(player.pos.y + 1.4 - (m.pos.y + (m.def.cy || 0.6) * 1.5), d) * 0.6;
     } else if (V.idle === 'graze') pitch = m.type === 'chicken' ? -1 + Math.abs(Math.sin(V.t * 7)) * 0.4 : -1.05 + Math.sin(V.t * 3) * 0.06;
     else if (V.idle === 'look') yaw = V.idleDir;
     else if (V.idle === 'sniff') pitch = -0.35 + Math.sin(V.t * 14) * 0.04;
     if (V.rig) { V.rig.head.rotation.y = lerpA(V.rig.head.rotation.y, yaw, k(5)); }
     else {
-      V.head.rotation.y = lerpA(V.head.rotation.y, yaw, k(5));
+      V.head.rotation.y = m.type === 'dragon' ? 0 : lerpA(V.head.rotation.y, yaw, k(5));
       V.head.rotation.x += (V.headRest + pitch - V.head.rotation.x) * k(5);
     }
   }
@@ -119,6 +139,7 @@ export function poseMob(V, m, dt, sp) {
   if ((V.blink -= dt) < 0) V.blink = 3 + Math.random() * 3;
   const open = V.blink < 0.12 ? 0.12 : 1;
   for (const e of V.eyes) e.scale.y = open;
+  if (!!m.hunt !== !!V.red) redEyes(V, !!m.hunt); // štvanice z hole vlastníka (shared/sim/hunt.js)
   if ((V.earT -= dt) < 0) { V.earT = 2 + Math.random() * 5; V.ear = 1; }
   V.ear = Math.max(0, V.ear - dt * 6);
   V.ears.forEach((e, i) => (e.rotation.x = Math.sin(V.ear * Math.PI) * (i ? 0.5 : -0.5)));
@@ -218,15 +239,15 @@ const mobAt = (m, fn, ref = 4) => Sound.at(m.pos.x, m.pos.y + m.def.cy, m.pos.z,
 on('mobHit', (m, local, dmg = 1) => {
   hitFx(m, dmg, local, local ? localFx : null);
   if (m.type === 'golem') mobAt(m, () => Sound.mat('crystal', 'hit', 1.5));
-  if (m.type === 'sheep' || m.type === 'boar' || m.type === 'wolf' || m.type === 'cow' || m.type === 'chicken') mobAt(m, () => Sound.mobVoice(m.type));
+  if (m.type === 'sheep' || m.type === 'boar' || m.type === 'wolf' || m.type === 'cow' || m.type === 'chicken' || m.type === 'spider') mobAt(m, () => Sound.mobVoice(m.type));
 });
 on('mobKilled', (m) => {
   sparks.emit(m.pos.x, m.pos.y + m.def.cy, m.pos.z, m.type === 'crawler' ? [0.6, 0.2, 1.0] : [0.9, 0.85, 0.75], 30, 4, 2);
-  mobAt(m, () => { if (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem') Sound.kill(); else Sound.burst({ dur: 0.35, f0: 1200, f1: 200, q: 0.8, vol: 0.18, type: 'lowpass' }); });
+  mobAt(m, () => { if (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider') Sound.kill(); else Sound.burst({ dur: 0.35, f0: 1200, f1: 200, q: 0.8, vol: 0.18, type: 'lowpass' }); });
 });
 on('chestLoot', () => { if (invOpen && ui.mode === 'chest') renderInventory(); });
 on('mobBurn', (m) => debris.emit(m.pos.x, m.pos.y + 0.8, m.pos.z, [0.1, 0.1, 0.1], 2, 1, 2));
-on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'dragon' || m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler') Sound.mobVoice(m.type); }));
+on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'dragon' || m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler' || m.type === 'spider') Sound.mobVoice(m.type); }));
 on('mobSound', (m) => mobAt(m, () => Sound.mobVoice(m.type), m.type === 'wolf' || m.type === 'cow' ? 8 : 4)); // vytí a bučení je slyšet dál
 on('spawnerSpawn', (x, y, z) => sparks.emit(x, y, z, [0.8, 0.3, 1], 25, 2, 1));
 // Kořist pro hráče u této obrazovky, když je do 24 m; zranění od tvora.

@@ -27,7 +27,7 @@ const freeze = (o) => Object.freeze(Object.fromEntries(Object.entries(o).map(([k
  * Kde se volají: client/src/ui/inventory-ui.js (viz docs/ANALYTICS.md).
  */
 export const EVENTS = Object.freeze({
-  inventory_opened: freeze({ mode: ['inv', 'bench', 'adv', 'chest', 'fire', 'furnace', 'kitchen', 'power', 'car', 'garage'] }),
+  inventory_opened: freeze({ mode: ['inv', 'bench', 'adv', 'chest', 'fire', 'furnace', 'kitchen', 'power', 'car', 'garage', 'dar'] }),
   item_crafted: freeze({ kind: ['craft', 'repair'], amount: COUNT_BUCKETS }),
   recipe_book_used: freeze({ result: ['filled', 'missing_items', 'needs_bench', 'needs_workshop'] }),
   creative_toggled: freeze({ to: ['on', 'off'] }),

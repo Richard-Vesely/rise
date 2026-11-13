@@ -16,15 +16,19 @@ export const isMarek = (name) => String(name || '').trim().toLowerCase() === 'ma
 export const ARMY_MAX = 90;
 export const ARMY = { leader: undefined, mode: 'follow', target: null, targetMob: null, job: null, last: null };
 const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const CMDS = new Set(['armada', 'army', 'utok', 'attack', 'stop', 'kenoze', 'domu', 'rozpustit', 'palac', 'palace', 'tezit', 'mine', 'svet', 'world', 'markorit', 'pomoc', 'help']);
+/** Je text příkaz armády (třeba /armada 20)? */
+export const isArmyCommand = (text) => typeof text === 'string' && text.startsWith('/') && CMDS.has(plain(text.slice(1)).split(/\s+/)[0]);
 
 // ---------- příkazy (volá shared/net/room.js a pro hostitele v prohlížeči client/src/net/mp-ui.js)
 /**
  * @param {string|null} pid kdo píše ('host' = hostitel v prohlížeči)
- * @param {object} ctx { name, pose, players: [{ pid, name }], spawn(type, x, z), mobs, give(id, n), reply(text) }
+ * @param {object} ctx { name, pose, players: [{ pid, name }], spawn(type, x, z), mobs, give(id, n), reply(text), leader? }
+ *   (leader: true/false = smí velet, rozhodl server; bez něj velí hráč jménem Marek)
  * @returns {boolean} true = byl to příkaz armády (nerozesílat do chatu)
  */
 export function armyCommand(pid, text, ctx) {
-  if (!isMarek(ctx.name) || !text.startsWith('/')) return false;
+  if (!(ctx.leader ?? isMarek(ctx.name)) || !text.startsWith('/')) return false;
   const [cmd, ...rest] = plain(text.slice(1)).split(/\s+/);
   const arg = rest.join(' ');
   const say = ctx.reply, p = ctx.pose;

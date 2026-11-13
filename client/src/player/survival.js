@@ -21,6 +21,7 @@ import { addItem, inv } from './inventory.js';
 import { creative, player } from './player.js';
 import { magic } from './xp.js';
 import { popGroundItem } from '../../../shared/sim/ground-items.js';
+import { ownerItem } from '../../../shared/data/magic.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
@@ -56,9 +57,10 @@ function die() {
   const lost = NET.pvp ? 0 : dropEverything(); // batoh a brnění vypadnou na zem (v aréně je nová výbava)
   $('fade').style.opacity = 1;
   setTimeout(() => {
-    if (NET.pvp) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
+    const jail = NET.jail?.at; // vězeň se probudí zase ve vězení (player/prison.js)
+    if (NET.pvp && !jail) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
     const home = shrineOf(player.pos.x);
-    player.pos.set(home.x, 0.45, home.z + 14);
+    if (jail) player.pos.set(jail[0], jail[1], jail[2]); else player.pos.set(home.x, 0.45, home.z + 14);
     player.vel.set(0, 0, 0);
     player.yaw = 0;
     player.hp = 100;
@@ -66,7 +68,7 @@ function die() {
     player.alive = true;
     if (!MP) for (const m of [...mobs]) if (m.type === 'crawler') removeMob(m);
     $('fade').style.opacity = 0;
-    toast(lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
+    toast(jail ? (lost ? 'Jsi zase ve vězení. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Jsi zase ve vězení.') : lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
   }, 2600);
 }
 // Smrt: všechno z batohu, kurzoru a brnění vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
@@ -75,8 +77,9 @@ function dropEverything() {
   const { x, y, z } = player.pos;
   let n = 0;
   const drop = (s) => { if (s) { popGroundItem(s.id, s.n, x, y + 0.8, z, s.w || 0); n++; } };
-  inv.slots.forEach((s, i) => { drop(s); inv.slots[i] = null; });
-  drop(inv.cursor); inv.cursor = null;
+  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // hůl vlastníka zůstává v batohu
+  if (ownerItem(inv.cursor?.id)) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = inv.cursor; } else drop(inv.cursor);
+  inv.cursor = null;
   armor.forEach((s, i) => { drop(s); armor[i] = null; });
   refreshUI();
   return n;

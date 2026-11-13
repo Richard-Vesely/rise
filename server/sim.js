@@ -8,6 +8,8 @@ import { updateMobs, updateSpawners, updateSpawns } from '../shared/sim/mobs.js'
 import { updatePower } from '../shared/sim/power.js';
 import { ensureArena } from '../shared/world/arena.js';
 import { loadWorld } from '../shared/world/save.js';
+import { ensurePrison } from '../shared/world/prison.js';
+import { ensureStatue } from '../shared/world/statue.js';
 import { updateTorches } from '../shared/world/torch.js';
 
 /**
@@ -21,11 +23,15 @@ import { updateTorches } from '../shared/world/torch.js';
  * @param {string} o.code jak se server jmenuje v menu hráčů (adresa)
  * @param {(msg: string) => void} o.log
  * @param {() => void} [o.onChange] změnil se seznam hráčů
+ * @param {boolean} [o.statue] postavit u spawnu sochu darů s pokladničkou a daleko na nebi vězení (server kroužku, server/donation-box.js, server/prison.js)
  */
-export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, pvpMark = false, code, log, onChange = () => {} }) {
+export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, pvpMark = false, code, log, onChange = () => {}, statue = false }) {
   Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp, pvpMark });
   loadWorld(world);
   if (pvp && NET.quiet(() => ensureArena())) log('Postavena aréna (svět se souboji hráčů).');
+  const st = statue && NET.quiet(() => ensureStatue());
+  if (st) log(`Postavena socha darů s pokladničkou (x ${st.x}, z ${st.z}).`);
+  if (statue && NET.quiet(() => ensurePrison())) log('Postaveno vězení (shared/world/prison.js).');
   startRoom({ maxPlayers, onLog: log, onChange });
 }
 

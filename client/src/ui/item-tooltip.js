@@ -30,6 +30,7 @@ const DESC = {
   trident: 'Bodá jako meč. Pravé tl. = hod (zraní na dálku, zůstane ti v ruce).', wings: 'Pravé tl. = 30 s létání (Mezerník nahoru, Shift dolů).',
   flamethrower: 'Drž pravé tl. = proud ohně (asi 9 m).', medkit: 'Pravé tl. = zdraví do plna.',
   jet: 'Stíhačka: létá jako dvouplošník, ale s 3× silnějším motorem. Postav ji na zem a nastup (F).',
+  owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
   bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
 };
 // V kolika receptech je předmět surovinou

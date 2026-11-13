@@ -1,6 +1,7 @@
 // Čarovná hůl: pravé tlačítko sešle vybrané kouzlo (seznam a čísla: shared/data/magic.js; XP, mana a výběr: xp.js).
 // Střely (magická, ohnivá, ledová) letí rovně, zraní tvora stejně jako meč (hitMob) a ve hře se souboji i hráče.
 // Ostatní: blesk, léčení, regenerace, štít, skok, přenesení, let, světlo, těžba na dálku, duchovní vlk.
+// Hůl vlastníka serveru navíc: Avada Kedavra a Štvanice (owner-wand.js; platí jen to, co ověří server).
 // Efekty vidí jen ten, kdo kouzlí. Bez vedlejších účinků při načtení.
 import * as THREE from 'three';
 import { SPELLS } from '../../../shared/data/magic.js';
@@ -15,10 +16,11 @@ import { camera, scene } from '../render/renderer.js';
 import { glowTex } from '../render/sky.js';
 import { toast } from '../ui/hud.js';
 import { mobOn, solid } from './bow.js';
+import { guardOwnerItems, ownerSpell, updateOwnerFx } from './owner-wand.js';
 import { input, player } from './player.js';
 import { hitPlayer, playerOn } from './pvp.js';
 import { pickTarget, raycastBlocks } from './targeting.js';
-import { holdingWand, magic } from './xp.js';
+import { activeSpell, holdingWand, magic } from './xp.js';
 
 const HOSTILE = new Set(['crawler', 'markoman', 'golem', 'wolf', 'boar', 'dragon']);
 const COLORS = { bolt: 0x9a7cff, fireball: 0xff7a2a, frost: 0x8ae8ff, light: 0xfff0b0 };
@@ -198,13 +200,14 @@ export function cast(id, breakTarget) {
       case 'light': light(); return true;
       case 'farmine': return farmine(breakTarget);
       case 'wolf': wolf(); return true;
+      case 'avada': case 'hunt': return ownerSpell(id); // hůl vlastníka
     }
     return false;
   })();
   if (!ok) return;
   magic.mana -= S.mana;
   magic.cd[id] = S.cd;
-  if (!['bolt', 'fireball', 'frost', 'lightning'].includes(id)) toolSound('charged');
+  if (!['bolt', 'fireball', 'frost', 'lightning', 'avada', 'hunt'].includes(id)) toolSound('charged');
 }
 
 /**
@@ -216,10 +219,12 @@ export function updateWand(target, breakTarget, special) {
   prevRmb = input.rmb;
   if (!holdingWand()) return false;
   if (special) return false;
-  if (fresh) { if (magic.sel) cast(magic.sel, breakTarget); else toast('Hůl zatím neumí žádné kouzlo – sbírej XP (tvorové, rudy, výroba)'); }
+  if (fresh) { const id = activeSpell(); if (id) cast(id, breakTarget); else toast('Hůl zatím neumí žádné kouzlo – sbírej XP (tvorové, rudy, výroba)'); }
   return true;
 }
 /** Každý snímek: letící střely a efekty. */
 export function updateMagic(dt) {
   for (let i = fx.length - 1; i >= 0; i--) if (!fx[i].update(dt)) fx.splice(i, 1);
+  updateOwnerFx(dt);
+  guardOwnerItems(); // hůl vlastníka: jen vlastníkovi, jen v batohu
 }

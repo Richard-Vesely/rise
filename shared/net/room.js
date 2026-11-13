@@ -29,6 +29,7 @@ export const room = {
   onChat() {}, // (jméno, text)
   onGift() {}, // (id dokumentu, od koho) – dokument pro hostitele
   onLog() {}, // zápis do logu serveru
+  onKill() {}, // (pid vítěze, pid poraženého) – hráč vyřadil hráče v souboji (server kroužku: vězení, server/prison.js)
 };
 
 // ---------- zprávy
@@ -200,20 +201,22 @@ export function pullTarget(from, kind, id, x, y, z) {
  * @param {number} yaw kam útočník míří (odhod zasaženého)
  * @param {number} kb síla odhodu 0–2
  * @param {boolean} ranged šíp (větší dosah) nebo úder zblízka
+ * @param {number} [kill] zranění, které zabije (jen server: Avada Kedavra hole vlastníka, server/owner-wand.js); platí jen ve světě
+ *   se souboji (pvp, nebo pvp-mark a oba v Markově dimenzi), ne v souboji na klávesu N; bez odhodu, brnění ho netlumí
  */
-export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
+export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
   if (from === to) return false;
   const A = playerOf(from), T = playerOf(to), a = A?.pose, t = T?.pose;
   if (!a || !t || a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
   const world = NET.pvp || (NET.pvpMark && isMark(a.x) && isMark(t.x)); // aréna, nebo pvp-mark: oba v Markově dimenzi
-  if (!world && !(a.pv && t.pv)) return false; // jinde jen když mají souboje zapnuté oba (klávesa N)
+  if (!world && (kill || !(a.pv && t.pv))) return false; // jinde jen když mají souboje zapnuté oba (klávesa N)
   if (Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
   const now = performance.now() / 1000;
   if (now - (T.hurtAt || -9) < PVP.invuln) return false;
   T.hurtAt = now;
-  T.lastHit = { by: from === 'host' ? NET.name : A.name, t: now }; // komu připsat bod, když zraněný padne
-  const n = clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
-  const dx = -Math.sin(y) * k, dz = -Math.cos(y) * k;
+  T.lastHit = { by: from === 'host' ? NET.name : A.name, pid: from, t: now }; // komu připsat bod, když zraněný padne
+  const n = kill || clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = kill ? 0 : clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
+  const dx = k && -Math.sin(y) * k, dz = k && -Math.cos(y) * k;
   if (to === 'host') NET.hurtLocal?.(n, dx, dz); else sendTo(to, ['dmg', n, dx, dz]);
   if (!world) for (const [pid, X] of [[from, A], [to, T]]) { // souboj zapnutý klávesou N: útočník i zasažený ho 20 s nevypnou
     X.pvLock = now + PVP.lock;
@@ -232,6 +235,7 @@ const scoreOf = (name) => { if (!scores.has(name)) scores.set(name, { k: 0, d: 0
 export function arenaDeath(P) {
   const hit = P.lastHit, killer = hit && performance.now() / 1000 - hit.t < KILL_WINDOW && hit.by !== P.name ? hit.by : null;
   P.lastHit = null;
+  if (killer) room.onKill(hit.pid, P.pid);
   if (!NET.pvp) { // pvp-mark: bez arény, jen hlášení, když ho vyřadil hráč
     if (killer) { room.onLog(`souboj: ${killer} vyřadil ${P.name}`); broadcast(['kill', killer, P.name]); }
     return;
@@ -242,12 +246,13 @@ export function arenaDeath(P) {
   broadcast(['kill', killer, P.name]);
   broadcast(['score', scoreList()]);
 }
-// ---------- Markova armáda: příkaz v chatu od hráče Marek (sim/army.js); nikomu se nerozesílá, odpověď dostane jen on
-export function armyChat(pid, name, text) {
+// ---------- Markova armáda: příkaz v chatu od hráče Marek (sim/army.js); nikomu se nerozesílá, odpověď dostane jen on.
+// leader (jen server kroužku, server/army-owner.js): true = smí velet i když se nejmenuje Marek
+export function armyChat(pid, name, text, leader = undefined) {
   const me = playerOf(pid), pose = me?.pose;
   const players = [...(room.local ? [{ pid: 'host', name: NET.name }] : []), ...[...others.values()].map((P) => ({ pid: P.pid, name: P.name }))];
   return armyCommand(pid, text, {
-    name, pose, players, mobs,
+    name, pose, players, mobs, leader,
     spawn: (type, x, z) => { spawnMob(type, x, z); return mobs[mobs.length - 1]; },
     give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
     reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },
@@ -292,7 +297,7 @@ export function updateRoom(dt) {
   }
   if ((NET.mobT -= dt) <= 0) {
     NET.mobT = 0.2;
-    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0])]);
+    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0])]); // poslední = rudé oči (štvanice, sim/hunt.js)
   }
   if ((NET.kvT -= dt) <= 0) {
     NET.kvT = 0.5;

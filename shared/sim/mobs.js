@@ -16,10 +16,17 @@ import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
 import { updateDragon } from './dragon.js';
 import { armyPlan, updateArmy } from './army.js';
+import { HUNT, huntPlan, updateHunts } from './hunt.js';
+import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/prison.js';
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
-  dragon: { name: 'Drak Země draka', hp: 300, radius: 2.4, cy: 2, dmg: 65, tall: true, drops: [['shard', 8, 8], ['gold_ingot', 6, 6], ['markorite', 3, 3]] },
+  dragon: {
+    name: 'Drak Země draka', hp: 500, radius: 2.4, cy: 2, dmg: 75, tall: true,
+    drops: [['sky_helmet', 1, 1], ['sky_chestplate', 1, 1], ['sky_leggings', 1, 1], ['sky_boots', 1, 1],
+      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 16, 16], ['gold_ingot', 16, 16],
+      ['shard', 12, 12], ['markapple', 5, 5]],
+  },
   sheep: { name: 'Ovce', hp: 5, radius: 0.75, cy: 0.75, drops: [['raw_mutton', 1, 2], ['wool', 1, 2]] },
   boar: { name: 'Kanec', hp: 12, radius: 0.8, cy: 0.7, dmg: 10, drops: [['raw_pork', 2, 3], ['bone', 0, 1]] },
   chicken: { name: 'Slepice', hp: 4, radius: 0.45, cy: 0.45, drops: [['raw_chicken', 1, 1], ['egg', 0, 1]] },
@@ -33,9 +40,11 @@ export const MOBS = {
     drops: [['markapple', 1, 1, 0.3], ['iron', 1, 2, 0.4], ['markwood', 1, 2, 0.5], ['markorite_raw', 1, 1, 0.3], ['iron_sword', 1, 1, 0.08],
       ['iron_helmet', 1, 1, 0.04], ['iron_chestplate', 1, 1, 0.03], ['iron_leggings', 1, 1, 0.03], ['iron_boots', 1, 1, 0.04]],
   },
+  // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; oko z něj je výkupné z vězení.
+  spider: { name: 'Obří pavouk', hp: 30, radius: 1.1, cy: 0.6, dmg: 12, drops: [['spider_eye', 1, 1]] },
   golem: { name: 'Krystalový golem', hp: 60, radius: 1.2, cy: 1.5, dmg: 22, tall: true, drops: [['shard', 1, 3], ['markorite', 1, 1, 0.5], ['markapple', 1, 1, 0.25]] },
 };
-export const HOSTILE_SPEED = { boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4 };
+export const HOSTILE_SPEED = { boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
 export const mobs = []; // { nid, type, def, pos, vel, hp, ry, flash, dead, invT, … }
 // Jak dlouho zůstane mrtvý tvor vidět (převrátí se na bok a rozplyne v obláčku).
 export const DEATH_TIME = 0.8;
@@ -102,13 +111,14 @@ export function updateMobs(dt, day) {
   const TG = NET.targets(); // hráči, na které tvorové reagují
   if (!TG.length) { for (const m of [...mobs]) removeMob(m); return; } // na serveru nikdo není
   updateArmy(dt, mobs); // Markova armáda: stavba a kopání (sim/army.js)
+  updateHunts(dt, TG); // štvanice z hole vlastníka (sim/hunt.js)
   for (const m of [...mobs]) {
     if (m.dead) {
       m.deathT += dt;
       if (m.deathT > DEATH_TIME) removeMob(m);
       continue;
     }
-    const A = m.army ? armyPlan(m, TG) : null; // voják armády: cíl určuje velitel
+    const A = m.army ? armyPlan(m, TG) : huntPlan(m, TG); // voják armády: cíl určuje velitel; štvanice: loví oběť (rudé oči)
     const T = A ? A.T : nearestTarget(TG, m.pos), tp = T.pos;
     const dx = tp.x - m.pos.x, dz = tp.z - m.pos.z, dist = Math.hypot(dx, dz) || 0.01;
     const dyP = tp.y - m.pos.y;
@@ -121,13 +131,13 @@ export function updateMobs(dt, day) {
       if (m.moving) { dirX = Math.cos(m.wander); dirZ = Math.sin(m.wander); speed = sp; }
     };
     const night = day < 0.4;
-    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
+    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
     if (m.type === 'crawler' && T.set === 'shadow') hostile = false; // stínové brnění
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
     if (m.type === 'cow' && m.milkT > 0) m.milkT -= dt;
-    if (m.army) { // voják: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
-      if (A && dist > A.near) { dirX = dx / dist; dirZ = dz / dist; speed = A.attack ? HOSTILE_SPEED[m.type] : Math.min(5, dist); }
+    if (m.army || A) { // voják nebo štvanice: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
+      if (A && dist > A.near) { dirX = dx / dist; dirZ = dz / dist; speed = A.attack ? HOSTILE_SPEED[m.type] || HUNT.speed : Math.min(5, dist); }
     } else if ((m.type === 'sheep' || m.type === 'deer' || m.type === 'chicken' || m.type === 'cow') && m.fleeT > 0) {
       m.fleeT -= dt; dirX = -dx / dist; dirZ = -dz / dist; speed = m.type === 'deer' ? 7 : 5.5;
     } else if (hostile && T.alive && Math.abs(dyP) < 5 && dist < (m.type === 'crawler' ? 26 : 30) && !(m.type !== 'boar' && shrineDist(tp.x, tp.z) < 11) && !(m.type === 'crawler' && T.safe)) {
@@ -192,15 +202,16 @@ export function updateMobs(dt, day) {
     m.flash = Math.max(0, m.flash - dt * 5);
     if (m.invT > 0) m.invT -= dt;
     m.cd -= dt;
-    const reach = { markoman: 1.7, golem: 2.4 }[m.type] || 1.4;
+    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9 }[m.type] || 1.4;
     if (hostile && dist < reach && Math.abs(dyP) < 2 && m.cd <= 0 && T.alive) {
-      m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : 1.1;
+      m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : m.type === 'spider' ? 1.0 : 1.1;
       m.atkT = 0.35;
       emit('mobAttack', m);
+      const dmg = m.def.dmg || HUNT.dmg; // mírumilovné zvíře ve štvanici kousne za HUNT.dmg
       if (T.mob) { // voják armády bije tvora, kterého praštil Marek
         NET.killer = 'army';
-        try { hurtMob(T.mob, m.def.dmg, Math.atan2(-dx, -dz)); } finally { NET.killer = null; }
-      } else if (T.pid) NET.sendTo(T.pid, ['dmg', m.def.dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(m.def.dmg, dx / dist, dz / dist);
+        try { hurtMob(T.mob, dmg, Math.atan2(-dx, -dz)); } finally { NET.killer = null; }
+      } else if (T.pid) NET.sendTo(T.pid, ['dmg', dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(dmg, dx / dist, dz / dist);
       m.vel.x -= (dx / dist) * 4;
       m.vel.z -= (dz / dist) * 4;
     }
@@ -232,6 +243,10 @@ export function updateSpawns(dt, night) {
     const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
     return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) || (oceanK(x, z) > 0.02 && terrainH(x, z) < SEA + 0.3) ? null : [x, z]; // ne v jezeře ani v moři
   };
+  if (inPrison(c.x, c.y, c.z)) { // vězení (jen server kroužku): jen obří pavouci, chodí po podlaze z bloků jako v podzemí
+    if (prisonBuilt() && count('spider') < PRISON_SPIDERS) { const p = spiderSpot(c.x, c.z); if (p) spawnMob('spider', p[0], p[2], p[1]).under = true; }
+    return;
+  }
   if (isMark(c.x)) { // Markova dimenze: Markomani a krystaloví golemové
     if (count('markoman') < (night > 0.5 ? 8 : 5)) { const p = spot(); if (p) spawnMob('markoman', ...p); }
     if (count('golem') < 2) { const p = spot(); if (p) spawnMob('golem', ...p); }

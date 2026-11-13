@@ -63,6 +63,8 @@ ALLOW_CREATIVE=0
 #WORLDS="svet:Hlavní svět,kreativ:Kreativní svět:creative"
 # Správa hráčů na https://<doména>/admin (seznam hráčů, reset PINu). Bez hesla je stránka vypnutá.
 #ADMIN_PASSWORD=
+# Vlastník serveru: id profilu (node server/admin.js players, sloupec Id); jen on bere dary z pokladničky u sochy.
+#OWNER_ID=
 ENV
   chmod 600 /etc/louka.env
 fi
