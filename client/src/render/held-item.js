@@ -100,12 +100,13 @@ export function buildHeld(id) { // používají ho i postavičky ostatních hrá
     mesh(new THREE.SphereGeometry(0.034, 12, 8), d.tier >= 3 ? goldMat : handleMat, 0, -0.2);
   } else if (d.tool === 'axe' || d.tool === 'pick' || d.tool === 'shovel') {
     toolModel(d, mesh);
-  } else if (d.wand) { // čarovná hůl: tmavé dřevo, zlaté kroužky, svítící krystal nahoře
-    mesh(new THREE.CylinderGeometry(0.016, 0.022, 0.62, 8), new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.7 }), 0, 0.12);
+  } else if (d.wand) { // čarovná hůl: tmavé dřevo, zlaté kroužky, svítící krystal nahoře (hůl vlastníka: černá se zeleným krystalem)
+    const gc = d.owner ? [0x2bff5a, 0x10e040, 0x40ff70] : [0x9a6aff, 0x8a50ff, 0x9a7cff];
+    mesh(new THREE.CylinderGeometry(0.016, 0.022, 0.62, 8), new THREE.MeshStandardMaterial({ color: d.owner ? 0x141414 : 0x3a2414, roughness: d.owner ? 0.35 : 0.7 }), 0, 0.12);
     for (const y of [-0.05, 0.3, 0.38]) mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 10), goldMat, 0, y);
-    const gem = mesh(new THREE.OctahedronGeometry(0.06), new THREE.MeshStandardMaterial({ color: 0x9a6aff, emissive: 0x8a50ff, emissiveIntensity: 1.6, roughness: 0.2 }), 0, 0.5);
+    const gem = mesh(new THREE.OctahedronGeometry(0.06), new THREE.MeshStandardMaterial({ color: gc[0], emissive: gc[1], emissiveIntensity: 1.6, roughness: 0.2 }), 0, 0.5);
     gem.scale.y = 1.6;
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(0x9a7cff).multiplyScalar(GLOW), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(gc[2]).multiplyScalar(GLOW), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
     glow.scale.setScalar(0.3);
     glow.position.y = 0.5;
     g.add(glow);

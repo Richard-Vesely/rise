@@ -272,6 +272,12 @@ function isoBoxes(top, side, boxes) {
     if (Math.abs(s - 15) <= 0.6 && x >= 2 && x <= 10) return x === 5 || x === 8 ? '#e0b040' : '#5a3a20';
     return null;
   }));
+  icon('owner_wand', face((x, y) => { // hůl vlastníka: černá se zlatými kroužky a zeleným krystalem
+    const s = x + y;
+    if (Math.hypot(x - 12, y - 3) < 2.6) return Math.hypot(x - 11.4, y - 2.4) < 1 ? '#eafff0' : '#2bff5a';
+    if (Math.abs(s - 15) <= 0.6 && x >= 2 && x <= 10) return x === 5 || x === 8 ? '#f0c040' : '#1a1a1a';
+    return null;
+  }));
   icon('arrow', face((x, y) => {
     const s = x + y;
     if (Math.abs(s - 15) > 1.6) return null;

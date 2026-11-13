@@ -16,6 +16,7 @@ import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
 import { updateDragon } from './dragon.js';
 import { armyPlan, updateArmy } from './army.js';
+import { HUNT, huntPlan, updateHunts } from './hunt.js';
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
@@ -102,13 +103,14 @@ export function updateMobs(dt, day) {
   const TG = NET.targets(); // hráči, na které tvorové reagují
   if (!TG.length) { for (const m of [...mobs]) removeMob(m); return; } // na serveru nikdo není
   updateArmy(dt, mobs); // Markova armáda: stavba a kopání (sim/army.js)
+  updateHunts(dt, TG); // štvanice z hole vlastníka (sim/hunt.js)
   for (const m of [...mobs]) {
     if (m.dead) {
       m.deathT += dt;
       if (m.deathT > DEATH_TIME) removeMob(m);
       continue;
     }
-    const A = m.army ? armyPlan(m, TG) : null; // voják armády: cíl určuje velitel
+    const A = m.army ? armyPlan(m, TG) : huntPlan(m, TG); // voják armády: cíl určuje velitel; štvanice: loví oběť (rudé oči)
     const T = A ? A.T : nearestTarget(TG, m.pos), tp = T.pos;
     const dx = tp.x - m.pos.x, dz = tp.z - m.pos.z, dist = Math.hypot(dx, dz) || 0.01;
     const dyP = tp.y - m.pos.y;
@@ -126,8 +128,8 @@ export function updateMobs(dt, day) {
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
     if (m.type === 'cow' && m.milkT > 0) m.milkT -= dt;
-    if (m.army) { // voják: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
-      if (A && dist > A.near) { dirX = dx / dist; dirZ = dz / dist; speed = A.attack ? HOSTILE_SPEED[m.type] : Math.min(5, dist); }
+    if (m.army || A) { // voják nebo štvanice: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
+      if (A && dist > A.near) { dirX = dx / dist; dirZ = dz / dist; speed = A.attack ? HOSTILE_SPEED[m.type] || HUNT.speed : Math.min(5, dist); }
     } else if ((m.type === 'sheep' || m.type === 'deer' || m.type === 'chicken' || m.type === 'cow') && m.fleeT > 0) {
       m.fleeT -= dt; dirX = -dx / dist; dirZ = -dz / dist; speed = m.type === 'deer' ? 7 : 5.5;
     } else if (hostile && T.alive && Math.abs(dyP) < 5 && dist < (m.type === 'crawler' ? 26 : 30) && !(m.type !== 'boar' && shrineDist(tp.x, tp.z) < 11) && !(m.type === 'crawler' && T.safe)) {
@@ -197,7 +199,8 @@ export function updateMobs(dt, day) {
       m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : 1.1;
       m.atkT = 0.35;
       emit('mobAttack', m);
-      if (T.pid) NET.sendTo(T.pid, ['dmg', m.def.dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(m.def.dmg, dx / dist, dz / dist);
+      const dmg = m.def.dmg || HUNT.dmg; // mírumilovné zvíře ve štvanici kousne za HUNT.dmg
+      if (T.pid) NET.sendTo(T.pid, ['dmg', dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(dmg, dx / dist, dz / dist);
       m.vel.x -= (dx / dist) * 4;
       m.vel.z -= (dz / dist) * 4;
     }

@@ -3,6 +3,7 @@
 // Hlavní vlákno (server/server.js) drží WebSockety a posílá sem zprávy hráčů tohoto světa; odpovědi jdou zpátky.
 // Batohy hráčů (profily: server/profiles.js) se drží tady u světa a ukládají se do world.json (players: { id profilu: me }).
 // Pokladnička darů u sochy (server/donation-box.js) je taky tady; dary se hlásí hlavnímu vláknu do knihy darů.
+// Hůl vlastníka (server/owner-wand.js): vlastník ji má vždycky, nikdo jiný ji mít nesmí, její kouzla ověřuje server.
 //   z hlavního vlákna: { t: 'join', cid, name, profile, gifts? } · { t: 'data', cid, raw } · { t: 'gone', cid } · { t: 'save' } · { t: 'stop' }
 //                      · { t: 'top', top } nový žebříček dárců · { t: 'gift', profile, gifts } dárky od správce pro hráče
 //   do hlavního vlákna: { t: 'ready', loaded } · { t: 'send', cid, raw } · { t: 'close', cid } · { t: 'stats', … } · { t: 'log', text } · { t: 'stopped' }
@@ -12,6 +13,7 @@ import { accept, others } from '../shared/net/room.js';
 import { worldState } from '../shared/world/save.js';
 import { guardStatueOps } from '../shared/world/statue.js';
 import { createDonationBox } from './donation-box.js';
+import { createOwnerWand, guardOwnerKV, guardOwnerOps } from './owner-wand.js';
 import { ME_MAX_BYTES, cleanMe } from './me.js';
 import { loadWorldFile, saveWorldFile } from './persist.js';
 import { setupWorld, stepWorld } from './sim.js';
@@ -37,6 +39,7 @@ const dbox = createDonationBox({
   onDonation: (d) => post({ t: 'donation', ...d }),
 });
 dbox.setTop(W.top);
+const wand = createOwnerWand({ ownerId: W.ownerId || '', send: (cid, msg) => sendRaw(cid, msg) });
 
 // ---------- spojení hráčů: stejné funkce jako spojení PeerJS (shared/net/room.js je používá stejně)
 const conns = new Map(); // cid -> { handlers, shut, profile, name, gifts }
@@ -57,14 +60,14 @@ function join(cid, name, profile, gifts) {
       if (!open) return;
       if (Array.isArray(msg) && msg[0] === 'welcome') {
         msg[1].worldInfo = info; // který svět to je (jméno do menu, klíč uložení)
-        if (profile) msg[1].me = players[profile] ?? null; // batoh a pozice hráče v tomhle světě (null = poprvé)
+        if (profile) msg[1].me = wand.welcomeMe(profile, players[profile] ?? null); // batoh a pozice hráče v tomhle světě (null = poprvé); hůl vlastníka jen vlastníkovi
       }
       sendRaw(cid, msg);
     },
     on(ev, fn) { handlers[ev]?.push(fn); },
     close() { if (open) { open = false; post({ t: 'close', cid }); } },
   };
-  conns.set(cid, { handlers, shut: () => { open = false; }, profile, name, gifts: Array.isArray(gifts) ? gifts : [] });
+  conns.set(cid, { handlers, shut: () => { open = false; }, profile, name, gifts: Array.isArray(gifts) ? gifts : [], posed: false });
   accept(conn);
   if (profile && conn.open) dbox.sendState(cid, profile); // žebříček dárců (a vlastníkovi obsah pokladničky)
 }
@@ -77,10 +80,12 @@ function onData(cid, raw) {
   if (!Array.isArray(msg)) return;
   if (msg[0] === 'me') { // stav hráče (každých 10 s a při odchodu): jen se uloží, místnost ho nepotřebuje
     const me = c.profile && cleanMe(msg[1], raw.length);
-    if (me) players[c.profile] = me;
+    if (me) players[c.profile] = wand.onMe(cid, c.profile, me); // hůl vlastníka: ostatním pryč, vlastníkovi zpátky
     return;
   }
   if (dbox.handle(cid, c.profile, c.name, msg)) return; // pokladnička darů
+  if (wand.handle(cid, c.profile, msg)) return; // kouzla hole vlastníka (ověří vlastníka)
+  if (msg[0] === 'pose' && !c.posed) { c.posed = true; wand.onFirstPose(cid, c.profile, players[c.profile]); } // hra běží: vlastník bez hole ji dostane
   if (msg[0] === 'pose' && c.gifts.length) { // hra už běží: dárky od správce do batohu
     for (const g of c.gifts.splice(0)) sendRaw(cid, ['give', g.id, g.n]);
     sendRaw(cid, ['toast', 'Dostal(a) jsi dárek od správce serveru!']);
@@ -88,14 +93,17 @@ function onData(cid, raw) {
   if (msg[0] === 'ops' && Array.isArray(msg[2])) { // socha se nedá rozbít ani podkopat: změny na ní se zahodí a hráč dostane skutečný stav
     const g = guardStatueOps(msg[2]);
     if (g.fix.length) sendRaw(cid, ['ops', g.fix]);
-    if (g.ops.length !== msg[2].length) msg = [msg[0], msg[1], g.ops];
+    const ops = guardOwnerOps(g.ops); // hůl vlastníka nesmí ležet na zemi
+    if (ops.length !== msg[2].length) msg = [msg[0], msg[1], ops];
   }
+  if (msg[0] === 'kv' && Array.isArray(msg[1])) guardOwnerKV(msg[1]); // ani v truhle nebo stroji
   for (const fn of c.handlers.data) fn(msg);
 }
 function gone(cid) {
   const c = conns.get(cid);
   if (!c) return;
   conns.delete(cid);
+  wand.gone(cid);
   c.shut();
   for (const fn of c.handlers.close) fn();
 }

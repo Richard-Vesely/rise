@@ -9,3 +9,6 @@
 /shared/world/statue.js         @Richard-Vesely
 /client/src/ui/donation-ui.js   @Richard-Vesely
 /tests/unit/donations.test.mjs  @Richard-Vesely
+/shared/sim/hunt.js             @Richard-Vesely
+/client/src/player/owner-wand.js @Richard-Vesely
+/tests/unit/owner-wand.test.mjs @Richard-Vesely

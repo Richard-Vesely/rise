@@ -555,6 +555,21 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   Owner powers belong to Richard only (rule in `AGENTS.md`).
   *Kód:* statue `shared/world/statue.js` (from `server/sim.js`), owner `server/owner.js`, box `server/donation-box.js`
   (in `server/world-worker.js`), ledger and gifts `server/donations.js`, admin page `server/donations-admin.js`, window `client/src/ui/donation-ui.js`.
+- **Owner's wand** (*Hůl vlastníka*, club server only): the owner (`OWNER_ID`) always has it. It cannot be crafted, is not in
+  the creative list, cannot be thrown, dropped at death (it stays in the backpack, also on an arena reset), put into a chest,
+  machine, car or the crafting grid, or donated. If it is missing from the owner's backpack, the server gives it back (at
+  most every 20 s); anyone else loses it (the server removes it from their saved state, from ground drops and from chests;
+  the browser removes it too). It casts like the magic wand (right button, **R** = next spell; the owner's learned spells
+  work with it as well) plus two owner spells that the server checks against the logged-in profile:
+  - ***Avada Kedavra*** (green beam, 60 m, 5 mana, 1.5 s): kills a mob anywhere (loot and XP to the owner); kills a player
+    only where fights are on: a `pvp` world, or a `pvp-mark` world with both in Markova dimenze (not in fights by N, not a
+    creative player). Armor and *Ochranný štít* do not save you.
+  - ***Štvanice*** (red beam at a player, 60 m, 5 mana, 3 s): for 60 s (`HUNT.time`) every living mob within 40 m of that player
+    except the dragon and Marek's army (also normally peaceful animals: they bite for 6) gets **red glowing eyes** (everyone
+    sees them) and hunts the player; a mob lets go beyond 80 m. Ends after 60 s, when the player falls or leaves the world.
+    Mobs do not hurt the player inside a shrine (11 m). Works in every world.
+  *Kód:* `server/owner-wand.js` (in `server/world-worker.js`), hunt rules `shared/sim/hunt.js` (used by `shared/sim/mobs.js`),
+  browser `client/src/player/owner-wand.js`, item `shared/data/items.js`, spells `shared/data/magic.js`.
 - **Pause menu** (Esc): code + copy, player list, host can allow creative for one player or everyone, and kick.
 - **Chat** (T), only to players in the same world.
 - Everyone sees other players in **their own suit** (*Můj oblek*, sent in the position as `lk`), with a modern

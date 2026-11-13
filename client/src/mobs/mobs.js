@@ -49,6 +49,17 @@ export function syncMobViews() {
   }
 }
 const lerpA = (a, b, k) => a + wrapAngle(b - a) * k;
+// Rudé svítící oči: tvor loví hráče (štvanice). Vidí je všichni (server posílá stav v ['mobs']).
+const RED_EYE = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff1a10).multiplyScalar(2.2) });
+function redEyes(V, on) {
+  V.red = on;
+  if (!V.eyeMeshes) {
+    V.eyeMeshes = [];
+    for (const g of V.eyes) g.traverse((o) => { if (o.isMesh) V.eyeMeshes.push(o); });
+    V.group.traverse((o) => { if (o.isMesh && o.userData.eye) V.eyeMeshes.push(o); }); // oči mimo skupinu očí (stínožrout)
+  }
+  for (const o of V.eyeMeshes) { o.userData.mat0 ??= o.material; o.material = on ? RED_EYE : o.userData.mat0; }
+}
 /**
  * Jeden snímek animace tvora. sp = rychlost (m/s), podle ní se hýbou nohy.
  * @param {ReturnType<typeof viewOf>} V
@@ -118,6 +129,7 @@ export function poseMob(V, m, dt, sp) {
   if ((V.blink -= dt) < 0) V.blink = 3 + Math.random() * 3;
   const open = V.blink < 0.12 ? 0.12 : 1;
   for (const e of V.eyes) e.scale.y = open;
+  if (!!m.hunt !== !!V.red) redEyes(V, !!m.hunt); // štvanice z hole vlastníka (shared/sim/hunt.js)
   if ((V.earT -= dt) < 0) { V.earT = 2 + Math.random() * 5; V.ear = 1; }
   V.ear = Math.max(0, V.ear - dt * 6);
   V.ears.forEach((e, i) => (e.rotation.x = Math.sin(V.ear * Math.PI) * (i ? 0.5 : -0.5)));
