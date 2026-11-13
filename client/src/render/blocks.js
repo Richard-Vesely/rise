@@ -220,6 +220,23 @@ export function buildSpecial(type, key) {
       g.add(leg);
     }
     g.rotation.y = chairRot.get(key) || 0;
+  } else if (type === 'jukebox') { // přehrávač filmové hudby: dřevěná skříňka, gramofonová deska nahoře, zlatý reproduktor vpředu
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a2a, roughness: 0.6 }), dark = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.4 });
+    const gold = new THREE.MeshStandardMaterial({ color: 0xc8a040, metalness: 0.8, roughness: 0.35 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.8, 0.96), wood);
+    body.position.y = 0.4;
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.03, 28), dark);
+    disc.position.y = 0.82;
+    const label = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.035, 16), gold);
+    label.position.y = 0.825;
+    const grill = new THREE.Mesh(new THREE.CircleGeometry(0.28, 24), gold);
+    grill.position.set(0, 0.38, 0.481);
+    const cone = new THREE.Mesh(new THREE.CircleGeometry(0.18, 20), dark);
+    cone.position.set(0, 0.38, 0.483);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.4), gold);
+    arm.position.set(0.32, 0.86, 0.05);
+    arm.rotation.y = 0.5;
+    g.add(body, disc, label, grill, cone, arm);
   } else if (type === 'well') {
     // Studna: kamenná obruba s vodou, dřevěná stříška
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 16, 1, true), new THREE.MeshStandardMaterial({ map: rockTex, roughness: 1, side: THREE.DoubleSide }));

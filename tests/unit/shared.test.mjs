@@ -10,9 +10,9 @@ test('data tables are complete (counts from Marek\'s version 2778d1b)', () => {
   // + 5 futuristických bloků (technický a bílý panel, 3 neony; shared/data/tech.js) + luk a šíp (2 předměty, 2 recepty)
   // + 13 vozidel a dílů (kolo, lodě, hydroplán, garáž a vylepšení; shared/data/tech.js) + čarovná hůl
   // + hůl vlastníka (owner_wand) + oko obřího pavouka (vězení serveru kroužku) + obchod za zlato: zlaťák, 4 světelné meče, trojzubec, křídla, plamenomet, lékárnička, stíhačka
-  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10);
+  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6); // + přehrávač filmové hudby a 5 hudebních disků
   assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1);
-  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1); // + socha darů: podstavec, zlato, pokladnička; + vězeňský blok
+  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1); // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok
   assert.equal(KITCHEN.length, 36);
   assert.equal(Object.keys(CROPS).length, 4);
 });

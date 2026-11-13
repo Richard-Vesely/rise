@@ -63,7 +63,7 @@ import { frame, tick } from './loop.js';
 import { GFX, QUALITY, TOUCH } from './prefs.js';
 import { saveGame } from './save.js';
 import { addXp, magic, offerPick } from '../player/xp.js';
-import { boomFx } from '../world/boom.js';
+import { jukeboxesPlaying, useJukebox } from '../audio/film-music.js';
 import { cast } from '../player/magic.js';
 
 // Na břeh nejbližšího jezera (na straně k hráči), hráč se dívá na vodu. Vrátí jezero.
@@ -88,7 +88,7 @@ function spawnOnLake(type = 'motorboat') {
 // Pro ladění v konzoli prohlížeče.
 export const game = window.game = {
   magic, addXp, cast, offerPick, // XP a kouzla (player/xp.js, player/magic.js)
-  boomFx, // efekt atomovky / meteoru (world/boom.js): game.boomFx('nuke', x, y, z, 2.5)
+  useJukebox, jukeboxesPlaying, // přehrávač filmové hudby (audio/film-music.js)
   testMode: false, tick, input, keys, player, inv, ui, fires, ICONS, addItem, countItem, RECIPES, mobs, spawnMob, blocks, rebuildBlocks, forestTrees, forestRocks,
   slotClick, takeResult, fillRecipe, fillCooking, invTricks, findRecipe, cutGrass, getVox, setVox, topY, columnDug, voxChunks, V, specials,
   get underground() { return underground; }, armor, armorPoints, chests, damagePlayer, SHRINES, usePortal, teleport, ruinsNear, ruinsBuilt, ITEMS,
