@@ -326,6 +326,19 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
   bass, timpani, drums) from the player's place (heard up to 48 m, uses the *Hudba* volume). The disc is kept in `blockMeta`
   (player key → disc id), so every player nearby hears it. Code `client/src/audio/film-music.js`.
 
+- **Hell** (*Peklo*): a big closed cave of hell rock high in the sky far away (`HELL` in `shared/world/hell.js`: floor,
+  walls and roof can't be mined, so nobody digs out). Inside: lava pools on the floor (glow, burn 6 HP every 0.5 s; the
+  full fire armor set protects), pillars of fire ore (rare: needs an iron pick, gives a fire gem), up to 5 **devils**
+  (*Ďábel*: fast, 28 HP, 11 damage, horns, tail, trident; drop fire balls, rarely a fire gem 8 % and the horror music disc
+  5 %) and the **statue of Marek the almighty god** with a glowing sign *MAREK – BŮH VŠEMOHOUCÍ*. In front of it the
+  **altar**: the only way home. It takes 3 music discs (any), 24 fire gems and a lava bucket (fill an empty bucket at the
+  lava); the items disappear (nobody gets them) and you go home to the spawn. Way in: the **hell portal** block (crafted
+  from 8 obsidian + coal), right-click warns first. From fire gems: fire armor set (*Ohnivá sada*, 4/8/7/4, set bonus:
+  lava doesn't burn) and the fire sword (15 damage). The fire ball (*Ohnivá koule*) is thrown with right-click (10 damage).
+  The hell is built once by whoever holds the world (`ensureHell` in `updateSpawns`). Sending players there as a punishment
+  is **not** built (rule 11: Richard's decision); `sendToHell()` in `client/src/world/hell.js` is ready for him.
+  Code: data `shared/data/hell.js`, place `shared/world/hell.js`, browser `client/src/world/hell.js`, devil model `client/src/mobs/mob-models.js`.
+
 ## 5. Food and cooking
 - **Campfire** (*Táborák*): roast meat and fish, smelt iron, bake sand into glass, clay into tiles.
 - **Stove kitchen** (*Sporák*, cookbook *Kuchařka*): 36 dishes (goulash, schnitzel, dumplings, pizza, pancakes,

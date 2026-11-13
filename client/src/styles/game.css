@@ -507,3 +507,11 @@ body.touch #arenaScore { top: 46px; }
 .shop-item img { width: 40px; height: 40px; image-rendering: pixelated; }
 .shop-item small { color: #ffd84a; font-weight: 700; }
 .shop-item.poor { opacity: 0.55; }
+
+/* peklo: portál a oltář (client/src/world/hell.js) */
+#hellWin { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: rgba(40, 0, 0, 0.55); }
+.hell-panel { max-width: 520px; border-color: #ff6a1a; }
+.hell-panel .mc-title { color: #ffb040; }
+.hell-price { margin: 8px 0; padding-left: 20px; } .hell-price li { color: #ff8a6a; } .hell-price li.ok { color: #8aff9a; }
+.hell-btns { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+.hell-btns button[disabled] { opacity: 0.45; cursor: not-allowed; }

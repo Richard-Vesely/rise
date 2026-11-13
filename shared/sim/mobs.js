@@ -18,6 +18,8 @@ import { updateDragon } from './dragon.js';
 import { armyPlan, updateArmy } from './army.js';
 import { HUNT, huntPlan, updateHunts } from './hunt.js';
 import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/prison.js';
+import { devilSpot, ensureHell, hellBuilt, inHell } from '../world/hell.js';
+const HELL_DEVILS = 5; // kolik ďáblů najednou žije v pekle
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
@@ -42,9 +44,11 @@ export const MOBS = {
   },
   // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; oko z něj je výkupné z vězení.
   spider: { name: 'Obří pavouk', hp: 30, radius: 1.1, cy: 0.6, dmg: 12, drops: [['spider_eye', 1, 1]] },
+  // Ďábel: žije jen v pekle (shared/world/hell.js); rychlý, silný, padá z něj ohnivá koule a vzácně ohnivý drahokam a hororový disk.
+  devil: { name: 'Ďábel', hp: 28, radius: 0.7, cy: 1.0, dmg: 11, tall: true, drops: [['fire_charge', 0, 2], ['fire_gem', 1, 1, 0.08], ['disc_horror', 1, 1, 0.05]] },
   golem: { name: 'Krystalový golem', hp: 60, radius: 1.2, cy: 1.5, dmg: 22, tall: true, drops: [['shard', 1, 3], ['markorite', 1, 1, 0.5], ['markapple', 1, 1, 0.25]] },
 };
-export const HOSTILE_SPEED = { boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
+export const HOSTILE_SPEED = { devil: 5.4, boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
 export const mobs = []; // { nid, type, def, pos, vel, hp, ry, flash, dead, invT, … }
 // Jak dlouho zůstane mrtvý tvor vidět (převrátí se na bok a rozplyne v obláčku).
 export const DEATH_TIME = 0.8;
@@ -131,7 +135,7 @@ export function updateMobs(dt, day) {
       if (m.moving) { dirX = Math.cos(m.wander); dirZ = Math.sin(m.wander); speed = sp; }
     };
     const night = day < 0.4;
-    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
+    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || m.type === 'devil' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
     if (m.type === 'crawler' && T.set === 'shadow') hostile = false; // stínové brnění
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
@@ -202,7 +206,7 @@ export function updateMobs(dt, day) {
     m.flash = Math.max(0, m.flash - dt * 5);
     if (m.invT > 0) m.invT -= dt;
     m.cd -= dt;
-    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9 }[m.type] || 1.4;
+    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9, devil: 1.8 }[m.type] || 1.4;
     if (hostile && dist < reach && Math.abs(dyP) < 2 && m.cd <= 0 && T.alive) {
       m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : m.type === 'spider' ? 1.0 : 1.1;
       m.atkT = 0.35;
@@ -226,8 +230,13 @@ let spawnT = 3;
 export function updateSpawns(dt, night) {
   if ((spawnT -= dt) > 0) return;
   spawnT = 2;
+  ensureHell(); // peklo (shared/world/hell.js) se postaví jednou, ať je kam vejít portálem
   const c = NET.spawnCenter(); // tvorové se rodí kolem některého z hráčů
   if (!c) return; // na serveru nikdo není
+  if (inHell(c.x, c.y, c.z)) { // peklo: jen ďáblové, chodí po podlaze z bloků
+    if (hellBuilt() && mobs.filter((m) => m.type === 'devil' && !m.dead).length < HELL_DEVILS) { const p = devilSpot(c.x, c.z); if (p) spawnMob('devil', p[0], p[2], p[1]).under = true; }
+    return;
+  }
   if (isDragon(c.x)) {
     if (ruinsBuilt.has(DRAGON_DEN.key) && !ruinsOpened.has(DRAGON_DEN.key) &&
       Math.hypot(c.x - DRAGON_DEN.x, c.z - DRAGON_DEN.z) < 80 && !mobs.some((m) => m.type === 'dragon')) {

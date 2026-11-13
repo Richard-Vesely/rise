@@ -64,6 +64,8 @@ import { GFX, QUALITY, TOUCH } from './prefs.js';
 import { saveGame } from './save.js';
 import { addXp, magic, offerPick } from '../player/xp.js';
 import { jukeboxesPlaying, useJukebox } from '../audio/film-music.js';
+import { sendToHell, useAltar, usePortal as useHellPortal } from '../world/hell.js';
+import { HELL, HELL_SPOT, ALTAR, inHell } from '../../../shared/world/hell.js';
 import { cast } from '../player/magic.js';
 
 // Na břeh nejbližšího jezera (na straně k hráči), hráč se dívá na vodu. Vrátí jezero.
@@ -89,6 +91,7 @@ function spawnOnLake(type = 'motorboat') {
 export const game = window.game = {
   magic, addXp, cast, offerPick, // XP a kouzla (player/xp.js, player/magic.js)
   useJukebox, jukeboxesPlaying, // přehrávač filmové hudby (audio/film-music.js)
+  sendToHell, useAltar, useHellPortal, HELL, HELL_SPOT, ALTAR, inHell, // peklo (world/hell.js)
   testMode: false, tick, input, keys, player, inv, ui, fires, ICONS, addItem, countItem, RECIPES, mobs, spawnMob, blocks, rebuildBlocks, forestTrees, forestRocks,
   slotClick, takeResult, fillRecipe, fillCooking, invTricks, findRecipe, cutGrass, getVox, setVox, topY, columnDug, voxChunks, V, specials,
   get underground() { return underground; }, armor, armorPoints, chests, damagePlayer, SHRINES, usePortal, teleport, ruinsNear, ruinsBuilt, ITEMS,

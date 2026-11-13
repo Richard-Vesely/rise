@@ -640,6 +640,7 @@ export function armorMat(tier) {
     5: std({ color: 0x8a46c4, metalness: 0.8, roughness: 0.28, emissive: 0xd04bff, emissiveMap: crackTex(), emissiveIntensity: 0.9 }),
     shadow: std({ color: 0x241e30, metalness: 0.4, roughness: 0.5, emissive: 0xd04bff, emissiveMap: crackTex(), emissiveIntensity: 0.8 }),
     sky: std({ color: tame(new THREE.Color(0xf4f1ea), 0.7), metalness: 0.35, roughness: 0.22, emissive: 0xffb066, emissiveIntensity: 0.12 }),
+    fire: std({ color: 0x8a1a10, metalness: 0.6, roughness: 0.3, emissive: 0xff5a10, emissiveMap: crackTex(), emissiveIntensity: 1.3 }), // ohnivá sada (peklo)
   }[tier] || std({ color: 0x9aa0a8, metalness: 0.6, roughness: 0.4 });
   m.userData.tier = tier;
   return (armorMats[tier] = addRim(m));

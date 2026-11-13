@@ -20,12 +20,17 @@ export function updateGadgets(dt, special) {
   prevRmb = input.rmb;
   cd -= dt;
   const id = heldStack()?.id, d = ITEMS[id];
-  if (!d || !(d.throw || d.wings || d.flame || d.medkit) || special) return false;
+  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball) || special) return false;
   if (d.throw && fresh && cd <= 0) { // trojzubec
     cd = d.throw.cd;
     shot({ color: 0x38c8e8, size: 0.8, speed: 42, ttl: 1.6, dmg: d.throw.dmg, trail: 1 });
     toolSound('whoosh', 1);
     wearHeld(2);
+  } else if (d.fireball && fresh && cd <= 0) { // ohnivá koule z pekla: hodí se a spotřebuje
+    cd = 0.5;
+    shot({ color: 0xff7a2a, size: 0.9, speed: 30, ttl: 2, dmg: d.fireball.dmg, trail: 1 });
+    removeItem(id, 1);
+    toolSound('whoosh', 1);
   } else if (d.wings && fresh) {
     player.flyT = Math.max(player.flyT || 0, d.wings);
     sparks.emit(player.pos.x, player.pos.y + 1.2, player.pos.z, [1, 1, 1], 24, 2, 2);
