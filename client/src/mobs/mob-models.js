@@ -4,6 +4,7 @@
 // Bez vedlejších účinků při načtení (textury se vyrobí až při prvním tvorovi).
 import * as THREE from 'three';
 import { buildDragonModel } from './dragon-model.js';
+import { buildSpiderModel } from './spider-model.js';
 import { RIM, addRim, animateCharacter, armorMat, blobShadow, buildCharacter, crackTex, mergeStatic, rbox, setCharacterArmor, skinRig } from '../render/character.js';
 
 export { RIM };
@@ -98,6 +99,7 @@ const IRIS = { sheep: 0x9a7a3a, cow: 0x5a3420, chicken: 0xe08a20, deer: 0x3a2412
 export function buildMobModel(type) {
   const g = new THREE.Group(), K = kit(g, IRIS[type]), legs = [], ears = [], wings = [];
   if (type === 'dragon') return buildDragonModel(g, K);
+  if (type === 'spider') return buildSpiderModel(g, K); // obří pavouk z vězení
   const { mat, box, pivot, eye, leg } = K;
   let body, head = null, tail = null, kind = 'quad', extra = {};
   if (type === 'sheep') {
@@ -262,7 +264,7 @@ export function buildMobModel(type) {
     g.add(body);
     head = body;
     const eyeM = glowMat(0xd04bff, 1.7);
-    for (const sx of [-0.2, 0.2]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), eyeM); e.position.set(sx, 0.12, -0.58); e.rotation.z = sx * -1.5; e.scale.set(1.2, 0.5, 0.6); body.add(e); } // zlé šikmé oči (nemrkají)
+    for (const sx of [-0.2, 0.2]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), eyeM); e.position.set(sx, 0.12, -0.58); e.rotation.z = sx * -1.5; e.userData.eye = 1; e.scale.set(1.2, 0.5, 0.6); body.add(e); } // zlé šikmé oči (nemrkají)
     const spikeMat = mat({ color: 0x1a1022, roughness: 0.45 });
     for (let i = 0; i < 5; i++) {
       const sp = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.5, 6), spikeMat);

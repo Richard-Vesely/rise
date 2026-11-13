@@ -16,6 +16,8 @@ export const VEH_SHAPES = {
   // kryt kabiny, trup v barvě, kýlovka; podvozek, nebo u hydroplánu plovák se svítící čárou ponoru
   plane: pix([...plane, '...KKK.KKK......', '....K...K.......']),
   seaplane: pix([...plane, '..WWWWWWWWW.....', '...AAAAAAA......']),
+  // stíhačka z boku (příď vlevo): špičatý nos, kryt kabiny, šedý trup, šikmá křídla a kýl, svítící tryska
+  jet: pix(['', '', '', '', '............MM..', '...........MMM..', '....KAA....MMM..', '..LLLLLLLLLLLLLA', 'LLMMMMMMMMMMMMMA', '..DDDMMMMMMMDDD.', '.....DDDDDD.....', '......K...K.....']),
   // kolo: pneumatiky, svítící ráfky, silný rám v barvě (proužek na spodní trubce), sedlo a řídítka
   bike: (x, y) => {
     for (const cx of [3.6, 12.4]) { const d = Math.hypot(x - cx, y - 11.4); if (d <= 3.4) return d > 2.55 ? 'K' : d > 1.85 ? 'A' : d < 0.8 ? 'G' : null; }

@@ -351,12 +351,50 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Útok na Bára/.test(m[2])));
     assert.ok(await b.waitFor((m) => m[0] === 'dmg', 20000), 'the army reaches Bára and attacks her');
     mk.send(['chat', '/stop']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /jde k tobě/.test(m[2])));
+    const bPid = b.msgs.find((m) => m[0] === 'welcome')[1].pid;
+    mk.send(['pose', { ...at(70, 60), pv: 1 }]); b.send(['pose', { ...at(72, 60), pv: 1 }]);
+    await sleep(300);
+    mk.send(['phit', bPid, 2, 0, 1, 0]); // Marek Báru praští (oba mají souboje zapnuté)
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[1] === '⚔ Armáda' && /Útok na Bára/.test(m[2]) && m !== mk.msgs.find((x) => x[0] === 'chat' && /Útok na Bára/.test(x[2]))), 'a hit by Marek sends the army after the one he hit');
+    mk.send(['chat', '/stop']);
     mk.send(['chat', '/tezit']);
     assert.ok(await mk.waitFor((m) => m[0] === 'give', 10000), 'mining sends Marek what the army digs out');
     mk.send(['chat', '/palac']);
     assert.ok(await mk.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'm' && o[1] === 'blocks' && ['quartz_block', 'obsidian', 'bricks'].includes(o[3])), 10000), 'the palace grows block by block');
+    b.send(['pose', at(90, 60)]); mk.send(['pose', at(60, 60)]);
+    await sleep(300);
+    b.msgs.length = 0;
+    mk.send(['chat', '/at bára']); // atomovka na Báru
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Atomovka letí na Bára/.test(m[2])), '/at answers Marek');
+    assert.ok(await b.waitFor((m) => m[0] === 'fx' && m[1] === 'nuke' && Math.abs(m[2] - 90) < 1), 'everyone sees the missile fall on Bára');
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg' && m[1] >= 999, 6000), 'the bomb kills Bára');
+    await b.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'v' && Math.hypot(o[1] - 90, o[3] - 60) < 7), 3000);
+    const holes = b.msgs.filter((m) => m[0] === 'ops').flatMap((m) => m[1]).filter((o) => o[0] === 'v' && Math.hypot(o[1] - 90, o[3] - 60) < 7);
+    assert.ok(holes.length > 650, `the crater removes about 800 blocks (${holes.length})`);
+    mk.send(['chat', '/meteor']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Meteorický déšť/.test(m[2])));
+    assert.ok(await b.waitFor((m) => m[0] === 'fx' && m[1] === 'meteor', 15000), 'meteors fall');
     mk.send(['chat', '/rozpustit']);
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /rozpuštěna/.test(m[2])));
     for (const p of [mk, b]) await p.close();
+  } finally { await stop(srv); }
+});
+
+test('fishing rod: pulls a hooked player right in front of the one pulling, never anywhere else', { timeout: 60000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-rod-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const a = player(srv.port, 'Adam', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const bPid = b.msgs.find((m) => m[0] === 'welcome')[1].pid;
+    a.send(['pose', pose(5000, 10)]); b.send(['pose', pose(20, 10)]); // Adam daleko (třeba v jiné dimenzi)
+    await sleep(400);
+    a.send(['pull', 'p', bPid, 300, 0.5, 10]); // ne před sebou: nic
+    await sleep(500);
+    assert.ok(!b.msgs.some((m) => m[0] === 'tp'), 'a pull far from the one pulling does nothing');
+    a.send(['pull', 'p', bPid, 5001.5, 0.5, 10]);
+    const tp = await b.waitFor((m) => m[0] === 'tp');
+    assert.ok(tp && tp[1] === 5001.5 && tp[4] === 'Adam', 'Bára is pulled in front of Adam, across any distance');
+    for (const p of [a, b]) await p.close();
   } finally { await stop(srv); }
 });

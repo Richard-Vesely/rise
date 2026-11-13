@@ -81,6 +81,7 @@ $('inventory').addEventListener('click', (e) => { if (e.target.closest('#costume
 $('modeBtn').textContent = `Režim: ${creative ? 'Kreativní' : 'Přežití'}`;
 export function setCreative(on) {
   if (on && !NET.perm) { toast('Kreativní režim zakázal hostitel'); return; }
+  if (on && NET.jail) { toast('Ve vězení kreativní režim nejde'); return; } // vězení serveru kroužku (player/prison.js)
   creative = on;
   if (!on) player.flying = false;
   toast(on ? 'Kreativní režim · 2× Mezerník = létání' : 'Režim přežití');
@@ -91,7 +92,7 @@ export function setCreative(on) {
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return; // psaní do chatu nebo do pole
-  if (MP && e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
+  if (e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
   if (e.code === 'KeyE' && !e.repeat) { invOpen ? closeInventory() : (isLocked() || game.testMode) && openInventory(); return; }
   if (e.code === 'Escape' && invOpen) { closeInventory(); return; }
   if (e.code === 'KeyH' && !e.repeat) { toggleGuide(); return; }

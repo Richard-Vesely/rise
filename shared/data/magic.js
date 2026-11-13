@@ -37,10 +37,20 @@ export const SPELLS = {
   light: { name: 'Světlo', kind: 'užitek', level: 1, mana: 5, cd: 1, desc: 'Svítící koule visí 60 s ve vzduchu.' },
   farmine: { name: 'Těžba na dálku', kind: 'užitek', level: 3, mana: 12, cd: 0.8, desc: 'Vytěží blok až 16 m daleko.' },
   wolf: { name: 'Duchovní vlk', kind: 'užitek', level: 10, needs: 'light', mana: 60, cd: 30, desc: '20 s útočí na nepřátele kolem tebe.' },
+  // Jen hůl vlastníka serveru (owner): nedá se naučit ani vybrat za úroveň; jestli platí, rozhoduje server (server/owner-wand.js).
+  avada: { name: 'Avada Kedavra', kind: 'útok', level: 1, owner: true, mana: 5, cd: 1.5, desc: 'Zelený paprsek: tvora zabije všude, hráče jen tam, kde jsou zapnuté souboje.' },
+  hunt: { name: 'Štvanice', kind: 'útok', level: 1, owner: true, mana: 5, cd: 3, desc: 'Rudý paprsek do hráče: tvorové kolem něj dostanou rudé oči a minutu ho loví.' },
 };
 export const SPELL_IDS = Object.keys(SPELLS);
+/** Kouzla hole vlastníka (nejdou se naučit; hůl je umí sama). */
+export const OWNER_SPELLS = SPELL_IDS.filter((id) => SPELLS[id].owner);
+/** Předměty jen pro vlastníka serveru (hůl vlastníka): nikdo jiný je mít nesmí. */
+export const OWNER_ITEMS = new Set(['owner_wand']);
+export const ownerItem = (id) => OWNER_ITEMS.has(id);
+/** Avada Kedavra: dosah paprsku (m) a zranění, které zabije i v brnění se štítem. */
+export const AVADA = { range: 60, dmg: 1000 };
 /** Kouzla, která už jde vybrat (úroveň a předchozí kouzlo), a hráč je ještě nemá. */
-export const spellChoices = (level, learned) => SPELL_IDS.filter((id) => !learned.includes(id) && SPELLS[id].level <= level && (!SPELLS[id].needs || learned.includes(SPELLS[id].needs)));
+export const spellChoices = (level, learned) => SPELL_IDS.filter((id) => !SPELLS[id].owner && !learned.includes(id) && SPELLS[id].level <= level && (!SPELLS[id].needs || learned.includes(SPELLS[id].needs)));
 /** Až 3 nabídnutá kouzla: od každého druhu nejvýš jedno, když to jde (rnd = náhoda 0–1). */
 export function offerSpells(level, learned, rnd = Math.random) {
   const pool = spellChoices(level, learned).sort(() => rnd() - 0.5), out = [];
@@ -52,7 +62,7 @@ export function offerSpells(level, learned, rnd = Math.random) {
 export function cleanMagic(o) {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return { xp: 0, learned: [], sel: null, picks: 0 };
   const xp = Number.isFinite(o.xp) && o.xp >= 0 ? Math.min(1e7, Math.floor(o.xp)) : 0;
-  const learned = Array.isArray(o.learned) ? [...new Set(o.learned.filter((id) => typeof id === 'string' && Object.hasOwn(SPELLS, id)))] : [];
+  const learned = Array.isArray(o.learned) ? [...new Set(o.learned.filter((id) => typeof id === 'string' && Object.hasOwn(SPELLS, id) && !SPELLS[id].owner))] : [];
   const picks = Number.isInteger(o.picks) && o.picks >= 0 && o.picks < 200 ? o.picks : 0; // kolik výběrů kouzel ještě čeká
   return { xp, learned, sel: learned.includes(o.sel) ? o.sel : learned[0] ?? null, picks };
 }

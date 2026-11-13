@@ -7,6 +7,7 @@ import { portalActive, ruinsOpened } from '../../../shared/world/state.js';
 import { STRUCTS, structuresNear } from '../../../shared/world/structures.js';
 import { BIOME_NAMES, biomeAt, isMark, shrineOf } from '../../../shared/world/terrain.js';
 import { isDragon } from '../../../shared/world/dragon-land.js';
+import { inPrison } from '../../../shared/world/prison.js';
 import { mobs } from '../../../shared/sim/mobs.js';
 import { Sound } from '../audio/sound.js';
 import { countItem } from '../player/inventory.js';
@@ -121,7 +122,7 @@ export function updateHUD(dt) {
   setMarker(shrineMark, shrineOf(player.pos.x).x, 0);
   setMarker(shardMark, best ? best.x : null, best ? best.z : null);
   const h = Math.floor(dayTime * 24), mi = Math.floor((dayTime * 24 * 60) % 60);
-  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
+  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${inPrison(player.pos.x, player.pos.y, player.pos.z) ? ' · Vězení' : isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
   $('hpfill').style.width = `${Math.max(0, player.hp)}%`;
   $('foodfill').style.width = `${player.hunger}%`;
   $('armorfill').style.width = `${(armorPoints() / 23) * 100}%`;

@@ -271,8 +271,9 @@ export function buildSpecial(type, key) {
     s.userData.base = 1.2;
     g.add(s);
     flames.push(s);
-  } else if (type === 'chest') {
-    const wood = blockMats.planks, dark = new THREE.MeshStandardMaterial({ color: 0x3a2814, roughness: 0.9 });
+  } else if (type === 'chest' || type === 'donation_box') { // pokladnička darů u sochy = zlatá truhla se štěrbinou na víku
+    const box = type === 'donation_box';
+    const wood = box ? blockMat('statue_gold') : blockMats.planks, dark = new THREE.MeshStandardMaterial({ color: box ? 0x5a3a10 : 0x3a2814, roughness: 0.9 });
     const metal = new THREE.MeshStandardMaterial({ color: 0xc8c8d0, metalness: 0.9, roughness: 0.35 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.56, 0.86), wood);
     body.position.y = 0.28;
@@ -283,6 +284,7 @@ export function buildSpecial(type, key) {
     const lock = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.05), metal);
     lock.position.set(0, 0.58, 0.45);
     g.add(body, lid, band, lock);
+    if (box) { const slot = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.08), dark); slot.position.y = 0.83; g.add(slot); }
   } else if (type === 'torch') { // stojí, nebo visí na zdi (render/torch-model.js, pravidla shared/world/torch.js)
     const [x, y, z] = key.split(',').map(Number);
     buildTorchModel(g, flames, torchMeta(key, x, y, z));

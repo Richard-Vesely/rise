@@ -1,5 +1,5 @@
 // Správa hráčů z příkazové řádky (pro lektora):
-//   node server/admin.js players              seznam hráčů (jméno, založen, naposledy, poslední svět, hraje teď)
+//   node server/admin.js players              seznam hráčů (jméno, založen, naposledy, poslední svět, hraje teď, id profilu pro OWNER_ID)
 //   node server/admin.js reset-pin <jméno>    smaže PIN hráče; při dalším přihlášení si nastaví nový
 // Běží-li server, příkaz jde do něj (místní správcovská adresa jen na 127.0.0.1, klíč v DATA_DIR/admin.json).
 // Neběží-li, upraví přímo DATA_DIR/players.json. DATA_DIR se bere z prostředí (výchozí server/data), jako u serveru.
@@ -33,8 +33,8 @@ function ask(pathname, body) {
 
 function print(list) {
   if (!list.length) { console.log('Zatím žádní hráči.'); return; }
-  const rows = list.map((p) => [p.name, date(p.created), date(p.lastSeen), p.lastWorld || '–', p.online || '', p.pin ? '' : 'bez PINu']);
-  const head = ['Jméno', 'Založen', 'Naposledy', 'Poslední svět', 'Hraje teď', ''];
+  const rows = list.map((p) => [p.name, date(p.created), date(p.lastSeen), p.lastWorld || '–', p.online || '', p.pin ? '' : 'bez PINu', p.id]);
+  const head = ['Jméno', 'Založen', 'Naposledy', 'Poslední svět', 'Hraje teď', '', 'Id'];
   const w = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)));
   for (const r of [head, ...rows]) console.log(r.map((c, i) => c.padEnd(w[i])).join('  ').trimEnd());
   console.log(`\n${list.length} ${list.length === 1 ? 'hráč' : list.length < 5 ? 'hráči' : 'hráčů'}`);

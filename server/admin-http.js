@@ -1,11 +1,13 @@
 // Správa hráčů pro lektora:
 // - stránka GET /admin na herním serveru (heslo ADMIN_PASSWORD přes HTTP Basic; bez ADMIN_PASSWORD je vypnutá):
 //   seznam hráčů a tlačítko „Resetovat PIN“ u každého. Funguje i na mobilu.
+// - stránka GET /admin/dary: dary do pokladničky u sochy a formulář „Dát hráči předmět“ (server/donations-admin.js).
 // - místní správcovská adresa jen na 127.0.0.1 pro `node server/admin.js` (port a náhodný klíč v DATA_DIR/admin.json).
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { donationsAdmin } from './donations-admin.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const date = (s) => (s ? new Date(s).toLocaleString('cs-CZ', { timeZone: 'Europe/Prague', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–');
@@ -25,11 +27,13 @@ export function playerList(profiles, online) {
 
 /**
  * Obsluha /admin (HTTP Basic, uživatel libovolný, heslo ADMIN_PASSWORD).
- * @param {{ password: string, profiles: any, online: () => Map<string, string>, worldName: (id: string) => string, log: (msg: string) => void }} o
+ * @param {{ password: string, profiles: any, online: () => Map<string, string>, worldName: (id: string) => string, log: (msg: string) => void,
+ *   donations?: any, give?: (to: string, id: string, n: number) => object|null }} o donations + give = stránka /admin/dary
  * @returns {(req: http.IncomingMessage, res: http.ServerResponse) => void}
  */
-export function adminPage({ password, profiles, online, worldName, log }) {
+export function adminPage({ password, profiles, online, worldName, log, donations = null, give = () => null }) {
   const fails = new Map(); // adresa -> { n, until }: 10 špatných hesel = minuta čekání
+  const dary = donations ? donationsAdmin({ donations, profiles, online, give, worldName, log }) : null;
   return (req, res) => {
     const url = new URL(req.url || '/', 'http://x');
     if (!password) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Správa je vypnutá (na serveru není nastavené ADMIN_PASSWORD).'); return; }
@@ -45,12 +49,15 @@ export function adminPage({ password, profiles, online, worldName, log }) {
     }
     fails.delete(ip);
     const head = { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-frame-options': 'DENY', 'referrer-policy': 'same-origin' };
-    if (req.method === 'POST' && url.pathname === '/admin/reset-pin') {
-      // jen z vlastní stránky (cizí stránka nesmí poslat formulář s uloženým heslem prohlížeče)
+    if (req.method === 'POST') {
+      // formuláře jen z vlastní stránky (cizí stránka nesmí poslat formulář s uloženým heslem prohlížeče)
       const origin = req.headers.origin;
       let from = null;
       try { from = origin && new URL(origin).host; } catch {}
       if (origin && from !== req.headers.host) { res.writeHead(403); res.end(); return; }
+    }
+    if (dary && (url.pathname === '/admin/dary' || url.pathname === '/admin/give')) return dary(req, res, url, head);
+    if (req.method === 'POST' && url.pathname === '/admin/reset-pin') {
       let body = '';
       req.on('data', (d) => { body += d; if (body.length > 1000) req.destroy(); });
       req.on('end', () => {
@@ -88,14 +95,14 @@ h1 { font-size: 22px; margin: 0 0 4px; } .sub { color: var(--mute); margin: 0 0 
 table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); }
 th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { font-size: 13px; color: var(--mute); font-weight: 600; } small { color: var(--mute); }
-.on { color: var(--acc); font-weight: 600; } .ok { color: var(--acc); } .err { color: var(--err); }
+.on { color: var(--acc); font-weight: 600; } .ok { color: var(--acc); } .err { color: var(--err); } a { color: var(--acc); }
 button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
 @media (max-width: 640px) {
   thead { display: none; } table, tbody, tr, td { display: block; width: auto; } tr { padding: 8px 0; border-bottom: 1px solid var(--line); }
   td { border: 0; padding: 3px 12px; } td[data-l]::before { content: attr(data-l) ': '; color: var(--mute); font-size: 13px; }
 }
 </style></head><body>
-<h1>Říše – hráči</h1><p class="sub">${list.length} ${list.length === 1 ? 'hráč' : list.length >= 2 && list.length <= 4 ? 'hráči' : 'hráčů'} · teď hraje ${now}</p>${note}
+<h1>Říše – hráči</h1><p class="sub">${list.length} ${list.length === 1 ? 'hráč' : list.length >= 2 && list.length <= 4 ? 'hráči' : 'hráčů'} · teď hraje ${now} · <a href="/admin/dary">Dary a dárky →</a></p>${note}
 ${list.length ? `<table><thead><tr><th>Jméno</th><th>Hraje teď</th><th>Naposledy</th><th>Poslední svět</th><th>Založen</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : '<p>Zatím se nikdo nepřihlásil.</p>'}
 <p class="sub">Resetovat PIN: hráč si při dalším přihlášení vymyslí nový (jeho batoh zůstane). Ostatní zařízení se odhlásí.</p>
 </body></html>`;
