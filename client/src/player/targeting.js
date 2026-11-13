@@ -80,7 +80,7 @@ export function pickTarget(reach = REACH) { // reach: kouzla (těžba na dálku,
     const b = BLOCKS[bh.type];
     bt = bh.t;
     best = { kind: 'block', key: 'b' + bkey(bh.x, bh.y, bh.z), cell: [bh.x, bh.y, bh.z], normal: bh.normal, type: bh.type, name: b.name, point: [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t],
-      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', furnace: 'pravé tlačítko = tavení (surovina nahoru, palivo dolů)', stove: 'pravé tlačítko = vaření', adv_bench: 'pravé tlačítko = dílna', computer: 'pravé tlačítko = sednout k počítači', donation_box: `pravé tlačítko = darovat · ${donorsLine()}` }[bh.type] || (b.fixed ? donorsLine() : ''), breakable: !b.fixed, hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
+      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', furnace: 'pravé tlačítko = tavení (surovina nahoru, palivo dolů)', stove: 'pravé tlačítko = vaření', adv_bench: 'pravé tlačítko = dílna', computer: 'pravé tlačítko = sednout k počítači', donation_box: `pravé tlačítko = darovat · ${donorsLine()}`, prison_block: 'vězení: tohle nerozbiješ' }[bh.type] || (b.fixed ? donorsLine() : ''), breakable: !b.fixed, hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
   }
   const a = d.x * d.x + d.z * d.z;
   for (const t of forestTrees) {
@@ -114,7 +114,7 @@ export function pickTarget(reach = REACH) { // reach: kouzla (těžba na dálku,
     if (tt >= bt) continue;
     bt = tt;
     const hint = m.type === 'chicken' ? `vejce: ${m.eggs || 0} · pravé tl. = sebrat` : m.type === 'cow' ? (m.milkT > 0 ? 'podojená' : 'pravé tl. s kbelíkem = podojit')
-      : ['dragon', 'crawler', 'markoman', 'golem', 'wolf'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
+      : ['dragon', 'crawler', 'markoman', 'golem', 'wolf', 'spider'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
     best = { kind: 'mob', mob: m, name: m.def.name, hint };
   }
   // Ostatní hráči (jen ve světě se souboji, pvp.js)

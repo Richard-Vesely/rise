@@ -3,20 +3,23 @@
 // Hlavní vlákno (server/server.js) drží WebSockety a posílá sem zprávy hráčů tohoto světa; odpovědi jdou zpátky.
 // Batohy hráčů (profily: server/profiles.js) se drží tady u světa a ukládají se do world.json (players: { id profilu: me }).
 // Pokladnička darů u sochy (server/donation-box.js) je taky tady; dary se hlásí hlavnímu vláknu do knihy darů.
-// Vlastník serveru a Markova armáda: server/army-owner.js.
+// Vlastník serveru a Markova armáda: server/army-owner.js. Vězení (vlastník posílá hráče do vězení): server/prison.js.
 // Hůl vlastníka (server/owner-wand.js): vlastník ji má vždycky, nikdo jiný ji mít nesmí, její kouzla ověřuje server.
 //   z hlavního vlákna: { t: 'join', cid, name, profile, gifts? } · { t: 'data', cid, raw } · { t: 'gone', cid } · { t: 'save' } · { t: 'stop' }
 //                      · { t: 'top', top } nový žebříček dárců · { t: 'gift', profile, gifts } dárky od správce pro hráče
+//                      · { t: 'who', q, profile, name } odpověď: profil podle jména (vězení)
 //   do hlavního vlákna: { t: 'ready', loaded } · { t: 'send', cid, raw } · { t: 'close', cid } · { t: 'stats', … } · { t: 'log', text } · { t: 'stopped' }
-//                      · { t: 'donation', by, name, id, n } hráč něco daroval
+//                      · { t: 'donation', by, name, id, n } hráč něco daroval · { t: 'who', q, name } najdi profil podle jména (vězení)
 import { parentPort, workerData } from 'node:worker_threads';
-import { accept, armyChat, others } from '../shared/net/room.js';
+import { accept, armyChat, others, room } from '../shared/net/room.js';
 import { worldState } from '../shared/world/save.js';
+import { guardPrisonerOps } from '../shared/world/prison.js';
 import { guardStatueOps } from '../shared/world/statue.js';
 import { createArmyOwner } from './army-owner.js';
 import { createDonationBox } from './donation-box.js';
 import { createOwnerWand, guardOwnerKV, guardOwnerOps } from './owner-wand.js';
 import { ME_MAX_BYTES, cleanMe } from './me.js';
+import { createPrison } from './prison.js';
 import { loadWorldFile, saveWorldFile } from './persist.js';
 import { setupWorld, stepWorld } from './sim.js';
 
@@ -50,6 +53,18 @@ const armyOwner = createArmyOwner({
   command: (cid, name, text) => armyChat(cid, name, text, true),
   players: () => [...others.values()].map((P) => [P.pid, P.name]),
 });
+
+// ---------- vězení: posílá do něj jen vlastník serveru (a kdo vlastníka zabije), ven za oka obřího pavouka (server/prison.js)
+const asks = new Map(); // q -> odpověď hlavního vlákna na 'who'
+let askN = 0;
+const prison = createPrison({
+  ownerId: W.ownerId || '', ownerName: W.ownerName || '', saved: saved?.prison, log,
+  send: (cid, msg) => sendRaw(cid, msg),
+  conns: () => [...conns].map(([cid, c]) => [cid, { profile: c.profile, name: c.name }]),
+  lookup: (name, done) => { const q = ++askN; asks.set(q, done); post({ t: 'who', q, name }); },
+  put: (id, n) => dbox.put(id, n),
+});
+room.onKill = (killer, victim) => prison.onKill(killer, victim);
 
 // ---------- spojení hráčů: stejné funkce jako spojení PeerJS (shared/net/room.js je používá stejně)
 const conns = new Map(); // cid -> { handlers, shut, profile, name, gifts }
@@ -93,6 +108,7 @@ function onData(cid, raw) {
     if (me) players[c.profile] = wand.onMe(cid, c.profile, me); // hůl vlastníka: ostatním pryč, vlastníkovi zpátky
     return;
   }
+  if (prison.handle(cid, c.profile, msg)) return; // vězení: příkazy vlastníka, dary vězně (pose jde dál)
   if (dbox.handle(cid, c.profile, c.name, msg)) return; // pokladnička darů
   if (armyOwner.handle(cid, c.profile, others.get(cid)?.name ?? c.name, msg)) return; // armáda a vlastník serveru
   if (wand.handle(cid, c.profile, msg)) return; // kouzla hole vlastníka (ověří vlastníka)
@@ -102,7 +118,7 @@ function onData(cid, raw) {
     sendRaw(cid, ['toast', 'Dostal(a) jsi dárek od správce serveru!']);
   }
   if (msg[0] === 'ops' && Array.isArray(msg[2])) { // socha se nedá rozbít ani podkopat: změny na ní se zahodí a hráč dostane skutečný stav
-    const g = guardStatueOps(msg[2]);
+    const g = (prison.isPrisoner(c.profile) ? guardPrisonerOps : guardStatueOps)(msg[2]); // vězeň nestaví ani nekope vůbec
     if (g.fix.length) sendRaw(cid, ['ops', g.fix]);
     const ops = guardOwnerOps(g.ops); // hůl vlastníka nesmí ležet na zemi
     if (ops.length !== msg[2].length) msg = [msg[0], msg[1], ops];
@@ -114,6 +130,7 @@ function gone(cid) {
   const c = conns.get(cid);
   if (!c) return;
   conns.delete(cid);
+  prison.gone(cid);
   wand.gone(cid);
   c.shut();
   for (const fn of c.handlers.close) fn();
@@ -134,7 +151,7 @@ const ticker = setInterval(() => {
   last = now;
 }, 1000 / W.tickHz);
 const statsTimer = setInterval(stats, 1000);
-const save = () => { if (W.dir) saveWorldFile(W.dir, worldState(), players, { box: dbox.save() }, armyOwner.save()); };
+const save = () => { if (W.dir) saveWorldFile(W.dir, worldState(), players, { box: dbox.save() }, armyOwner.save(), prison.save()); };
 const saver = setInterval(() => { try { save(); } catch (e) { log('Uložení selhalo: ' + e.message); } }, W.saveEveryMs);
 
 parentPort.on('message', (m) => {
@@ -142,6 +159,7 @@ parentPort.on('message', (m) => {
     case 'join': join(m.cid, m.name, m.profile, m.gifts); break;
     case 'top': dbox.setTop(m.top); for (const [cid, c] of conns) if (c.profile) dbox.sendState(cid, c.profile); break;
     case 'gift': for (const c of conns.values()) if (c.profile === m.profile) c.gifts.push(...m.gifts); break;
+    case 'who': { const done = asks.get(m.q); asks.delete(m.q); done?.(m.profile ? { id: m.profile, name: m.name } : null); break; }
     case 'data': try { onData(m.cid, m.raw); } catch (e) { log('Chyba ve zprávě hráče: ' + (e.stack || e)); } break;
     case 'gone': try { gone(m.cid); } catch (e) { log('Chyba při odchodu hráče: ' + (e.stack || e)); } break;
     case 'save': try { save(); } catch (e) { log('Uložení selhalo: ' + e.message); } break;

@@ -22,6 +22,7 @@ export const ITEMS = {
   iron: { name: 'Železný ingot', icon: '🔩' },
   shard: { name: 'Úlomek světla', icon: '💎' },
   essence: { name: 'Stínová esence', icon: '🟣' },
+  spider_eye: { name: 'Oko obřího pavouka', art: ['eye', '#c0182c', '#ffd84a'] }, // jen z obřích pavouků ve vězení (shared/world/prison.js)
   wool: { name: 'Vlna', icon: '🧶' },
   berries: { name: 'Lesní plody', icon: '🫐', food: 8 },
   raw_meat: { name: 'Syrové maso', icon: '🥩', food: 6 },

@@ -367,6 +367,7 @@ export function useItem() {
   // Položení vozidla (natočené ve směru pohledu): auto a kolo na zem, letadlo před hráče, loď a hydroplán na vodu
   const vehHeld = heldStack() && ITEMS[heldStack().id].vehicle;
   const placed = (id, y, text) => { vehicles.get(id).y = y; consumeSelected(); Sound.place(); toast(text); };
+  if (vehHeld && NET.jail) { toast('Ve vězení vozidlo nepostavíš'); return; } // vězení serveru kroužku (player/prison.js)
   if (vehHeld && (isBoat(vehHeld) || vehHeld === 'seaplane')) {
     const spot = vehHeld === 'seaplane' ? seaplaneSpot() : boatSpot(vehHeld);
     if (!spot.ok) { toast(`${vehDim(vehHeld).name} se spouští na vodu – ${spot.why}`); return; }
@@ -446,6 +447,7 @@ export function useItem() {
     return;
   }
   // Půlblok na stejný půlblok = celý blok (dvojitý půlblok)
+  if (d.block && NET.jail) { toast('Ve vězení se nedá stavět'); return; }
   if (d.block && BLOCKS[d.block].shape === 'slab' && target?.kind === 'block' && target.type === d.block) {
     const k = bkey(...target.cell), up = (blockMeta.get(k) || 0) & 4;
     if ((target.normal[1] === 1 && !up) || (target.normal[1] === -1 && up)) {
@@ -498,6 +500,7 @@ function placeMeta(shape) {
   return up ? 4 : 0;
 }
 export function placeBlock(d, [x, y, z]) {
+  if (NET.jail) { toast('Ve vězení se nedá stavět'); return false; } // vězení serveru kroužku (player/prison.js)
   if (BLOCKS[d.block].solid && playerIntersects(x, y, z)) return false;
   // Pochodeň jako v Minecraftu: na zem nebo na zeď, nikdy na strop (shared/world/torch.js)
   const tm = d.block === 'torch' ? torchPlacement(x, y, z, target?.normal, camera.getWorldDirection(new THREE.Vector3()).toArray()) : 0;

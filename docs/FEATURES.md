@@ -337,6 +337,7 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Stínožrout (shadow-eater) | 10 | night monster, burns at sunrise, avoids light and the shrine; violet veins and a moonlit rim show its outline at night |
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
+| Obří pavouk (giant spider) | 30 | only in the club server's prison: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka* (the prison item) |
 | Drak Země draka | 500 | guards the dragon cave; bites for 75 before armor, with 0.35 s warning and 1.15 s between attacks; within 3.2 m uses a stronger bite for 90 with 0.2 s warning and 0.9 s between attacks; continuously pursues players throughout the dragon dimension at up to 10 m/s, including during bite warnings, descends and closes to about 1.2 m for melee, and does not despawn when far away |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
@@ -576,6 +577,19 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
     Mobs do not hurt the player inside a shrine (11 m). Works in every world.
   *Kód:* `server/owner-wand.js` (in `server/world-worker.js`), hunt rules `shared/sim/hunt.js` (used by `shared/sim/mobs.js`),
   browser `client/src/player/owner-wand.js`, item `shared/data/items.js`, spells `shared/data/magic.js`.
+- **Prison** (*Vězení*, every world of the club server; owner power, Richard's): a flat white platform of unbreakable
+  *Vězeňský blok* high in the sky far from everything (x 0, z −24000, y 120; 25×25 with a 3-block wall), with a small copy of
+  the donation statue and its box at the north wall. Only the owner sends players there, by chat: `/vezeni <jméno>` (also a
+  player who is not online; they go in at their next login), `/propustit <jméno>`, `/vezeni` = who is inside and how far they
+  are. The commands are never shown to others; from anyone else they are normal chat. Whoever kills the owner in a player
+  fight goes to prison automatically. In prison you can't build, dig, place vehicles, use creative mode or chat commands;
+  leaving (flying, falling, a portal) or dying puts you back. Giant spiders live there and drop *Oko obřího pavouka*; donating
+  `PRISON_RELEASE` eyes (10 for now) to the box in the prison sets you free and puts you back at spawn (other items come back;
+  the eyes go to the owner's box, not to the donors' ledger). Who is in prison and how many eyes they gave is saved with the
+  world (`world.json` → `prison`), so it survives a restart and a new login; it is per world. Single player and the browser host have no prison.
+  *Kód:* building and spider spots `shared/world/prison.js` (from `server/sim.js`), rules `server/prison.js` (in
+  `server/world-worker.js`; owner kill via `room.onKill` in `shared/net/room.js`), spider `shared/sim/mobs.js` + `client/src/mobs/spider-model.js`,
+  player side `client/src/player/prison.js`.
 - **Pause menu** (Esc): code + copy, player list, host can allow creative for one player or everyone, and kick.
 - **Chat** (T), only to players in the same world.
 - Everyone sees other players in **their own suit** (*Můj oblek*, sent in the position as `lk`), with a modern

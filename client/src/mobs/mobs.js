@@ -90,6 +90,13 @@ export function poseMob(V, m, dt, sp) {
     V.wings.forEach((w, i) => { w.rotation.z = (i ? 1 : -1) * (0.25 + Math.sin(V.t * (flying ? 8 : 1.7)) * (flying ? 0.52 : 0.12) + (m.windup > 0 ? 0.5 : 0)); });
     m.atkT = Math.max(0, (m.atkT || 0) - dt);
     V.jaw.rotation.x = m.windup > 0 ? 0.6 : m.atkT > 0 ? 0.9 : 0.08;
+  } else if (V.kind === 'spider') { // obří pavouk: nohy kmitají střídavě dopředu a dozadu a zvedají se, tělo se pohupuje
+    V.legs.forEach((l, i) => {
+      const ph = m.phase * 3.2 + ((i >> 1) + i) % 2 * Math.PI;
+      l.rotation.y = Math.sin(ph) * amt * 0.35;
+      l.rotation.z = (i % 2 ? -1 : 1) * Math.max(0, Math.cos(ph)) * amt * 0.22;
+    });
+    V.body.position.y = V.bodyY + Math.abs(Math.sin(m.phase * 3.2)) * 0.06 * amt;
   } else if (V.kind === 'biped') { // golem
     const swing = Math.sin(m.phase * 1.1) * amt * 0.8;
     V.legs[0].rotation.x = swing; V.legs[1].rotation.x = -swing;
@@ -230,15 +237,15 @@ const mobAt = (m, fn, ref = 4) => Sound.at(m.pos.x, m.pos.y + m.def.cy, m.pos.z,
 on('mobHit', (m, local, dmg = 1) => {
   hitFx(m, dmg, local, local ? localFx : null);
   if (m.type === 'golem') mobAt(m, () => Sound.mat('crystal', 'hit', 1.5));
-  if (m.type === 'sheep' || m.type === 'boar' || m.type === 'wolf' || m.type === 'cow' || m.type === 'chicken') mobAt(m, () => Sound.mobVoice(m.type));
+  if (m.type === 'sheep' || m.type === 'boar' || m.type === 'wolf' || m.type === 'cow' || m.type === 'chicken' || m.type === 'spider') mobAt(m, () => Sound.mobVoice(m.type));
 });
 on('mobKilled', (m) => {
   sparks.emit(m.pos.x, m.pos.y + m.def.cy, m.pos.z, m.type === 'crawler' ? [0.6, 0.2, 1.0] : [0.9, 0.85, 0.75], 30, 4, 2);
-  mobAt(m, () => { if (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem') Sound.kill(); else Sound.burst({ dur: 0.35, f0: 1200, f1: 200, q: 0.8, vol: 0.18, type: 'lowpass' }); });
+  mobAt(m, () => { if (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider') Sound.kill(); else Sound.burst({ dur: 0.35, f0: 1200, f1: 200, q: 0.8, vol: 0.18, type: 'lowpass' }); });
 });
 on('chestLoot', () => { if (invOpen && ui.mode === 'chest') renderInventory(); });
 on('mobBurn', (m) => debris.emit(m.pos.x, m.pos.y + 0.8, m.pos.z, [0.1, 0.1, 0.1], 2, 1, 2));
-on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'dragon' || m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler') Sound.mobVoice(m.type); }));
+on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'dragon' || m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler' || m.type === 'spider') Sound.mobVoice(m.type); }));
 on('mobSound', (m) => mobAt(m, () => Sound.mobVoice(m.type), m.type === 'wolf' || m.type === 'cow' ? 8 : 4)); // vytí a bučení je slyšet dál
 on('spawnerSpawn', (x, y, z) => sparks.emit(x, y, z, [0.8, 0.3, 1], 25, 2, 1));
 // Kořist pro hráče u této obrazovky, když je do 24 m; zranění od tvora.

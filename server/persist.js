@@ -11,7 +11,7 @@ const VERSION = 2;
  * Načte uložený svět, nebo null (první spuštění). Starý soubor z verze 1 (jiná hra) se odloží stranou.
  * @param {string} dir složka s daty
  * @param {(msg: string) => void} [log]
- * @returns {{ world: object, players: Record<string, object>, donations: { box?: unknown[] } | null, army: object | null } | null} stav světa (worldState()), batohy hráčů (id profilu -> me), pokladnička darů a kdo velí armádě
+ * @returns {{ world: object, players: Record<string, object>, donations: { box?: unknown[] } | null, army: object | null, prison: object | null } | null} stav světa (worldState()), batohy hráčů (id profilu -> me), pokladnička darů, kdo velí armádě a kdo je ve vězení
  */
 export function loadWorldFile(dir, log = () => {}) {
   const file = path.join(dir, 'world.json');
@@ -26,7 +26,8 @@ export function loadWorldFile(dir, log = () => {}) {
   const players = data.players && typeof data.players === 'object' && !Array.isArray(data.players) ? data.players : {};
   const donations = data.donations && typeof data.donations === 'object' && !Array.isArray(data.donations) ? data.donations : null;
   const army = data.army && typeof data.army === 'object' && !Array.isArray(data.army) ? data.army : null;
-  return { world: data.world, players, donations, army };
+  const prison = data.prison && typeof data.prison === 'object' && !Array.isArray(data.prison) ? data.prison : null;
+  return { world: data.world, players, donations, army, prison };
 }
 
 /**
@@ -36,9 +37,10 @@ export function loadWorldFile(dir, log = () => {}) {
  * @param {Record<string, object>} [players] id profilu -> stav hráče (batoh, pozice…)
  * @param {{ box: unknown[] }} [donations] předměty v pokladničce darů (server/donation-box.js)
  * @param {object} [army] kdo velí armádě (server/army-owner.js)
+ * @param {object} [prison] kdo je ve vězení (server/prison.js)
  */
-export function saveWorldFile(dir, world, players = {}, donations = undefined, army = undefined) {
-  writeJSON(path.join(dir, 'world.json'), { version: VERSION, savedAt: new Date().toISOString(), world, players, ...(donations ? { donations } : {}), ...(army ? { army } : {}) }, 'world');
+export function saveWorldFile(dir, world, players = {}, donations = undefined, army = undefined, prison = undefined) {
+  writeJSON(path.join(dir, 'world.json'), { version: VERSION, savedAt: new Date().toISOString(), world, players, ...(donations ? { donations } : {}), ...(army ? { army } : {}), ...(prison ? { prison } : {}) }, 'world');
 }
 
 /**
