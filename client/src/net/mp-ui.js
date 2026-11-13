@@ -6,6 +6,7 @@ import { BOOT } from '../game/boot.js';
 import { saveGame } from '../game/save.js';
 import { lockPointer, unlockPointer } from '../player/player.js';
 import { $ } from '../ui/dom.js';
+import { shopCommand } from '../ui/shop.js';
 import { esc, toHost } from './multiplayer.js';
 
 // ---------- chat, oznámení, Esc menu, informační okénko
@@ -45,8 +46,10 @@ function closeChat(relock = true) {
 function sendChat(text) {
   text = text.trim().slice(0, 200);
   if (!text) return;
+  if (text.startsWith('/') && shopCommand(text)) return; // obchod za zlato: /sell, /shop (ui/shop.js), pro každého
   if (NET.host && text.startsWith('/') && armyChat('host', NET.name, text)) return; // příkaz armády (jen hostitel jménem Marek)
   chatLine(NET.name, text);
+  if (NET.mode === 'sp') return; // hra pro jednoho: chat jen pro příkazy, není komu psát
   if (NET.host) broadcast(['chat', NET.name, text]); else toHost(['chat', text]);
 }
 chatEl.addEventListener('keydown', (e) => {

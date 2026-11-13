@@ -312,6 +312,14 @@ When you add or change a feature, update this file in the same pull request.
 cracks `client/src/render/crack.js`, chips and crit stars `client/src/render/chips.js`, tool and combat sounds `client/src/audio/tool-sounds.js`,
 mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
 
+- **Gold shop**: in the chat (T, now also in single player, where it is only for commands) `/sell` (or `/prodat`) sells
+  all gold from the backpack for coins (*Zlaťák*, a normal item: gold ingot 10, gold ore 6, gold block 90, gold wire 1, gold
+  contact 3) and `/shop` (or `/obchod`) opens the shop window. Gadgets only from the shop: light sabers (blue, green, purple
+  16 dmg, red 17; glowing blade in the hand), trident (stabs like a sword, right-click throws it: 14 dmg, stays in the hand),
+  wings (right-click = 30 s of flying), flamethrower (hold right-click = stream of fire ~9 m), medkit (full health) and the
+  fighter jet (*Stíhačka*, vehicle `jet`: flies like the biplane with a 3.4× stronger engine). Prices and items
+  `shared/data/shop.js`, window `client/src/ui/shop.js`, gadgets `client/src/player/gadgets.js`, jet model `client/src/vehicles/jet-model.js`.
+
 ## 5. Food and cooking
 - **Campfire** (*Táborák*): roast meat and fish, smelt iron, bake sand into glass, clay into tiles.
 - **Stove kitchen** (*Sporák*, cookbook *Kuchařka*): 36 dishes (goulash, schnitzel, dumplings, pizza, pancakes,

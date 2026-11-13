@@ -35,6 +35,7 @@ import { NITRO_TIME, isBoat, isPlane, kindOf, powerMul, trunkSize } from './kind
 import { leaveRide, placeRider, tryRide } from './passengers.js';
 import { PLANE, flyPlane, placePlaneCamera } from './plane.js';
 import { buildPlaneModel } from './plane-model.js';
+import { buildJetModel } from './jet-model.js';
 import { vehicleHud } from './vehicle-ui.js';
 export { renderCarUI } from './vehicle-ui.js';
 export { setGear };
@@ -57,8 +58,9 @@ scene.add(carSpot, carSpot.target);
 
 // Barvy nových vozidel (garáž je umí přelakovat na kteroukoli z PAINTS)
 const CAR_COLORS = [0xc82a2a, 0x2a5ab0, 0x2a8a3a, 0xe8c030, 0xe8e8e8, 0x2a2a30, 0xe07a20];
-const COLORS = { plane: [0x2a5ab0, 0xc82a2a, 0x2a2a30, 0xe07a20], seaplane: [0x2a6ab0, 0xe8c030, 0xc82a2a, 0x2ab0a0], motorboat: [0xe8e8e8, 0x2a5ab0, 0xc82a2a, 0x2a2a30], sailboat: [0x2a5ab0, 0x2ab0a0, 0x2a8a3a, 0xc82a2a] };
+const COLORS = { jet: [0x5a6470, 0x2a2e34, 0x8a96a4, 0x3a4a5a], plane: [0x2a5ab0, 0xc82a2a, 0x2a2a30, 0xe07a20], seaplane: [0x2a6ab0, 0xe8c030, 0xc82a2a, 0x2ab0a0], motorboat: [0xe8e8e8, 0x2a5ab0, 0xc82a2a, 0x2a2a30], sailboat: [0x2a5ab0, 0x2ab0a0, 0x2a8a3a, 0xc82a2a] };
 function buildModel(v) {
+  if (v.type === 'jet') return buildJetModel(v.color ?? 0x5a6470);
   if (isPlane(v.type)) return buildPlaneModel(v.color ?? 0x8a2a22, v.type === 'seaplane', v);
   if (v.type === 'bike') return buildBikeModel(v.color ?? 0xd83a2a, v);
   if (isBoat(v.type)) return buildBoatModel(v.type, v.color ?? 0xe8e8e8, v);
@@ -76,6 +78,7 @@ export function spawnVehicle(type, x, z, yaw) {
 const HELP = {
   plane: ['Mezerník / Shift = plyn · S nos nahoru, W dolů · A/D náklon (na zemi řízení) · N nitro · L světla · V kamera · F vystoupit', 'Plyn + / − · joystick = knipl (dolů = nos nahoru, do stran = náklon) · kamera, vystoupit'],
   seaplane: ['Hydroplán: rozjeď se po vodě (Mezerník = plyn), vzlétneš kolem 76 km/h · S nos nahoru, W dolů · A/D náklon · N nitro · F vystoupit', 'Plyn + / − · joystick = knipl · na vodě se rozjeď, vzlétneš kolem 76 km/h'],
+  jet: ['Stíhačka: Mezerník / Shift = plyn (motor je 3× silnější), vzlétne kolem 76 km/h · S nos nahoru, W dolů · A/D náklon · N nitro · V kamera · F vystoupit', 'Plyn + / − · joystick = knipl · rozjeď se a vzlétni'],
   bike: ['W šlapat · S / Mezerník brzda · A/D řídit · 1/2/3 převod · B zvonek · L světlo · V kamera · F sesednout', 'Joystick = šlapat a řídit · tlačítka: brzda, převod, zvonek, kamera, sesednout'],
   motorboat: ['W/S plyn a zpátečka · A/D kormidlo · N nitro · L světla · B houkačka · V kamera · F vystoupit (na břehu)', 'Joystick = plyn a kormidlo · tlačítka: nitro, světla, houkačka, kamera, vystoupit'],
   sailboat: ['W vytáhnout plachtu, S svinout · A/D kormidlo · plachta se natočí sama · přímo proti větru to nejde – pluj šikmo (křižuj)! · V kamera · F vystoupit', 'Joystick nahoru = plachta, do stran = kormidlo · proti větru pluj šikmo'],

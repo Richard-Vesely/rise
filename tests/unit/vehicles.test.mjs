@@ -73,7 +73,7 @@ test('wind: the same for every player (only day and time), smooth, in range, str
 test('vehicle kinds: every vehicle item has a kind with seats; unknown types fall back to the car', () => {
   for (const [type, K] of Object.entries(KINDS)) {
     assert.equal(ITEMS[K.item]?.vehicle, type, `item ${K.item} places ${type}`);
-    assert.ok(RECIPES.some((r) => r.out === K.item), `recipe for ${K.item}`);
+    assert.ok(RECIPES.some((r) => r.out === K.item) || ITEMS[K.item].shop, `recipe (or the gold shop) for ${K.item}`);
     assert.ok(K.seats.length >= 1 && K.seats.every((s) => s.length === 3), type);
   }
   assert.equal(kindOf('ufo'), KINDS.car);

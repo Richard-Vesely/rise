@@ -92,7 +92,33 @@ const heldCache = {};
 export function buildHeld(id) { // používají ho i postavičky ostatních hráčů (net/avatars.js)
   const d = ITEMS[id], g = new THREE.Group();
   const mesh = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  if (d.tool === 'sword') {
+  if (d.saber) { // světelný meč (obchod za zlato): kovová rukojeť a svítící čepel s bílým jádrem a září
+    const steel = new THREE.MeshStandardMaterial({ color: 0x9aa2ac, metalness: 0.9, roughness: 0.3 }), black = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.6 });
+    mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.24, 12), steel, 0, -0.08);
+    for (const y of [-0.15, -0.1, -0.05]) mesh(new THREE.CylinderGeometry(0.029, 0.029, 0.018, 12), black, 0, y);
+    mesh(new THREE.CylinderGeometry(0.034, 0.03, 0.04, 12), steel, 0, 0.05);
+    mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.85, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }), 0, 0.5);
+    mesh(new THREE.CylinderGeometry(0.03, 0.032, 0.87, 12), new THREE.MeshBasicMaterial({ color: new THREE.Color(d.saber).multiplyScalar(GLOW * 1.4), transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }), 0, 0.5);
+    for (const y of [0.25, 0.55, 0.85]) {
+      const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(d.saber).multiplyScalar(GLOW), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+      glow.scale.setScalar(0.32);
+      glow.position.y = y;
+      g.add(glow);
+    }
+  } else if (d.throw) { // trojzubec: dlouhá zlatá násada a tři tyrkysové hroty
+    const gold = new THREE.MeshStandardMaterial({ color: 0xc8a040, metalness: 0.8, roughness: 0.35 }), tine = new THREE.MeshStandardMaterial({ color: 0x38c8e8, emissive: 0x1a6a8a, emissiveIntensity: 0.6, metalness: 0.7, roughness: 0.25 });
+    mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.95, 8), gold, 0, 0.15);
+    mesh(new THREE.BoxGeometry(0.2, 0.03, 0.03), tine, 0, 0.62);
+    for (const x of [-0.09, 0, 0.09]) mesh(new THREE.ConeGeometry(0.02, x ? 0.2 : 0.26, 8), tine, x, x ? 0.73 : 0.76);
+  } else if (d.flame) { // plamenomet: hlaveň, červená nádrž, rukojeť a modrý zapalovací plamínek
+    const steel = new THREE.MeshStandardMaterial({ color: 0x5a646e, metalness: 0.8, roughness: 0.4 });
+    mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.6, 10), steel, 0, 0.3);
+    mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.2, 12), new THREE.MeshStandardMaterial({ color: 0xc82a2a, roughness: 0.5 }), 0.07, 0.05);
+    mesh(new THREE.BoxGeometry(0.04, 0.12, 0.05), new THREE.MeshStandardMaterial({ color: 0x2a2a30 }), 0, -0.08);
+    const pilot = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(0x4a8aff).multiplyScalar(GLOW), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    pilot.scale.setScalar(0.08); pilot.position.y = 0.62;
+    g.add(pilot);
+  } else if (d.tool === 'sword') {
     const shape = new THREE.Shape([new THREE.Vector2(-0.032, 0), new THREE.Vector2(0.032, 0), new THREE.Vector2(0.027, 0.74), new THREE.Vector2(0, 0.86), new THREE.Vector2(-0.027, 0.74)]);
     mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.006, bevelSegments: 1 }).translate(0, 0.02, -0.004), TIER_MAT[d.tier]);
     mesh(new THREE.BoxGeometry(0.24, 0.035, 0.05), d.tier >= 3 ? goldMat : handleMat);
