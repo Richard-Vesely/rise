@@ -51,6 +51,7 @@ import { creative, input, isLocked, player, playerIntersects } from './player.js
 import { pickTarget } from './targeting.js';
 import { updateMagic, updateWand } from './magic.js';
 import { updateGadgets } from './gadgets.js';
+import { updateJukeboxes, useJukebox } from '../audio/film-music.js';
 import { addXp, updateXp } from './xp.js';
 import { XP_ORE } from '../../../shared/data/magic.js';
 
@@ -224,7 +225,8 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  updateMagic(dt); updateXp(dt, player); // kouzla a XP (magic.js, xp.js)
+  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); // přehrávače hudby hrají (audio/film-music.js)
+  // kouzla a XP (magic.js, xp.js)
   const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
   if (updateGadgets(dt, special)) { /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */ }
   else if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
@@ -293,9 +295,11 @@ export function breakTarget(t) {
   } else if (t.kind === 'block') {
     const k = bkey(...t.cell);
     if (MP && [...others.values()].some((P) => P.pose?.ui === k)) { toast('Tohle teď používá jiný hráč'); return; } // otevřená truhla nebo stroj
+    const disc = t.type === 'jukebox' ? blockMeta.get(k) : null; // disk v přehrávači vypadne s ním
     blocks.delete(k);
     blockMeta.delete(k);
     const { drop, contents } = dropper(t.cell[0] + 0.5, t.cell[1] + 0.5, t.cell[2] + 0.5);
+    if (typeof disc === 'string' && ITEMS[disc]?.disc) drop(disc, 1);
     if (CROPS[t.type]) harvestCrop(t.type, k, drop);
     if (BLOCKS[t.type].drop) drop(BLOCKS[t.type].drop, 1);
     if (tableItems.has(k)) { const t = tableItems.get(k); if (t.food) contents({ id: t.food, n: 1 }); if (t.cutlery) contents({ id: 'cutlery', n: 1 }); tableItems.delete(k); }
@@ -396,6 +400,7 @@ export function useItem() {
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
   if (target?.kind === 'block' && target.type === 'donation_box') { openInventory('dar'); NET.req(['dary']); return; } // pokladnička darů u sochy (ui/donation-ui.js)
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && target.type === 'jukebox') { useJukebox(bkey(...target.cell), target.cell); return; } // přehrávač filmové hudby
   if (held0?.id === 'fishing_rod') { useRod(); return; }
   // Studna: prázdný kbelík naplníš vodou
   if (target?.kind === 'block' && target.type === 'well') {

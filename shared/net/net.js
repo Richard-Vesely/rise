@@ -9,7 +9,6 @@ export const NET = {
   pvpOn: false, // hráč u obrazovky si zapnul souboje (klávesa N ve hře pro víc hráčů; bojuje s hráči, kteří je mají také zapnuté)
   onPvLock: null, // (s) => void: hostitel v prohlížeči byl v souboji, souboje nejdou s sekund vypnout
   onTp: null, // (x, y, z, kdo) => void: hostitele v prohlížeči někdo přitáhl prutem (client/src/player/rod-hook.js)
-  onFx: null, // (druh, x, y, z, t) => void: atomovka / meteor u hostitele v prohlížeči (client/src/world/boom.js)
   pvpMark: false, // souboje jen v Markově dimenzi (volba pvp-mark): bez arény, bez tabulky, normální hra
   jail: null, // připojený hráč je ve vězení serveru kroužku: { need, given, item, at } (client/src/player/prison.js), jinak null
   uidPrefix: 'h', // začátek jedinečných id (vyhozené předměty, dokumenty, auta…)

@@ -1,6 +1,6 @@
 // Ikony bloků, biomů, technologií a elektrických zařízení.
 import './icons.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
-import { BLOCKS, ITEMS, SHAPES, rotBox } from '../../../shared/data/index.js';
+import { BLOCKS, DISCS, ITEMS, SHAPES, rotBox } from '../../../shared/data/index.js';
 import { ICONS, iconCanvas } from './icons.js';
 import { VEH_SHAPES } from './icons-vehicles.js';
 import { acaciaPlanksTex, barkTex, basaltTex, bricksTex, cherryPlanksTex, cobbleTex, concreteTex, copperBlockTex, cutCopperTex, glassTex, goldBlockTex, graniteTex, ironBlockTex, junglePlanksTex, marblePillarTex, marbleTex, markBarkTex, markPlanksTex, markRingsTex, mushroomCapTex, mushroomStemTex, obsidianTex, planksTex, polishedBasaltTex, polishedGraniteTex, polishedMarbleTex, polishedStoneTex, quartzPillarTex, quartzTex, ringsTex, roofTilesTex, sandTex, sandstoneTex, smoothSandstoneTex, snowTex, steelBlockTex, stoneTilesTex, techPanelTex, whitePanelTex, neonTex } from './textures.js';
@@ -315,6 +315,14 @@ function isoBoxes(top, side, boxes) {
     if (x >= 7 && x <= 8 && y >= 10 && y <= 12) return '#2a2a30'; // rukojeť
     if (x >= 12 && Math.abs(y - 8) < (x - 10) * 0.7) return x > 14 ? '#ffe070' : '#ff7a2a'; // plamen
     return null;
+  }));
+  // hudební disky (štítek v barvě disku) a přehrávač filmové hudby
+  for (const [id, , col] of DISCS) icon(id, face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d > 6.8 ? null : d < 1 ? null : d < 3 ? col : (Math.floor(d * 2) % 2 ? '#2a2a30' : '#1a1a1e'); }));
+  icon('jukebox', face((x, y) => {
+    if (x < 1 || x > 14 || y < 2 || y > 14) return null;
+    if (y < 6) return Math.hypot(x - 7.5, y - 4) < 2.5 ? '#1a1a1e' : y === 2 || x === 1 || x === 14 ? '#5a3a20' : '#8a5a2a';
+    if (y > 7 && y < 13 && x > 2 && x < 13) return (x + y) % 3 ? '#3a2a1e' : '#c8a040'; // reproduktor
+    return x === 1 || x === 14 || y === 14 ? '#5a3a20' : '#8a5a2a';
   }));
   icon('medkit', face((x, y) => {
     if (y < 4 && x > 5 && x < 10) return y === 2 ? null : '#5a5a62';
