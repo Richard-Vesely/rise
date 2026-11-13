@@ -197,7 +197,10 @@ export function updateMobs(dt, day) {
       m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : 1.1;
       m.atkT = 0.35;
       emit('mobAttack', m);
-      if (T.pid) NET.sendTo(T.pid, ['dmg', m.def.dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(m.def.dmg, dx / dist, dz / dist);
+      if (T.mob) { // voják armády bije tvora, kterého praštil Marek
+        NET.killer = 'army';
+        try { hurtMob(T.mob, m.def.dmg, Math.atan2(-dx, -dz)); } finally { NET.killer = null; }
+      } else if (T.pid) NET.sendTo(T.pid, ['dmg', m.def.dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(m.def.dmg, dx / dist, dz / dist);
       m.vel.x -= (dx / dist) * 4;
       m.vel.z -= (dz / dist) * 4;
     }

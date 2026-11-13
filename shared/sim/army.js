@@ -13,7 +13,7 @@ import { V, VOX, getVox, setVox, surfY, topY } from '../world/voxels.js';
 /** Je to hráč, který velí armádě? */
 export const isMarek = (name) => String(name || '').trim().toLowerCase() === 'marek';
 export const ARMY_MAX = 90;
-export const ARMY = { leader: undefined, mode: 'follow', target: null, job: null, last: null };
+export const ARMY = { leader: undefined, mode: 'follow', target: null, targetMob: null, job: null, last: null };
 const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 // ---------- příkazy (volá shared/net/room.js a pro hostitele v prohlížeči client/src/net/mp-ui.js)
@@ -49,11 +49,11 @@ export function armyCommand(pid, text, ctx) {
       const who = ctx.players.find((P) => plain(P.name) === arg) || ctx.players.find((P) => plain(P.name).startsWith(arg));
       if (!arg || !who) { say(`Hráče „${arg}“ nevidím. Hráči: ${ctx.players.map((P) => P.name).join(', ') || 'nikdo'}`); return true; }
       if (who.pid === pid) { say('Na sebe útočit nebudeme.'); return true; }
-      ARMY.mode = 'attack'; ARMY.target = who.pid;
+      ARMY.mode = 'attack'; ARMY.target = who.pid; ARMY.targetMob = null;
       say(`Útok na ${who.name}!`);
       return true;
     }
-    case 'stop': case 'kenoze': case 'domu': ARMY.mode = 'follow'; ARMY.target = null; say('Armáda jde k tobě.'); return true;
+    case 'stop': case 'kenoze': case 'domu': ARMY.mode = 'follow'; ARMY.target = null; ARMY.targetMob = null; say('Armáda jde k tobě.'); return true;
     case 'rozpustit': for (const m of army) { m.dead = true; m.deathT = 0; } ARMY.mode = 'follow'; ARMY.job = null; say('Armáda rozpuštěna.'); return true;
     case 'palac': case 'palace': {
       if (!p) return true;
@@ -144,6 +144,21 @@ export function updateArmy(dt, mobs) {
 }
 
 /**
+ * Marek někoho praštil: armáda jde po něm (jen Markova armáda, jen když ji Marek už vede).
+ * Hráč: volá hitPlayer v shared/net/room.js, jen když rána platí (souboje zapnuté). Tvor: zpráva 'hit' a rána hostitele.
+ * @param {string} pid kdo udeřil ('host' = hostitel v prohlížeči)
+ * @param {string} name jeho jméno
+ * @param {{ pid?: string, mob?: object }} who koho udeřil
+ */
+export function armyHit(pid, name, who) {
+  if (!isMarek(name) || ARMY.leader !== pid || !ARMY.leader) return;
+  if (who.mob?.army) return; // vlastní vojáky ne
+  const same = ARMY.mode === 'attack' && (who.mob ? ARMY.targetMob === who.mob : ARMY.target === who.pid && !ARMY.targetMob);
+  ARMY.mode = 'attack'; ARMY.target = who.pid ?? null; ARMY.targetMob = who.mob ?? null;
+  if (!same) ARMY.reply?.(who.mob ? `Útok na ${who.mob.def?.name || 'tvora'}!` : `Útok na ${who.name || 'hráče'}!`);
+}
+
+/**
  * Kam jde voják armády a na koho útočí (shared/sim/mobs.js). Vrací { T, attack, near } nebo null (armáda bez velitele stojí).
  * @param {object} m voják
  * @param {object[]} TG hráči (NET.targets(): { pos, alive, pid… }, pid null = hostitel u obrazovky)
@@ -151,9 +166,11 @@ export function updateArmy(dt, mobs) {
 export function armyPlan(m, TG) {
   const lead = TG.find((t) => (t.pid ?? 'host') === ARMY.leader);
   if (ARMY.mode === 'attack') {
-    const T = TG.find((t) => (t.pid ?? 'host') === ARMY.target);
+    const M = ARMY.targetMob;
+    if (M && !M.dead) return { T: { pos: M.pos, alive: true, mob: M }, attack: true, near: 1.2 };
+    const T = !M && TG.find((t) => (t.pid ?? 'host') === ARMY.target);
     if (T && T.alive) return { T, attack: true, near: 1.2 };
-    ARMY.mode = 'follow';
+    ARMY.mode = 'follow'; ARMY.target = null; ARMY.targetMob = null;
   }
   const slot = m.slot || 0, a = slot * 2.4, ring = Math.floor(slot / 15); // až 90 vojáků: šest kruhů kolem cíle
   let cx, cz, r;

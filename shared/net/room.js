@@ -5,7 +5,7 @@
 // Spojení (conn) má tvar jako PeerJS DataConnection: { peer: id, open, metadata: { name }, send(zpráva), on('data'|'close'|'error', fn), close() }.
 import { dayCount, dayTime } from '../sim/day.js';
 import { claimGroundItem } from '../sim/ground-items.js';
-import { armyCommand } from '../sim/army.js';
+import { armyCommand, armyHit } from '../sim/army.js';
 import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
@@ -136,6 +136,7 @@ function onClientMsg(P, msg) {
       if (!m) return;
       NET.killer = P.pid;
       try { hurtMob(m, clamp(Number(msg[2]) || 1, 0, 20), Number(msg[3]) || 0, clamp(Number(msg[4]) || 1, 0, 2)); } finally { NET.killer = null; }
+      armyHit(P.pid, P.name, { mob: m }); // Markova armáda jde po tvorovi, kterého praštil
       break;
     }
     case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp nebo pvp-mark)
@@ -194,6 +195,7 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
     X.pvLock = now + PVP.lock;
     if (pid === 'host') NET.onPvLock?.(PVP.lock); else sendTo(pid, ['pvlock', PVP.lock]);
   }
+  armyHit(from, from === 'host' ? NET.name : A.name, { pid: to, name: to === 'host' ? NET.name : T.name }); // Markova armáda jde po zasaženém
   return true;
 }
 // ---------- aréna: body za vyřazení (počítají se od startu serveru; klíč = jméno hráče)

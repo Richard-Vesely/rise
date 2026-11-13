@@ -20,6 +20,7 @@ import { debris, sparks } from '../render/particles.js';
 import { scene } from '../render/renderer.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
 import { noteHit } from '../player/xp.js';
+import { armyHit } from '../../../shared/sim/army.js';
 
 // ============================================================ tvorové: modely (mob-models.js), animace a „život“
 // Oči mrkají, hlava sleduje hráče do 8 m, uši a ocas sebou škubnou, zvířata se na místě pasou a rozhlížejí,
@@ -196,6 +197,7 @@ export function hitMob(m, dmg, yaw = player.yaw, kb = 1, fx = {}) {
     return true;
   }
   localFx = fx;
+  if (NET.host) armyHit('host', NET.name, { mob: m }); // hostitel Marek: armáda jde po tvorovi
   try { return hurtMob(m, dmg, yaw, kb); } finally { localFx = null; }
 }
 const HIT_COL = { crawler: [[0.45, 0.15, 0.7], [0.2, 0.05, 0.3]], golem: [[0.45, 0.95, 1], [0.7, 0.75, 0.8]], markoman: [[0.55, 0.06, 0.06], [0.7, 0.72, 0.76]] };

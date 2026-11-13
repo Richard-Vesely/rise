@@ -351,6 +351,13 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Útok na Bára/.test(m[2])));
     assert.ok(await b.waitFor((m) => m[0] === 'dmg', 20000), 'the army reaches Bára and attacks her');
     mk.send(['chat', '/stop']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /jde k tobě/.test(m[2])));
+    const bPid = b.msgs.find((m) => m[0] === 'welcome')[1].pid;
+    mk.send(['pose', { ...at(70, 60), pv: 1 }]); b.send(['pose', { ...at(72, 60), pv: 1 }]);
+    await sleep(300);
+    mk.send(['phit', bPid, 2, 0, 1, 0]); // Marek Báru praští (oba mají souboje zapnuté)
+    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && m[1] === '⚔ Armáda' && /Útok na Bára/.test(m[2]) && m !== mk.msgs.find((x) => x[0] === 'chat' && /Útok na Bára/.test(x[2]))), 'a hit by Marek sends the army after the one he hit');
+    mk.send(['chat', '/stop']);
     mk.send(['chat', '/tezit']);
     assert.ok(await mk.waitFor((m) => m[0] === 'give', 10000), 'mining sends Marek what the army digs out');
     mk.send(['chat', '/palac']);
