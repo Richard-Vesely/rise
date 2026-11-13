@@ -52,6 +52,7 @@ import { pickTarget } from './targeting.js';
 import { updateMagic, updateWand } from './magic.js';
 import { updateGadgets } from './gadgets.js';
 import { updateJukeboxes, useJukebox } from '../audio/film-music.js';
+import { updateHell, useAltar, usePortal as useHellPortal } from '../world/hell.js';
 import { addXp, updateXp } from './xp.js';
 import { XP_ORE } from '../../../shared/data/magic.js';
 
@@ -225,7 +226,7 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); // přehrávače hudby hrají (audio/film-music.js)
+  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); updateHell(dt); // přehrávače hudby hrají (audio/film-music.js), láva v pekle pálí (world/hell.js)
   // kouzla a XP (magic.js, xp.js)
   const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
   if (updateGadgets(dt, special)) { /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */ }
@@ -400,6 +401,12 @@ export function useItem() {
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
   if (target?.kind === 'block' && target.type === 'donation_box') { openInventory('dar'); NET.req(['dary']); return; } // pokladnička darů u sochy (ui/donation-ui.js)
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && target.type === 'hell_portal') { useHellPortal(); return; } // portál do pekla (world/hell.js)
+  if (target?.kind === 'block' && target.type === 'hell_altar') { useAltar(); return; } // oltář Marka boha všemohoucího: cesta z pekla
+  if (target?.kind === 'block' && target.type === 'hell_lava') { // láva: prázdný kbelík = kbelík lávy (láva neubývá)
+    if (held0?.id === 'bucket') { swapHeld('lava_bucket'); Sound.pour?.(); toast('Nabral jsi lávu'); } else toast('Na lávu potřebuješ prázdný kbelík');
+    return;
+  }
   if (target?.kind === 'block' && target.type === 'jukebox') { useJukebox(bkey(...target.cell), target.cell); return; } // přehrávač filmové hudby
   if (held0?.id === 'fishing_rod') { useRod(); return; }
   // Studna: prázdný kbelík naplníš vodou

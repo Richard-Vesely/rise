@@ -344,6 +344,37 @@ try {
     return { meta, left, playing, after, back, ctx: !!g.Sound?.ctx };
   });
   check('jukebox: a disc goes in and plays the film music, right click again gives it back and stops', r.meta === 'disc_hero' && r.left === 0 && r.back === 1 && r.after.length === 0 && (!r.ctx || r.playing.includes('disc_hero')), JSON.stringify(r));
+  r = await ev(async () => { // peklo: portál s varováním, ďáblové, láva pálí, kbelík lávy, oltář: výkupné zmizí a jdeš domů
+    const g = window.game, wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    T.clearInv();
+    for (let i = 0; i < 25 && !g.blocks.has(`${g.HELL.x},${g.HELL.y},${g.HELL.z}`); i++) { T.step(10); await wait(50); } // peklo se staví v updateSpawns
+    g.useHellPortal();
+    const warn = document.querySelector('#hellWin')?.textContent || '';
+    document.querySelector('#hellWin [data-go]')?.click();
+    const p = g.player.pos, inside = g.inHell(p.x, p.y, p.z);
+    let devils = 0;
+    for (let i = 0; i < 30 && !devils; i++) { T.step(20, 0.05); g.player.hp = 100; devils = g.mobs.filter((m) => m.type === 'devil' && !m.dead).length; } // ďáblové by hráče v testu zabili: léčit
+    g.useAltar();
+    const locked = document.querySelector('#hellWin [data-pay]')?.disabled;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    g.mobs.length = 0;
+    // láva: postav se do ní
+    const lava = [...g.blocks.entries()].find(([, t]) => t === 'hell_lava')[0].split(',').map(Number);
+    T.tp(lava[0] + 0.5, lava[2] + 0.5, lava[1]);
+    const hp0 = g.player.hp, alive = g.player.alive;
+    T.step(20, 0.05);
+    const burnt = hp0 - g.player.hp;
+    g.player.hp = 100;
+    T.give('disc_hero', 2); T.give('disc_space', 1); T.give('fire_gem', 24); T.give('lava_bucket', 1); T.give('apple', 3);
+    g.useAltar();
+    const ready = !document.querySelector('#hellWin [data-pay]')?.disabled;
+    document.querySelector('#hellWin [data-pay]')?.click();
+    const q = g.player.pos;
+    return { warn: /oltář/.test(warn), inside, devils, locked, alive, burnt, ready, home: !g.inHell(q.x, q.y, q.z) && Math.hypot(q.x - 1.5, q.z - 15.5) < 2, left: ['disc_hero', 'disc_space', 'fire_gem', 'lava_bucket', 'apple'].map((id) => T.count(id)) };
+  });
+  check('hell: the portal warns first, then you are in hell and devils come', r.warn && r.inside && r.devils > 0, JSON.stringify(r));
+  check('hell: lava burns, the altar stays locked without the ransom', r.burnt > 0 && r.locked === true, JSON.stringify(r));
+  check('hell: 3 discs + 24 fire gems + a lava bucket at the altar = home; only those disappear', r.ready && r.home && r.left.join() === '0,0,0,0,3', JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);

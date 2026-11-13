@@ -10,9 +10,9 @@ test('data tables are complete (counts from Marek\'s version 2778d1b)', () => {
   // + 5 futuristických bloků (technický a bílý panel, 3 neony; shared/data/tech.js) + luk a šíp (2 předměty, 2 recepty)
   // + 13 vozidel a dílů (kolo, lodě, hydroplán, garáž a vylepšení; shared/data/tech.js) + čarovná hůl
   // + hůl vlastníka (owner_wand) + oko obřího pavouka (vězení serveru kroužku) + obchod za zlato: zlaťák, 4 světelné meče, trojzubec, křídla, plamenomet, lékárnička, stíhačka
-  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6); // + přehrávač filmové hudby a 5 hudebních disků
-  assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1);
-  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1); // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok
+  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6 + 10); // + přehrávač filmové hudby a 5 hudebních disků; + peklo: portál, ohnivý drahokam, kbelík lávy, ohnivá koule, ohnivý meč, hororový disk, 4 kusy ohnivého brnění
+  assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1 + 6); // + peklo: portál, ohnivá sada (4), ohnivý meč
+  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1 + 6); // + peklo: skála, láva, socha, oltář, ohnivá ruda, portál; // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok
   assert.equal(KITCHEN.length, 36);
   assert.equal(Object.keys(CROPS).length, 4);
 });
@@ -126,4 +126,24 @@ test('oceans: only in worlds created with them; seas with beaches far from home,
     assert.equal(WORLD_GEN.oceans, false, 'an old save without the flag keeps its old terrain');
     assert.equal(terrainH(3000, -2500), before);
   } finally { WORLD_GEN.oceans = false; }
+});
+
+test('hell: built once high up, closed (floor, walls, roof), lava on the floor, statue and altar; devils only spawn there', async () => {
+  const { ensureHell, hellBuilt, inHell, devilSpot, HELL, HELL_SPOT, ALTAR } = await import('../../shared/world/hell.js');
+  const { blocks, bkey } = await import('../../shared/world/state.js');
+  const { BLOCKS, HELL_PRICE } = await import('../../shared/data/index.js');
+  assert.equal(ensureHell(), true);
+  assert.equal(ensureHell(), false, 'only once');
+  assert.ok(hellBuilt());
+  const { x, y, z, half, roof } = HELL;
+  assert.equal(blocks.get(bkey(x + 3, y + roof + 1, z - 2)), 'hell_rock', 'there is a roof');
+  assert.equal(blocks.get(bkey(x + half + 1, y + 5, z)), 'hell_rock', 'there are walls');
+  assert.ok([...blocks.values()].filter((t) => t === 'hell_lava').length > 30, 'lava pools');
+  assert.ok([...blocks.values()].filter((t) => t === 'fire_gem_ore').length >= 10, 'fire gem ore pillars');
+  assert.equal(blocks.get(bkey(...ALTAR)), 'hell_altar');
+  for (const t of ['hell_rock', 'hell_lava', 'hell_statue', 'hell_altar']) assert.ok(BLOCKS[t].fixed, `${t} cannot be mined or changed`);
+  assert.ok(inHell(...HELL_SPOT) && !inHell(0, 20, 0));
+  const p = devilSpot(HELL_SPOT[0], HELL_SPOT[2]);
+  assert.ok(p && inHell(...p) && !blocks.has(bkey(Math.floor(p[0]), p[1], Math.floor(p[2]))), 'devils spawn on a free spot of the floor');
+  assert.deepEqual(HELL_PRICE, { discs: 3, fire_gem: 24, lava_bucket: 1 });
 });

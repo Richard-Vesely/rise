@@ -289,7 +289,7 @@ function isoBoxes(top, side, boxes) {
   }));
   // Obchod za zlato (shared/data/shop.js): zlaťák, světelné meče, trojzubec, křídla, plamenomet, lékárnička
   icon('coin', face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d < 6.5 ? (d > 5.3 ? '#a8801a' : Math.abs(x - 7.5) < 1 && y > 4 && y < 11 ? '#fff0a0' : x + y < 13 ? '#ffe46a' : '#f0b82a') : null; }));
-  for (const [id, col, core] of [['saber_blue', '#3aa8ff', '#e0f4ff'], ['saber_green', '#3aff5a', '#e8ffe8'], ['saber_red', '#ff2a2a', '#ffe0e0'], ['saber_purple', '#b05aff', '#f4e8ff']]) {
+  for (const [id, col, core] of [['saber_blue', '#3aa8ff', '#e0f4ff'], ['saber_green', '#3aff5a', '#e8ffe8'], ['saber_red', '#ff2a2a', '#ffe0e0'], ['saber_purple', '#b05aff', '#f4e8ff'], ['fire_sword', '#ff5a1a', '#ffe070']]) {
     icon(id, face((x, y) => {
       const s = x + y, off = Math.abs(s - 15);
       if (x <= 5 && y >= 10) return off <= 0.8 ? (x === 3 || x === 5 ? '#2a2a30' : '#9aa2ac') : null; // rukojeť
@@ -317,13 +317,20 @@ function isoBoxes(top, side, boxes) {
     return null;
   }));
   // hudební disky (štítek v barvě disku) a přehrávač filmové hudby
-  for (const [id, , col] of DISCS) icon(id, face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d > 6.8 ? null : d < 1 ? null : d < 3 ? col : (Math.floor(d * 2) % 2 ? '#2a2a30' : '#1a1a1e'); }));
+  for (const [id, , col] of [...DISCS, ['disc_horror', '', '#5a0a0a']]) icon(id, face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d > 6.8 ? null : d < 1 ? null : d < 3 ? col : (Math.floor(d * 2) % 2 ? '#2a2a30' : '#1a1a1e'); }));
   icon('jukebox', face((x, y) => {
     if (x < 1 || x > 14 || y < 2 || y > 14) return null;
     if (y < 6) return Math.hypot(x - 7.5, y - 4) < 2.5 ? '#1a1a1e' : y === 2 || x === 1 || x === 14 ? '#5a3a20' : '#8a5a2a';
     if (y > 7 && y < 13 && x > 2 && x < 13) return (x + y) % 3 ? '#3a2a1e' : '#c8a040'; // reproduktor
     return x === 1 || x === 14 || y === 14 ? '#5a3a20' : '#8a5a2a';
   }));
+  // peklo: kbelík lávy a ohnivá koule
+  icon('lava_bucket', face((x, y) => {
+    if (y < 4 || y > 14 || x < 3 || x > 12) return null;
+    if (y < 6) return (x + y) % 3 ? '#ff7a1a' : '#ffd040'; // láva nahoře
+    return x === 3 || x === 12 || y === 14 ? '#5a646e' : '#a8b0ba';
+  }));
+  icon('fire_charge', face((x, y) => { const d = Math.hypot(x - 7.5, y - 8); return d < 5.5 ? (d < 2.2 ? '#fff0a0' : d < 4 ? '#ffa020' : '#d8380a') : (y < 6 && Math.abs(x - 7.5 + (y - 3)) < 1 && y > 1 ? '#ff7a1a' : null); }));
   icon('medkit', face((x, y) => {
     if (y < 4 && x > 5 && x < 10) return y === 2 ? null : '#5a5a62';
     if (x < 1 || x > 14 || y < 3 || y > 13) return null;

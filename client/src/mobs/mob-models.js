@@ -223,6 +223,38 @@ export function buildMobModel(type) {
     extra.rig = R;
     body = R.hips;
     K.flash.push(...R.M.flashable);
+  } else if (type === 'devil') {
+    // Ďábel z pekla: postava v rudém obleku a ohnivém brnění, rohy, ocas s hrotem, trojzubec, oči svítí oranžově.
+    kind = 'biped';
+    const R = buildCharacter({ s: 'knight', c: 0, l: 0, v: 0, e: 0 }, { shadow: false });
+    setCharacterArmor(R, [null, 'fire_chestplate', 'fire_leggings', 'fire_boots']);
+    const horn = new THREE.MeshStandardMaterial({ color: 0x1a1214, roughness: 0.4 });
+    for (const sx of [-1, 1]) {
+      const h = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.32, 8), horn);
+      h.position.set(sx * 0.14, 0.42, -0.02); h.rotation.z = -sx * 0.45;
+      R.head.add(h);
+    }
+    const red = new THREE.MeshStandardMaterial({ color: 0xa81a14, roughness: 0.5 });
+    const tl = new THREE.Group();
+    tl.position.set(0, -0.05, 0.16);
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.7, 6), red);
+    rope.position.set(0, -0.25, 0.25); rope.rotation.x = 1.0;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 4), red);
+    tip.position.set(0, -0.5, 0.55); tip.rotation.x = 2.2;
+    tl.add(rope, tip);
+    R.hips.add(tl);
+    const fork = new THREE.Group(), gold = new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.8, roughness: 0.35 });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold);
+    shaft.position.y = 0.3;
+    fork.add(shaft);
+    for (const x of [-0.08, 0, 0.08]) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.18, 6), gold); t.position.set(x, 0.95, 0); fork.add(t); }
+    fork.rotation.x = -Math.PI / 2;
+    R.hand.add(fork);
+    for (const e of R.eyes) { e.material = glowMat(0xff6a1a, 2.4); e.scale.set(1.3, 1.2, 1); }
+    g.add(R.group);
+    extra.rig = R;
+    body = R.hips;
+    K.flash.push(...R.M.flashable);
   } else if (type === 'golem') {
     kind = 'biped';
     const stone = mat({ color: 0x8a86a8, emissive: 0x38e8ff, emissiveMap: crackTex(), emissiveIntensity: 0.6 }, 'stone');

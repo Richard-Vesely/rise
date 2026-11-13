@@ -3,7 +3,7 @@
 // hraje je syntezátor ve WebAudio: smyčcový podklad, žesťová melodie, basa, tympány a bubny.
 // Disk ve přehrávači je uložený v blockMeta (klíč přehrávače -> id disku), takže ho slyší všichni hráči poblíž
 // a zvuk jde z místa přehrávače (čím dál, tím tišší). Bez vedlejších účinků při načtení.
-import { DISCS, ITEMS } from '../../../shared/data/index.js';
+import { ITEMS } from '../../../shared/data/index.js';
 import { blockMeta, blocks } from '../../../shared/world/state.js';
 import { heldStack, removeItem, addItem } from '../player/inventory.js';
 import { player } from '../player/player.js';
@@ -24,6 +24,8 @@ export const TRACKS = {
     mel: ['0-2-3---', '2-1-0---', '5-4-3-2-', '1-------', '.-0-2-3-', '4---3-2-', '3-2-1-6-', '0-------'] },
   disc_battle: { bpm: 140, root: 52, scale: MINOR, style: 'battle', chords: [0, 5, 3, 4, 0, 5, 3, 4],
     mel: ['0-0-3-0-', '5-4-3-4-', '0-0-3-5-', '7-6-4---', '7-7-9-7-', '6-5-4-5-', '3-4-5-6-', '7-------'] },
+  disc_horror: { bpm: 60, root: 45, scale: [0, 1, 3, 5, 6, 8, 10], style: 'horror', chords: [0, 1, 0, 4, 0, 1, 5, 4], // z ďáblů v pekle
+    mel: ['4---3---', '4---.---', '1-------', '.---0---', '4---5---', '4-3-1---', '6-------', '.-------'] },
   disc_finale: { bpm: 96, root: 55, scale: MAJOR, style: 'finale', chords: [0, 3, 4, 0, 5, 3, 4, 0],
     mel: ['4-----5-', '6-5-4-3-', '2-----3-', '4-------', '4---7---', '6-5-6-7-', '8-7-6-5-', '7-------'] },
 };
@@ -64,9 +66,9 @@ function playStep(c, out, T, s, t) {
   const bars = T.mel.length, bar = Math.floor(s / 8) % bars, i = s % 8, e = 60 / T.bpm / 2; // délka osminy
   const ch = T.chords[bar % T.chords.length], st = T.style;
   if (i === 0) { // podklad: akord na celý takt, basa
-    const pad = st === 'space' ? flute : strings;
+    const pad = st === 'space' || st === 'horror' ? flute : strings;
     for (const d of [ch, ch + 2, ch + 4]) pad(c, out, hz(note(T, d) - 12), t, e * 8, st === 'battle' ? 0.035 : 0.045);
-    if (st === 'space' || st === 'mystery') bass(c, out, hz(note(T, ch) - 24), t, e * 8, 0.12);
+    if (st === 'space' || st === 'mystery' || st === 'horror') bass(c, out, hz(note(T, ch) - 24), t, e * 8, 0.12);
   }
   if (st === 'march' || st === 'finale') { if (i % 2 === 0) bass(c, out, hz(note(T, ch) - 24), t, e * 1.6, 0.11); }
   if (st === 'battle') bass(c, out, hz(note(T, ch) - 24 + (i % 4 === 3 ? 7 : 0)), t, e * 0.8, 0.12); // ostinato
@@ -75,14 +77,19 @@ function playStep(c, out, T, s, t) {
   if (st === 'battle') { if (i % 2 === 0) timpani(c, out, hz(T.root - 24), t, i === 0 ? 0.4 : 0.22); if (i === 2 || i === 6) snare(c, out, t, 0.14); }
   if (st === 'finale' && (i === 0 || (bar % 4 === 3 && i >= 4))) timpani(c, out, hz(note(T, ch) - 24), t, 0.32);
   if (st === 'mystery' && i % 4 === 0) noise(c, out, t, 0.3, 0.03, 600);
+  if (st === 'horror') { // hororový disk: tlukot srdce, skřípavý smyčcový tón a zvonek
+    if (i === 0 || i === 1) timpani(c, out, hz(T.root - 24), t, i ? 0.18 : 0.28);
+    if (i === 4) osc(c, out, 'sawtooth', hz(note(T, ch) + 13), t, e * 4, 0.025, { attack: 0.6, release: 0.8, cutoff: 3000, detune: 30 });
+    if (i === 6 && bar % 2) bell(c, out, hz(T.root + 18), t, 0.05);
+  }
   if (st === 'space') bell(c, out, hz(note(T, ch + [0, 2, 4, 7][i % 4]) + 12), t, 0.035); // třpytivé arpeggio
   // melodie: délka = počet '-' za tónem
   const ch2 = T.mel[bar][i];
   if (ch2 >= '0' && ch2 <= '9') {
     let len = 1;
     while (i + len < 8 && T.mel[bar][i + len] === '-') len++;
-    const f = hz(note(T, +ch2)), lead = st === 'space' || st === 'mystery' ? flute : brass;
-    lead(c, out, f, t, e * len * 0.95, st === 'space' || st === 'mystery' ? 0.12 : 0.07);
+    const soft = st === 'space' || st === 'mystery' || st === 'horror', f = hz(note(T, +ch2)), lead = soft ? flute : brass;
+    lead(c, out, f, t, e * len * 0.95, soft ? 0.12 : 0.07);
   }
 }
 
@@ -147,6 +154,5 @@ export function useJukebox(k) {
   removeItem(held.id, 1);
   refreshUI();
   Sound.init();
-  const name = DISCS.find((d) => d[0] === held.id)?.[1] || '';
-  toast(`♪ Hraje: ${name}`);
+  toast(`♪ Hraje: ${ITEMS[held.id].name.replace('Hudební disk: ', '')}`);
 }
