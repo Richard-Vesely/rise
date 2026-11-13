@@ -2,6 +2,7 @@
 import '../render/dimension.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import * as THREE from 'three';
 import { ITEMS } from '../../../shared/data/index.js';
+import { ownerItem } from '../../../shared/data/magic.js';
 import { stackModels } from '../../../shared/inventory.js';
 import { on } from '../../../shared/events.js';
 import { NET } from '../../../shared/net/net.js';
@@ -15,7 +16,7 @@ import { creative, player } from '../player/player.js';
 import { blockMat } from '../render/blocks.js';
 import { debris, sparks } from '../render/particles.js';
 import { camera, scene } from '../render/renderer.js';
-import { feed } from '../ui/hud.js';
+import { feed, toast } from '../ui/hud.js';
 import { renderHotbar } from '../ui/inventory-ui.js';
 
 // ============================================================ předměty ležící na zemi (vyhazování klávesou Q / G, vytěžené bloky)
@@ -98,6 +99,7 @@ export function dropHeld(all) {
 }
 // w = opotřebení nástroje (letí s ním na zem)
 export function throwItem(id, n, w = 0) {
+  if (ownerItem(id)) { addItem(id, n, true, w); toast('Hůl vlastníka nejde zahodit'); return; } // zpátky do batohu (server ji na zem stejně nepustí)
   const dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
   const pos = camera.position.clone().addScaledVector(dir, 0.5).add(new THREE.Vector3(0, -0.3, 0));

@@ -264,7 +264,7 @@ export function buildMobModel(type) {
     g.add(body);
     head = body;
     const eyeM = glowMat(0xd04bff, 1.7);
-    for (const sx of [-0.2, 0.2]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), eyeM); e.position.set(sx, 0.12, -0.58); e.rotation.z = sx * -1.5; e.scale.set(1.2, 0.5, 0.6); body.add(e); } // zlé šikmé oči (nemrkají)
+    for (const sx of [-0.2, 0.2]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), eyeM); e.position.set(sx, 0.12, -0.58); e.rotation.z = sx * -1.5; e.userData.eye = 1; e.scale.set(1.2, 0.5, 0.6); body.add(e); } // zlé šikmé oči (nemrkají)
     const spikeMat = mat({ color: 0x1a1022, roughness: 0.45 });
     for (let i = 0; i < 5; i++) {
       const sp = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.5, 6), spikeMat);

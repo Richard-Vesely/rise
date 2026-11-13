@@ -126,7 +126,7 @@ export function onHostMsg(msg) {
 // Tvorové na klientovi: loutky, které plynule následují pozice od hostitele.
 function syncPuppets(list) {
   const seen = new Set();
-  for (const [nid, type, x, y, z, ry, hp, fl, dead, eggs, milk] of list) {
+  for (const [nid, type, x, y, z, ry, hp, fl, dead, eggs, milk, hunt] of list) { // hunt = rudé oči (štvanice; starý hostitel ho neposílá)
     if (!MOBS[type]) continue;
     seen.add(nid);
     let m = puppets.get(nid);
@@ -138,7 +138,7 @@ function syncPuppets(list) {
       puppets.set(nid, m);
     }
     m.tgt.set(x, y, z);
-    m.ry = ry; m.hp = hp; m.eggs = eggs; m.milkT = milk ? 1 : 0;
+    m.ry = ry; m.hp = hp; m.eggs = eggs; m.milkT = milk ? 1 : 0; m.hunt = hunt ? 1 : 0;
     m.flash = Math.max(m.flash, fl);
     if (dead && !m.dead) { m.dead = true; m.deathT = 0; }
   }

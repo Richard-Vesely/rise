@@ -13,3 +13,6 @@
 /shared/world/prison.js         @Richard-Vesely
 /client/src/player/prison.js    @Richard-Vesely
 /tests/unit/prison.test.mjs     @Richard-Vesely
+/shared/sim/hunt.js             @Richard-Vesely
+/client/src/player/owner-wand.js @Richard-Vesely
+/tests/unit/owner-wand.test.mjs @Richard-Vesely

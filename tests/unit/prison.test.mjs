@@ -10,6 +10,7 @@ import { BLOCKS, ITEMS } from '../../shared/data/index.js';
 import { NET } from '../../shared/net/net.js';
 import { arenaDeath, hitPlayer, others, room } from '../../shared/net/room.js';
 import { MOBS, hurtMob, mobs, spawnMob, updateMobs, updateSpawns } from '../../shared/sim/mobs.js';
+import { startHunt, stopHunt } from '../../shared/sim/hunt.js';
 import { Vec3 } from '../../shared/vec3.js';
 import { PRISON, PRISON_ITEM, PRISON_RELEASE, PRISON_SPIDERS, PRISON_SPOT, SPAWN_SPOT, ensurePrison, guardPrisonerOps, inPrison, prisonBuilt } from '../../shared/world/prison.js';
 import { bkey, blocks, ruinsBuilt } from '../../shared/world/state.js';
@@ -71,6 +72,15 @@ test('giant spiders: only in the prison, walk on its floor, attack the prisoner 
   assert.equal(ITEMS[PRISON_ITEM].name, 'Oko obřího pavouka');
   assert.ok(ITEMS[PRISON_ITEM].art, 'it has an icon');
 
+  // Štvanice (hůl vlastníka) na vězně: pavouci zůstanou ve vězení, tvor na zemi pod vězením se k vězni nedostane
+  startHunt('p1');
+  const boar = spawnMob('boar', X + 3, Z + 3);
+  hits.length = 0;
+  for (let i = 0; i < 300; i++) updateMobs(0.05, 1);
+  stopHunt();
+  for (const m of mobs.filter((x) => x.type === 'spider' && !x.dead)) assert.ok(m.pos.y === Y + 1 && Math.abs(m.pos.z - Z - 0.5) < H + 1, 'a hunt does not pull spiders out');
+  assert.ok(boar.pos.y < Y - 50, 'a hunted mob below stays on the ground (not pulled into the prison)');
+  assert.ok(hits.every((d) => d === MOBS.spider.dmg), 'only the spiders bite');
   mobs.length = 0;
   target.pos.set(60, 0.45, 60); // venku: žádní pavouci
   for (let i = 0; i < 40; i++) updateSpawns(3, 0);
@@ -138,6 +148,9 @@ test('prison: donating the release amount of spider eyes sets the prisoner free;
   assert.deepEqual(to('c-b', 'give').at(-1), ['give', 'iron', 5], 'other items are given back');
   assert.match(to('c-b', 'toast').at(-1)[1], /jen Oko obřího pavouka/);
   assert.equal(P.handle('c-c', 'cyril', ['donate', 'iron', 5]), false, 'a free player donates normally (donation box)');
+  const gives = to('c-b', 'give').length;
+  assert.equal(P.handle('c-b', 'kid', ['donate', 'owner_wand', 1]), true);
+  assert.equal(to('c-b', 'give').length, gives, 'the owner wand is never given to a prisoner (not donatable at the prison box)');
   P.handle('c-b', 'kid', ['donate', PRISON_ITEM, 4]);
   assert.deepEqual(box, [[PRISON_ITEM, 4]], 'the eyes go to the owner\'s box');
   assert.equal(to('c-b', 'vezeni').at(-1)[1].given, 4);
@@ -203,6 +216,7 @@ test('prison: positions are enforced and the state survives a restart', () => {
   assert.deepEqual(back.to('c-b', 'vezeni')[0][1], { on: true, need: PRISON_RELEASE, given: 3, item: PRISON_ITEM, at: PRISON_SPOT, go: 1 }, 'the first pose after joining: into the prison, with the progress');
   assert.deepEqual(jailWith({ saved: { prisoners: { x: null, y: 'junk' } } }).P.list(), [], 'saved junk is dropped');
   assert.deepEqual(jailWith({ saved: 'junk' }).P.save(), { prisoners: {} });
+  assert.ok(!jailWith({ saved: { prisoners: { boss: { name: 'Šéf', given: 0 } } } }).P.isPrisoner('boss'), 'the owner is never in prison, even from an old save');
 });
 
 test('server: /vezeni and /propustit from the owner, no building in prison, release by eyes, owner kill, survives a restart', { timeout: 120000 }, async () => {

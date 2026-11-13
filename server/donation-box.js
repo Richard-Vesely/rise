@@ -6,6 +6,7 @@
 //   hráč → server: ['dary'] stav pokladničky · ['donate', id, n, w?] dát předměty · ['take', index, id] vzít (jen vlastník)
 //   server → hráč: ['dary', { top: [[jméno, kusů]…], owner, ownerName, box: [[id, n, w]…] | null }] (box jen vlastníkovi)
 import { ITEMS } from '../shared/data/index.js';
+import { ownerItem } from '../shared/data/magic.js';
 import { maxDur } from '../shared/tools.js';
 import { isOwner } from './owner.js';
 
@@ -47,6 +48,7 @@ export function createDonationBox({ ownerId, ownerName = '', saved, send, onDona
     if (!known(id) || !Number.isInteger(n) || n < 1 || n > Math.max(1, ITEMS[id].stack || 64)) return; // nesmysl: nic se nevrací
     const wear = wearOf(id, w);
     const back = () => send(cid, wear ? ['give', id, n, wear] : ['give', id, n]);
+    if (ownerItem(id)) { if (isOwner(ownerId, profile)) back(); send(cid, ['toast', 'Hůl vlastníka se darovat nedá']); return; } // jen vlastník ji dostane zpátky
     if (!profile) { back(); send(cid, ['toast', 'Darovat jde jen na serveru kroužku s přihlášeným hráčem']); return; }
     const same = box.find((s) => s.id === id && (s.w || 0) === wear);
     if (!same && box.length >= BOX_MAX) { back(); send(cid, ['toast', 'Pokladnička je plná, zkus to jindy']); return; }

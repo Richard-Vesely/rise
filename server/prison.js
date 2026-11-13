@@ -10,6 +10,7 @@
 // (world.json → prison: { prisoners: { id profilu: { name, given } } }), takže to platí i po restartu a novém přihlášení.
 //   server → hráč: ['vezeni', { on, need, given, item, at: [x, y, z], go? }] (go = přenést hráče na místo at hned teď)
 import { ITEMS } from '../shared/data/index.js';
+import { ownerItem } from '../shared/data/magic.js';
 import { PRISON_ITEM, PRISON_RELEASE, PRISON_SPOT, SPAWN_SPOT, inPrison } from '../shared/world/prison.js';
 import { isOwner } from './owner.js';
 
@@ -36,7 +37,7 @@ export function createPrison({ ownerId, ownerName = '', saved, send, conns, look
   const prisoners = new Map();
   const list = /** @type {any} */ (saved)?.prisoners;
   if (list && typeof list === 'object') for (const [id, p] of Object.entries(list)) {
-    if (!p || typeof p !== 'object') continue;
+    if (!p || typeof p !== 'object' || isOwner(ownerId, id)) continue; // vlastník ve vězení nikdy není
     prisoners.set(id, { name: String(p.name || '').slice(0, 16), given: Number.isInteger(p.given) && p.given > 0 ? Math.min(p.given, need - 1) : 0 });
   }
   const seen = new Map(); // cid -> kdy jsme mu naposledy poslali, kde má být (0 = ještě nikdy od vstupu)
@@ -111,6 +112,7 @@ export function createPrison({ ownerId, ownerName = '', saved, send, conns, look
   function donate(cid, profile, [, id, n, w]) {
     if (typeof id !== 'string' || !Object.hasOwn(ITEMS, id) || !Number.isInteger(n) || n < 1 || n > Math.max(1, ITEMS[id].stack || 64)) return; // nesmysl
     const back = (k) => send(cid, Number.isInteger(w) && w > 0 ? ['give', id, k, w] : ['give', id, k]);
+    if (ownerItem(id)) { send(cid, ['toast', 'Hůl vlastníka se darovat nedá']); return; } // vězeň ji mít nesmí: nevrací se (vlastník do vězení nejde)
     if (id !== PRISON_ITEM) { back(n); send(cid, ['toast', `Ve vězení můžeš darovat jen ${item}`]); return; }
     const p = prisoners.get(profile);
     const k = Math.min(n, need - p.given);

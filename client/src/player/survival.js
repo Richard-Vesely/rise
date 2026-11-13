@@ -21,6 +21,7 @@ import { addItem, inv } from './inventory.js';
 import { creative, player } from './player.js';
 import { magic } from './xp.js';
 import { popGroundItem } from '../../../shared/sim/ground-items.js';
+import { ownerItem } from '../../../shared/data/magic.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
@@ -76,8 +77,9 @@ function dropEverything() {
   const { x, y, z } = player.pos;
   let n = 0;
   const drop = (s) => { if (s) { popGroundItem(s.id, s.n, x, y + 0.8, z, s.w || 0); n++; } };
-  inv.slots.forEach((s, i) => { drop(s); inv.slots[i] = null; });
-  drop(inv.cursor); inv.cursor = null;
+  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // hůl vlastníka zůstává v batohu
+  if (ownerItem(inv.cursor?.id)) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = inv.cursor; } else drop(inv.cursor);
+  inv.cursor = null;
   armor.forEach((s, i) => { drop(s); armor[i] = null; });
   refreshUI();
   return n;
