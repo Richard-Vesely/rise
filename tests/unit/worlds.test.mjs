@@ -343,6 +343,11 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     assert.ok(h.worlds[0].tickMs.avg < 25, `the server keeps up with 90 soldiers (avg ${h.worlds[0].tickMs.avg} ms of 50)`);
     mk.send(['chat', '/markorit']);
     assert.ok(await mk.waitFor((m) => m[0] === 'give' && m[1] === 'markorite' && m[2] === 64), '/markorit gives 64 markorite');
+    mk.send(['chat', '/gold']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'give' && m[1] === 'gold_ingot' && m[2] === 64), '/gold gives Marek 64 gold ingots');
+    b.send(['chat', '/gold']);
+    await sleep(500);
+    assert.ok(!b.msgs.some((m) => m[0] === 'give' && m[1] === 'gold_ingot'), '…nobody else gets gold from /gold');
     mk.send(['chat', '/svet kreativ']);
     assert.ok(await mk.waitFor((m) => m[0] === 'goto' && m[1] === 'kreativ'), '/svet tells the browser of Marek to switch worlds');
     await sleep(500);
@@ -362,19 +367,6 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     assert.ok(await mk.waitFor((m) => m[0] === 'give', 10000), 'mining sends Marek what the army digs out');
     mk.send(['chat', '/palac']);
     assert.ok(await mk.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'm' && o[1] === 'blocks' && ['quartz_block', 'obsidian', 'bricks'].includes(o[3])), 10000), 'the palace grows block by block');
-    b.send(['pose', at(90, 60)]); mk.send(['pose', at(60, 60)]);
-    await sleep(300);
-    b.msgs.length = 0;
-    mk.send(['chat', '/at bára']); // atomovka na Báru
-    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Atomovka letí na Bára/.test(m[2])), '/at answers Marek');
-    assert.ok(await b.waitFor((m) => m[0] === 'fx' && m[1] === 'nuke' && Math.abs(m[2] - 90) < 1), 'everyone sees the missile fall on Bára');
-    assert.ok(await b.waitFor((m) => m[0] === 'dmg' && m[1] >= 999, 6000), 'the bomb kills Bára');
-    await b.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'v' && Math.hypot(o[1] - 90, o[3] - 60) < 7), 3000);
-    const holes = b.msgs.filter((m) => m[0] === 'ops').flatMap((m) => m[1]).filter((o) => o[0] === 'v' && Math.hypot(o[1] - 90, o[3] - 60) < 7);
-    assert.ok(holes.length > 650, `the crater removes about 800 blocks (${holes.length})`);
-    mk.send(['chat', '/meteor']);
-    assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /Meteorický déšť/.test(m[2])));
-    assert.ok(await b.waitFor((m) => m[0] === 'fx' && m[1] === 'meteor', 15000), 'meteors fall');
     mk.send(['chat', '/rozpustit']);
     assert.ok(await mk.waitFor((m) => m[0] === 'chat' && /rozpuštěna/.test(m[2])));
     for (const p of [mk, b]) await p.close();

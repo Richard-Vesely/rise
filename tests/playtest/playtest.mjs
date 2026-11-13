@@ -328,6 +328,22 @@ try {
   check('shop: /sell turns gold into coins (20 ingots × 10 + 2 blocks × 90 = 380)', r.coins === 380 && r.gold === 0, JSON.stringify(r));
   check('shop: /shop lists sabers, trident, wings, flamethrower, medkit and the jet; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
   check('shop: wings give 30 s of flying on right click', r.fly > 29, JSON.stringify(r));
+  r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu
+    const g = window.game, p = g.player.pos, k = `${Math.floor(p.x) + 2},${Math.floor(p.y)},${Math.floor(p.z)}`;
+    g.Sound?.init?.();
+    T.clearInv(); T.give('disc_hero', 1); T.hold('disc_hero');
+    g.blocks.set(k, 'jukebox');
+    g.useJukebox(k);
+    const meta = g.blockMeta?.get(k), left = T.count('disc_hero');
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const playing = g.jukeboxesPlaying();
+    g.useJukebox(k);
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const after = g.jukeboxesPlaying(), back = T.count('disc_hero');
+    g.blocks.delete(k);
+    return { meta, left, playing, after, back, ctx: !!g.Sound?.ctx };
+  });
+  check('jukebox: a disc goes in and plays the film music, right click again gives it back and stops', r.meta === 'disc_hero' && r.left === 0 && r.back === 1 && r.after.length === 0 && (!r.ctx || r.playing.includes('disc_hero')), JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);

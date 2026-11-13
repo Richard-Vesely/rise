@@ -319,6 +319,12 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
   wings (right-click = 30 s of flying), flamethrower (hold right-click = stream of fire ~9 m), medkit (full health) and the
   fighter jet (*Stíhačka*, vehicle `jet`: flies like the biplane with a 3.4× stronger engine). Prices and items
   `shared/data/shop.js`, window `client/src/ui/shop.js`, gadgets `client/src/player/gadgets.js`, jet model `client/src/vehicles/jet-model.js`.
+- **Film music player** (*Přehrávač filmové hudby*, block `jukebox`, 60 coins) and 5 **music discs** (25 coins each:
+  Hrdinský pochod, Hvězdná výprava, Tajemný les, Poslední bitva, Velké finále). Right-click the player with a disc in hand =
+  the disc goes in and plays; right-click again = the disc comes back. Breaking the player drops the disc too. The tracks are
+  our own film-style compositions (march, space, mystery, battle, finale) played by a WebAudio synthesizer (strings, brass,
+  bass, timpani, drums) from the player's place (heard up to 48 m, uses the *Hudba* volume). The disc is kept in `blockMeta`
+  (player key → disc id), so every player nearby hears it. Code `client/src/audio/film-music.js`.
 
 ## 5. Food and cooking
 - **Campfire** (*Táborák*): roast meat and fish, smelt iron, bake sand into glass, clay into tiles.
@@ -524,12 +530,7 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   `/armada [n]` (90 units by default and at most: every fifth a crystal golem, the rest Markomen; never attacks Marek), `/utok <player>`, `/stop`,
   `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
   his backpack), `/rozpustit`, `/svet <name>` (club server only: Marek's browser leaves and joins that world by name or id),
-  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`).
-  `/at <player>` = atomic bomb on that player: everyone sees a missile fall for 2.5 s, then a flash, fireball, mushroom cloud and
-  shock wave; the crater removes about 800 blocks (underground voxels and built blocks, not bedrock) and everyone within 16 m
-  dies (Marek too, if he stands there), mobs there die. `/meteor` = meteor shower: 30 meteors over 14 s within 34 m of Marek,
-  each a small crater and 9 damage within 4.5 m (Marek is spared). Rules `shared/sim/strikes.js`, look `client/src/world/boom.js`
-  (`game.boomFx('nuke', x, y, z, t)` shows it without damage). This destroys other players' builds: the lektor may want it only in some worlds.
+  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/gold [n]` (n gold ingots, default 64, max. 640; sell them in the shop with `/sell`), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`).
   Runs where the world is held (server or browser host); the soldiers are normal mobs
   whose goal comes from `armyPlan`. On the club server the name is protected by the PIN, and the server owner (`OWNER_ID`) can command the army too. Code: `shared/sim/army.js`, owner part `server/army-owner.js`.
 - **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).

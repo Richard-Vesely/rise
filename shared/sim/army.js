@@ -3,13 +3,12 @@
 // hostitel v prohlížeči); tvorové se pohybují běžnou simulací (shared/sim/mobs.js: armyPlan místo vlastní volby cíle).
 //   /armada [počet]  svolá armádu (výchozí a nejvýš ARMY_MAX = 90 jednotek: každá pátá je krystalový golem, ostatní Markomani) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
 //   palác před Markem) · /tezit (vykope důl, rudy jdou Markovi) · /rozpustit · /svet <název> (přepojí Marka do jiného
-//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /at <hráč> (atomovka, sim/strikes.js) · /meteor (meteorický déšť) · /pomoc
+//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /gold [počet] (zlaté ingoty) · /pomoc
 import { BLOCKS } from '../data/index.js';
 import { NET } from '../net/net.js';
 import { Vec3 } from '../vec3.js';
 import { bkey, blocks } from '../world/state.js';
 import { V, VOX, getVox, setVox, surfY, topY } from '../world/voxels.js';
-import { addStrike, meteorShower, strikeHooks, updateStrikes } from './strikes.js';
 
 /** Je to hráč, který velí armádě? */
 export const isMarek = (name) => String(name || '').trim().toLowerCase() === 'marek';
@@ -35,7 +34,6 @@ export function armyCommand(pid, text, ctx) {
   ARMY.leader = pid;
   ARMY.give = ctx.give;
   ARMY.reply = say;
-  if (ctx.fx) strikeHooks({ fx: ctx.fx, hurt: ctx.hurt });
   const army = ctx.mobs.filter((m) => m.army && !m.dead);
   switch (cmd) {
     case 'armada': case 'army': {
@@ -89,22 +87,14 @@ export function armyCommand(pid, text, ctx) {
       say(`Markorit: +${n}`);
       return true;
     }
-    case 'at': case 'atom': case 'atomovka': { // atomovka na hráče: raketa spadne za 2,5 s, kráter ≈ 800 kostek, všichni v dosahu padnou
-      const who = ctx.players.find((P) => plain(P.name) === arg) || (arg && ctx.players.find((P) => plain(P.name).startsWith(arg)));
-      const T = who && ctx.poseOf?.(who.pid);
-      if (!who || !T) { say(`Na koho? Napiš /at a jméno. Hráči: ${ctx.players.map((P) => P.name).join(', ') || 'nikdo'}`); return true; }
-      const n = addStrike('nuke', T.x, T.y, T.z);
-      say(`☢ Atomovka letí na ${who.name}! Dopad za 2,5 s, kráter asi ${n} kostek.`);
-      return true;
-    }
-    case 'meteor': case 'meteory': { // meteorický déšť kolem Marka (Marka nezraní)
-      if (!p) return true;
-      meteorShower(p.x, p.z, pid);
-      say('☄ Meteorický déšť! 30 meteorů během 14 s kolem tebe (tebe nezasáhnou).');
+    case 'gold': case 'zlato': { // zlaté ingoty pro Marka (do obchodu: /sell)
+      const n = Math.max(1, Math.min(640, parseInt(arg, 10) || 64));
+      ctx.give('gold_ingot', n);
+      say(`Zlato: +${n} zlatých ingotů`);
       return true;
     }
     case 'pomoc': case 'help':
-      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet] · /at <hráč> · /meteor`);
+      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet] · /gold [počet]`);
       return true;
   }
   return false;
@@ -145,7 +135,6 @@ function mineJob(cx, cz) {
 
 /** Každý krok simulace (z updateMobs): stavba paláce a kopání dolu. */
 export function updateArmy(dt, mobs) {
-  updateStrikes(dt);
   const J = ARMY.job;
   if (!J) return;
   J.acc += dt * J.speed;
