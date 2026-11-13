@@ -139,6 +139,7 @@ function onClientMsg(P, msg) {
       armyHit(P.pid, P.name, { mob: m }); // Markova armáda jde po tvorovi, kterého praštil
       break;
     }
+    case 'pull': pullTarget(P.pid, String(msg[1]), msg[1] === 'm' ? msg[2] : String(msg[2]), msg[3], msg[4], msg[5]); break; // prut: přitáhnout hráče / tvora
     case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp nebo pvp-mark)
     case 'mu': { // slepice (vejce) a kráva (mléko)
       const m = mobs.find((x) => x.nid === msg[1] && !x.dead);
@@ -167,6 +168,29 @@ function playerOf(pid) {
   if (!room.local) return null;
   hostP.pose = room.local.pose();
   return hostP;
+}
+/**
+ * Prut: hráč from přitáhne zaháknutého hráče (kind 'p', id = pid) nebo tvora (kind 'm', id = nid; v hře pro jednoho
+ * přímo tvor) na místo (x, y, z) těsně před sebe. Funguje na jakoukoli vzdálenost (i do jiné dimenze); cíl musí
+ * být blízko toho, kdo táhne (do 5 m), aby nikdo nemohl posílat hráče kamkoli.
+ */
+export function pullTarget(from, kind, id, x, y, z) {
+  x = Number(x); y = Number(y); z = Number(z);
+  if (![x, y, z].every(Number.isFinite)) return false;
+  const me = playerOf(from)?.pose;
+  if (me && Math.hypot(me.x - x, me.y - y, me.z - z) > 5) return false;
+  if (kind === 'm') {
+    const m = mobs.find((q) => (q === id || q.nid === id) && !q.dead);
+    if (!m) return false;
+    m.pos.set(x, y, z); m.vel.set(0, 0, 0);
+    return true;
+  }
+  if (kind !== 'p' || id === from) return false;
+  const T = playerOf(id);
+  if (!T?.pose || T.pose.alive === false) return false;
+  const by = from === 'host' ? NET.name : playerOf(from)?.name;
+  if (id === 'host') NET.onTp?.(x, y, z, by); else sendTo(id, ['tp', x, y, z, by]);
+  return true;
 }
 /**
  * Zásah hráče jiným hráčem. Vrací true, když platí.

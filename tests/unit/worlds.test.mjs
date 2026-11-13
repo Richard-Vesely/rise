@@ -380,3 +380,21 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     for (const p of [mk, b]) await p.close();
   } finally { await stop(srv); }
 });
+
+test('fishing rod: pulls a hooked player right in front of the one pulling, never anywhere else', { timeout: 60000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-rod-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const a = player(srv.port, 'Adam', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const bPid = b.msgs.find((m) => m[0] === 'welcome')[1].pid;
+    a.send(['pose', pose(5000, 10)]); b.send(['pose', pose(20, 10)]); // Adam daleko (třeba v jiné dimenzi)
+    await sleep(400);
+    a.send(['pull', 'p', bPid, 300, 0.5, 10]); // ne před sebou: nic
+    await sleep(500);
+    assert.ok(!b.msgs.some((m) => m[0] === 'tp'), 'a pull far from the one pulling does nothing');
+    a.send(['pull', 'p', bPid, 5001.5, 0.5, 10]);
+    const tp = await b.waitFor((m) => m[0] === 'tp');
+    assert.ok(tp && tp[1] === 5001.5 && tp[4] === 'Adam', 'Bára is pulled in front of Adam, across any distance');
+    for (const p of [a, b]) await p.close();
+  } finally { await stop(srv); }
+});

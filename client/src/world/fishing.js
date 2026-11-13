@@ -13,6 +13,7 @@ import { debris, sparks } from '../render/particles.js';
 import { camera, scene } from '../render/renderer.js';
 import { decorPond, makeWaterMaterial } from '../render/water.js';
 import { toast } from '../ui/hud.js';
+import { hook, pullHooked, tryHook, updateHook } from '../player/rod-hook.js';
 
 const waterMat = makeWaterMaterial(), markWaterMat = makeWaterMaterial(true); // vlnky, odrazy a pěna: render/water.js
 const pondMeshes = new Map();
@@ -56,6 +57,8 @@ bobber.visible = fishLine.visible = false;
 fishLine.frustumCulled = false;
 scene.add(bobber, fishLine);
 export function useRod() {
+  if (hook.kind) { pullHooked(); return; } // zaháknutý hráč / tvor: přitáhnout
+  if (!fishing.active && tryHook()) return; // prut na hráče nebo tvora
   if (fishing.active) {
     if (fishing.biting) {
       const r = Math.random(), id = r < 0.45 ? 'raw_trout' : r < 0.8 ? 'raw_salmon' : 'seaweed';
@@ -85,6 +88,7 @@ export function useRod() {
   toast('Nahoď prut do vody (rybník nebo jezero)');
 }
 export function updateFishing(dt) {
+  updateHook();
   if (!fishing.active) return;
   if (heldStack()?.id !== 'fishing_rod' || player.pos.distanceTo(fishing.pos) > 22) { fishing.active = bobber.visible = fishLine.visible = false; return; }
   fishing.t += dt;
