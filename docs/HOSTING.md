@@ -133,6 +133,8 @@ Players open `https://hry.example.cz`, type a name, click a world button, then t
 | `SAVE_SECONDS` | 30 | how often each world is saved |
 | `ADMIN_PASSWORD` | – | password of the admin page `/admin` (player list, PIN reset, donations `/admin/dary`). Empty = the page is off (404) |
 | `OWNER_ID` | – | profile id of the server owner (`node server/admin.js players`, column *Id*): only this player takes items out of the donation box at the statue. Empty = nobody |
+| `ARMY_PHRASE` | – | owner-only setting for Marek's army (`server/army-owner.js`). Keep it only in the env file on the server, never in the repo. Empty = off |
+| `ARMY_RETURN_PHRASE` | – | optional second owner phrase that gives the army back to Marek; when set, `ARMY_PHRASE` only takes over. Same secrecy rules. Empty = `ARMY_PHRASE` toggles |
 
 ### 4. Updating
 ```bash

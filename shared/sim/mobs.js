@@ -20,7 +20,12 @@ import { HUNT, huntPlan, updateHunts } from './hunt.js';
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
-  dragon: { name: 'Drak Země draka', hp: 300, radius: 2.4, cy: 2, dmg: 65, tall: true, drops: [['shard', 8, 8], ['gold_ingot', 6, 6], ['markorite', 3, 3]] },
+  dragon: {
+    name: 'Drak Země draka', hp: 500, radius: 2.4, cy: 2, dmg: 75, tall: true,
+    drops: [['sky_helmet', 1, 1], ['sky_chestplate', 1, 1], ['sky_leggings', 1, 1], ['sky_boots', 1, 1],
+      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 16, 16], ['gold_ingot', 16, 16],
+      ['shard', 12, 12], ['markapple', 5, 5]],
+  },
   sheep: { name: 'Ovce', hp: 5, radius: 0.75, cy: 0.75, drops: [['raw_mutton', 1, 2], ['wool', 1, 2]] },
   boar: { name: 'Kanec', hp: 12, radius: 0.8, cy: 0.7, dmg: 10, drops: [['raw_pork', 2, 3], ['bone', 0, 1]] },
   chicken: { name: 'Slepice', hp: 4, radius: 0.45, cy: 0.45, drops: [['raw_chicken', 1, 1], ['egg', 0, 1]] },
