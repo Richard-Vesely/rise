@@ -501,7 +501,9 @@ body.touch #arenaScore { top: 46px; }
 
 /* obchod za zlato (client/src/ui/shop.js) */
 #shopWin { position: fixed; inset: 0; z-index: 9; display: grid; place-items: center; background: rgba(0, 0, 0, 0.45); }
-.shop-panel { max-width: 720px; }
+.shop-panel { max-width: 760px; max-height: 88vh; display: flex; flex-direction: column; }
+.shop-search { margin: 6px 0; padding: 6px 10px; border-radius: 6px; border: 1px solid #556; background: #11141a; color: #eee; font-size: 15px; }
+.shop-panel .shop-list { overflow-y: auto; min-height: 0; flex: 1; padding-right: 4px; }
 .shop-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
 .shop-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px; white-space: normal; }
 .shop-item img { width: 40px; height: 40px; image-rendering: pixelated; }
