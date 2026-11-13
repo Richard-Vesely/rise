@@ -18,7 +18,7 @@ import { ME_MAX_BYTES, cleanMe } from './me.js';
 import { loadWorldFile, saveWorldFile } from './persist.js';
 import { setupWorld, stepWorld } from './sim.js';
 
-/** @type {{ id: string, name: string, creative: boolean, pvp: boolean, pvpMark: boolean, first: boolean, dir: string|null, maxPlayers: number, tickHz: number, saveEveryMs: number, ownerId?: string, ownerName?: string, armyPhrase?: string, top?: [string, number][] }} */
+/** @type {{ id: string, name: string, creative: boolean, pvp: boolean, pvpMark: boolean, first: boolean, dir: string|null, maxPlayers: number, tickHz: number, saveEveryMs: number, ownerId?: string, ownerName?: string, armyPhrase?: string, armyReturnPhrase?: string, top?: [string, number][] }} */
 const W = workerData;
 const post = (m) => parentPort.postMessage(m);
 const log = (text) => post({ t: 'log', text });
@@ -42,7 +42,7 @@ dbox.setTop(W.top);
 
 // ---------- armáda: vlastník serveru smí velet vždycky (server/army-owner.js)
 const armyOwner = createArmyOwner({
-  ownerId: W.ownerId || '', ownerName: W.ownerName || '', phrase: W.armyPhrase || '', saved: saved?.army, log,
+  ownerId: W.ownerId || '', ownerName: W.ownerName || '', phrase: W.armyPhrase || '', back: W.armyReturnPhrase || '', saved: saved?.army, log,
   send: (cid, msg) => sendRaw(cid, msg),
   command: (cid, name, text) => armyChat(cid, name, text, true),
   players: () => [...others.values()].map((P) => [P.pid, P.name]),

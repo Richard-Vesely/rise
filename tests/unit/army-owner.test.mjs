@@ -14,10 +14,10 @@ const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 const PHRASE = 'Zkušební věta pro testy'; // jen pro testy; skutečná věta je jen v env souboru na serveru
 
 // Bez serveru: zprávy a příkazy se sbírají do polí.
-function ownerWith({ phrase = armyPhraseFrom(PHRASE), saved, ownerId = 'boss' } = {}) {
+function ownerWith({ phrase = armyPhraseFrom(PHRASE), back = '', saved, ownerId = 'boss' } = {}) {
   const sent = [], cmds = [];
   const ao = createArmyOwner({
-    ownerId, ownerName: 'Riki', phrase, saved,
+    ownerId, ownerName: 'Riki', phrase, back, saved,
     send: (cid, m) => sent.push([cid, m]),
     command: (cid, name, text) => { cmds.push([cid, name, text]); return isArmyCommand(text); },
     players: () => [['c-boss', 'Riki'], ['c-mk', 'Marek'], ['c-b', 'Bára']],
@@ -76,6 +76,25 @@ test('army owner: the phrase takes over and gives back; from anyone else it is n
   assert.ok(!ao.taken(), 'gives the army back to Marek');
   assert.match(to('c-mk').at(-1)[2], /tebe/);
   assert.ok(!ao.handle('c-mk', 'marek', 'Marek', ['chat', '/armada 3']), 'Marek commands again');
+});
+
+test('army owner: with a return phrase, the first phrase only takes over and the second gives back', () => {
+  const BACK = 'Zkušební zpáteční věta';
+  const { ao, to, sent } = ownerWith({ back: armyPhraseFrom(BACK) });
+  assert.ok(!ao.handle('c-mk', 'marek', 'Marek', ['chat', BACK]), 'from Marek the return phrase is normal chat');
+  assert.ok(ao.handle('c-boss', 'boss', 'Riki', ['chat', PHRASE]));
+  assert.ok(ao.taken());
+  assert.match(to('c-boss').at(-1)[2], /Druhá věta/);
+  assert.ok(ao.handle('c-boss', 'boss', 'Riki', ['chat', PHRASE]), 'the take phrase again');
+  assert.ok(ao.taken(), '…does not give the army back');
+  assert.match(to('c-boss').at(-1)[2], /už poslouchá jen tebe/);
+  assert.ok(ao.handle('c-boss', 'boss', 'Riki', ['chat', ` ${BACK.toUpperCase()}`]), 'the return phrase');
+  assert.ok(!ao.taken(), 'gives the army back to Marek');
+  assert.deepEqual(to('c-mk').at(-1), ['chat', '⚔ Armáda', 'Zase posloucháme tebe.']);
+  assert.ok(ao.handle('c-boss', 'boss', 'Riki', ['chat', BACK]));
+  assert.ok(!ao.taken(), 'the return phrase again keeps it with Marek');
+  const lower = JSON.stringify(sent).toLowerCase();
+  assert.ok(!lower.includes(BACK.toLowerCase()) && !lower.includes(PHRASE.toLowerCase()), 'no phrase is ever sent');
 });
 
 test('army owner: no phrase or no owner = no takeover; a saved takeover is kept', () => {
