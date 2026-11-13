@@ -318,12 +318,16 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
   16 dmg, red 17; glowing blade in the hand), trident (stabs like a sword, right-click throws it: 14 dmg, stays in the hand),
   wings (right-click = 30 s of flying), flamethrower (hold right-click = stream of fire ~9 m), medkit (full health) and the
   fighter jet (*Stíhačka*, vehicle `jet`: flies like the biplane with a 3.4× stronger engine). Prices and items
+  Plus 123 normal game items (`SHOP_MORE`: basics, tools, armor, food, farming, building blocks, tech parts, vehicles; no gold,
+  so nobody can buy and sell in a loop); the window has a search box and scrolls. Prices and items
   `shared/data/shop.js`, window `client/src/ui/shop.js`, gadgets `client/src/player/gadgets.js`, jet model `client/src/vehicles/jet-model.js`.
 - **Film music player** (*Přehrávač filmové hudby*, block `jukebox`, 60 coins) and 5 **music discs** (25 coins each:
   Hrdinský pochod, Hvězdná výprava, Tajemný les, Poslední bitva, Velké finále). Right-click the player with a disc in hand =
   the disc goes in and plays; right-click again = the disc comes back. Breaking the player drops the disc too. The tracks are
   our own film-style compositions (march, space, mystery, battle, finale) played by a WebAudio synthesizer (strings, brass,
-  bass, timpani, drums) from the player's place (heard up to 48 m, uses the *Hudba* volume). The disc is kept in `blockMeta`
+  bass, timpani, drums) from the player's place (heard up to 60 m, loud: full volume within 8 m, concert hall echo, uses the
+  *Hudba* volume). *Hvězdná výprava* is a big space opera in the style of film scores (brass fanfare, march drums,
+  cymbals, strings in two octaves); all melodies are our own, none is copied from a film. The disc is kept in `blockMeta`
   (player key → disc id), so every player nearby hears it. Code `client/src/audio/film-music.js`.
 
 - **Hell** (*Peklo*): a big closed cave of hell rock high in the sky far away (`HELL` in `shared/world/hell.js`: floor,

@@ -28,13 +28,28 @@ export function sellGold() {
 }
 
 let win = null;
-const onKey = (e) => { if (win && (e.code === 'Escape' || e.code === 'KeyE')) { e.stopImmediatePropagation(); e.preventDefault(); closeShop(); } };
+const onKey = (e) => {
+  if (!win) return;
+  const typing = e.target?.tagName === 'INPUT';
+  if (e.code === 'Escape' || (e.code === 'KeyE' && !typing)) { e.stopImmediatePropagation(); e.preventDefault(); closeShop(); }
+};
+const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+let query = '';
 export function closeShop(relock = true) { win?.remove(); win = null; removeEventListener('keydown', onKey, true); if (relock) lockPointer(); }
 function render() {
-  const have = countItem('coin');
-  win.innerHTML = `<div class="mc-panel shop-panel"><div class="mc-title">🪙 Obchod · máš ${have} zlaťáků</div>
-    <div class="shop-list">${SHOP.map(([id, price]) => `<button class="mc-btn shop-item${have < price ? ' poor' : ''}" data-buy="${id}">${iconImg(id)}<b>${ITEMS[id].name}</b><small>${price} 🪙</small></button>`).join('')}</div>
-    <p class="mc-note">Zlaťáky získáš příkazem /sell v chatu (T): prodá všechno zlato z batohu (zlatý ingot = ${SELL.gold_ingot}, zlatý blok = ${SELL.gold_block}). Zavřít: Esc nebo E.</p></div>`;
+  if (!win.querySelector('.shop-panel')) { // okno jednou (s hledáním), seznam se překresluje
+    win.innerHTML = `<div class="mc-panel shop-panel"><div class="mc-title"></div>
+      <input class="shop-search" type="search" placeholder="🔍 Hledat v obchodě (${SHOP.length} věcí)…" value="">
+      <div class="shop-list"></div>
+      <p class="mc-note">Zlaťáky získáš příkazem /sell v chatu (T): prodá všechno zlato z batohu (zlatý ingot = ${SELL.gold_ingot}, zlatý blok = ${SELL.gold_block}). Zavřít: Esc nebo E.</p></div>`;
+    const inp = win.querySelector('.shop-search');
+    inp.value = query;
+    inp.addEventListener('input', () => { query = inp.value; render(); });
+  }
+  const have = countItem('coin'), q = plain(query.trim());
+  win.querySelector('.mc-title').textContent = `🪙 Obchod · máš ${have} zlaťáků`;
+  const list = SHOP.filter(([id]) => !q || plain(ITEMS[id].name).includes(q));
+  win.querySelector('.shop-list').innerHTML = list.map(([id, price]) => `<button class="mc-btn shop-item${have < price ? ' poor' : ''}" data-buy="${id}">${iconImg(id)}<b>${ITEMS[id].name}</b><small>${price} 🪙</small></button>`).join('') || '<p class="mc-note">Nic takového tu není.</p>';
 }
 /** Otevře okno obchodu. */
 export function openShop() {
