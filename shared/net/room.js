@@ -228,6 +228,18 @@ export function armyChat(pid, name, text) {
     give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
     reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },
     goto: pid === 'host' ? null : (w) => sendTo(pid, ['goto', w]), // jen server kroužku: prohlížeč se přepojí (client/src/net/multiplayer.js)
+    poseOf: (id) => playerOf(id)?.pose,
+    fx: (kind, x, y, z, t) => { broadcast(['fx', kind, x, y, z, t]); NET.onFx?.(kind, x, y, z, t); }, // atomovka / meteor: všichni vidí pád a výbuch
+    hurt: (x, y, z, r, dmg, spare) => { // úder z nebe zraní všechny v dosahu (kromě spare)
+      for (const id of ['host', ...others.keys()]) {
+        const q = playerOf(id)?.pose;
+        if (!q || id === spare || q.alive === false) continue;
+        const d = Math.hypot(q.x - x, q.y - y, q.z - z);
+        if (d >= r) continue;
+        const dx = (q.x - x) / (d || 1), dz = (q.z - z) / (d || 1);
+        if (id === 'host') NET.hurtLocal?.(dmg, dx, dz); else sendTo(id, ['dmg', dmg, dx, dz]);
+      }
+    },
   });
 }
 export function setPerm(P, on) {

@@ -506,7 +506,12 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   `/armada [n]` (90 units by default and at most: every fifth a crystal golem, the rest Markomen; never attacks Marek), `/utok <player>`, `/stop`,
   `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
   his backpack), `/rozpustit`, `/svet <name>` (club server only: Marek's browser leaves and joins that world by name or id),
-  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`). Runs where the world is held (server or browser host); the soldiers are normal mobs
+  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`).
+  `/at <player>` = atomic bomb on that player: everyone sees a missile fall for 2.5 s, then a flash, fireball, mushroom cloud and
+  shock wave; the crater removes about 800 blocks (underground voxels and built blocks, not bedrock) and everyone within 16 m
+  dies (Marek too, if he stands there), mobs there die. `/meteor` = meteor shower: 30 meteors over 14 s within 34 m of Marek,
+  each a small crater and 9 damage within 4.5 m (Marek is spared). Rules `shared/sim/strikes.js`, look `client/src/world/boom.js`
+  (`game.boomFx('nuke', x, y, z, t)` shows it without damage). This destroys other players' builds: the lektor may want it only in some worlds. Runs where the world is held (server or browser host); the soldiers are normal mobs
   whose goal comes from `armyPlan`. On the club server the name is protected by the PIN. Code: `shared/sim/army.js`.
 - **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
   Two players can hurt each other only when both have them on (pose `pv`, checked by the host in `hitPlayer`). After a hit both
