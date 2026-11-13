@@ -343,6 +343,11 @@ test('Marek\'s army: chat commands only from the player Marek, secret from the o
     assert.ok(h.worlds[0].tickMs.avg < 25, `the server keeps up with 90 soldiers (avg ${h.worlds[0].tickMs.avg} ms of 50)`);
     mk.send(['chat', '/markorit']);
     assert.ok(await mk.waitFor((m) => m[0] === 'give' && m[1] === 'markorite' && m[2] === 64), '/markorit gives 64 markorite');
+    mk.send(['chat', '/gold']);
+    assert.ok(await mk.waitFor((m) => m[0] === 'give' && m[1] === 'gold_ingot' && m[2] === 64), '/gold gives Marek 64 gold ingots');
+    b.send(['chat', '/gold']);
+    await sleep(500);
+    assert.ok(!b.msgs.some((m) => m[0] === 'give' && m[1] === 'gold_ingot'), '…nobody else gets gold from /gold');
     mk.send(['chat', '/svet kreativ']);
     assert.ok(await mk.waitFor((m) => m[0] === 'goto' && m[1] === 'kreativ'), '/svet tells the browser of Marek to switch worlds');
     await sleep(500);

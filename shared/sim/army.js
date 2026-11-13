@@ -3,7 +3,7 @@
 // hostitel v prohlížeči); tvorové se pohybují běžnou simulací (shared/sim/mobs.js: armyPlan místo vlastní volby cíle).
 //   /armada [počet]  svolá armádu (výchozí a nejvýš ARMY_MAX = 90 jednotek: každá pátá je krystalový golem, ostatní Markomani) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
 //   palác před Markem) · /tezit (vykope důl, rudy jdou Markovi) · /rozpustit · /svet <název> (přepojí Marka do jiného
-//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /pomoc
+//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /gold [počet] (zlaté ingoty) · /pomoc
 import { BLOCKS } from '../data/index.js';
 import { NET } from '../net/net.js';
 import { Vec3 } from '../vec3.js';
@@ -87,8 +87,14 @@ export function armyCommand(pid, text, ctx) {
       say(`Markorit: +${n}`);
       return true;
     }
+    case 'gold': case 'zlato': { // zlaté ingoty pro Marka (do obchodu: /sell)
+      const n = Math.max(1, Math.min(640, parseInt(arg, 10) || 64));
+      ctx.give('gold_ingot', n);
+      say(`Zlato: +${n} zlatých ingotů`);
+      return true;
+    }
     case 'pomoc': case 'help':
-      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet]`);
+      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet] · /gold [počet]`);
       return true;
   }
   return false;
