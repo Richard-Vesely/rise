@@ -3,13 +3,13 @@
 // hostitel v prohlížeči); tvorové se pohybují běžnou simulací (shared/sim/mobs.js: armyPlan místo vlastní volby cíle).
 //   /armada [počet]  svolá armádu (výchozí a nejvýš ARMY_MAX = 90 jednotek: každá pátá je krystalový golem, ostatní Markomani) · /utok <hráč> · /stop (k Markovi) · /palac (postaví
 //   palác před Markem) · /tezit (vykope důl, rudy jdou Markovi) · /rozpustit · /svet <název> (přepojí Marka do jiného
-//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /at <hráč> (atomovka, sim/strikes.js) · /meteor (meteorický déšť) · /pomoc
+//   světa serveru) · /markorit [počet] (markoritové ingoty do batohu) · /at <hráč> (atomovka, sim/strikes.js) · /unat (vrátí zničené kostky) · /meteor (meteorický déšť) · /pomoc
 import { BLOCKS } from '../data/index.js';
 import { NET } from '../net/net.js';
 import { Vec3 } from '../vec3.js';
 import { bkey, blocks } from '../world/state.js';
 import { V, VOX, getVox, setVox, surfY, topY } from '../world/voxels.js';
-import { addStrike, meteorShower, strikeHooks, updateStrikes } from './strikes.js';
+import { addStrike, meteorShower, restoreStrikes, ruinsCount, strikeHooks, updateStrikes } from './strikes.js';
 
 /** Je to hráč, který velí armádě? */
 export const isMarek = (name) => String(name || '').trim().toLowerCase() === 'marek';
@@ -94,7 +94,12 @@ export function armyCommand(pid, text, ctx) {
       const T = who && ctx.poseOf?.(who.pid);
       if (!who || !T) { say(`Na koho? Napiš /at a jméno. Hráči: ${ctx.players.map((P) => P.name).join(', ') || 'nikdo'}`); return true; }
       const n = addStrike('nuke', T.x, T.y, T.z);
-      say(`☢ Atomovka letí na ${who.name}! Dopad za 2,5 s, kráter asi ${n} kostek.`);
+      say(`☢ Atomovka letí na ${who.name}! Dopad za 2,5 s, kráter asi ${n} kostek. /unat to vrátí.`);
+      return true;
+    }
+    case 'unat': case 'unatom': { // vrátí kostky zničené atomovkami a meteory
+      if (!ruinsCount()) { say('Není co vracet (zničené kostky si svět pamatuje jen do restartu).'); return true; }
+      say(`↺ Vráceno ${restoreStrikes()} kostek.`);
       return true;
     }
     case 'meteor': case 'meteory': { // meteorický déšť kolem Marka (Marka nezraní)
@@ -104,7 +109,7 @@ export function armyCommand(pid, text, ctx) {
       return true;
     }
     case 'pomoc': case 'help':
-      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet] · /at <hráč> · /meteor`);
+      say(`/armada [počet, nejvýš ${ARMY_MAX}] · /utok <hráč> · /stop · /palac · /tezit · /rozpustit · /svet <název> · /markorit [počet] · /at <hráč> · /unat · /meteor`);
       return true;
   }
   return false;

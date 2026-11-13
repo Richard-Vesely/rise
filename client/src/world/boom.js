@@ -78,13 +78,13 @@ function nukeBlast(x, y, z) {
   for (let i = 0; i < 6; i++) { sparks.emit(x, y + 1, z, [1, 0.6, 0.2], 40, 18, 10); debris.emit(x, y + 1, z, [0.35, 0.28, 0.2], 30, 14, 12); }
   add({ t: 0, upd: (t) => {
     const s = Math.min(1, t / 0.9);
-    fire.scale.setScalar(2 + 16 * Math.sqrt(s));
+    fire.scale.setScalar(3 + 28 * Math.sqrt(s)); // kráter má poloměr asi 15 m
     fire.material.opacity = t < 1 ? 1 : Math.max(0, 1 - (t - 1) / 2);
     fire.material.color.setHSL(0.1 - Math.min(0.08, t * 0.03), 1, Math.max(0.5, 0.85 - t * 0.15));
-    const r = 1 + t * 55; ring.scale.set(r, r, 1); ring.material.opacity = Math.max(0, 0.8 - t / 1.6);
-    const h = Math.min(34, 6 + t * 9); // hřib roste
-    stem.scale.set(1 + t * 0.12, h, 1 + t * 0.12); stem.position.y = y + h / 2;
-    const c = Math.min(15, 4 + t * 4); cap.scale.set(c, c * 0.55, c); cap.position.y = y + h + c * 0.2;
+    const r = 1 + t * 85; ring.scale.set(r, r, 1); ring.material.opacity = Math.max(0, 0.8 - t / 1.6);
+    const h = Math.min(56, 8 + t * 14); // hřib roste
+    stem.scale.set(1.6 + t * 0.2, h, 1.6 + t * 0.2); stem.position.y = y + h / 2;
+    const c = Math.min(26, 6 + t * 6); cap.scale.set(c, c * 0.55, c); cap.position.y = y + h + c * 0.2;
     capGlow.scale.set(c * 0.9, c * 0.45, c * 0.9); capGlow.position.copy(cap.position); capGlow.material.opacity = Math.max(0, 0.7 - t * 0.09);
     const fade = t < 7 ? 0.95 : Math.max(0, 0.95 * (1 - (t - 7) / 5));
     stem.material.opacity = cap.material.opacity = fade;

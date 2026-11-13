@@ -1,15 +1,16 @@
 // Markovy údery z nebe (příkazy v chatu, shared/sim/army.js): atomovka /at <hráč> a meteorický déšť /meteor.
 // Běží u toho, kdo drží svět. Úder je nejdřív ohlášen všem prohlížečům (['fx', druh, x, y, z, za kolik s dopadne]:
 // padající raketa / meteor, client/src/world/boom.js), po dopadu vyhloubí kráter (kostky podzemí i postavené bloky)
-// a zraní všechny v dosahu (hráče zprávou 'dmg', tvory zabije).
+// a zraní všechny v dosahu (hráče zprávou 'dmg', tvory zabije). Co výbuchy zničily, si pamatuje (do restartu světa):
+// /unat (restoreStrikes) to všechno vrátí na místo.
 import { NET } from '../net/net.js';
-import { bkey, blocks } from '../world/state.js';
+import { bkey, blockMeta, blocks } from '../world/state.js';
 import { V, getVox, setVox, topY } from '../world/voxels.js';
 import { killMob, mobs } from './mobs.js';
 
 /** Druhy úderů: poloměr kráteru a o kolik je jeho střed pod místem dopadu (atomovka ≈ 800 kostek v zemi), dosah zranění, zranění, doba pádu (s). */
 export const STRIKE = {
-  nuke: { crater: 6.3, sink: 2.5, reach: 16, dmg: 999, fall: 2.5 },
+  nuke: { crater: 14.5, sink: 6.5, reach: 30, dmg: 999, fall: 2.5 }, // ≈ 10 000 kostek
   meteor: { crater: 2.4, sink: 0.8, reach: 4.5, dmg: 9, fall: 1.4 },
 };
 const queue = []; // { kind, x, y, z, at: s do dopadu, sent, spare }
@@ -30,15 +31,21 @@ export function addStrike(kind, x, y, z, delay = 0, spare = null) {
 }
 
 /** Kráter: kostky podzemí (kromě bedrocku) a postavené bloky v kouli pryč. Vrací počet zničených. */
+const ruins = []; // [x, y, z, voxel] nebo [x, y, z, null, blok, meta]: co výbuchy zničily (pro /unat)
+const RUINS_MAX = 400000;
 export function blast(cx, cy, cz, R) {
   let n = 0;
   const r = Math.ceil(R), X = Math.round(cx), Y = Math.round(cy), Z = Math.round(cz);
   for (let x = -r; x <= r; x++) for (let y = -r; y <= r; y++) for (let z = -r; z <= r; z++) {
     if (x * x + y * y + z * z > R * R) continue;
     const k = bkey(X + x, Y + y, Z + z);
-    if (blocks.has(k)) { blocks.delete(k); n++; continue; }
+    if (blocks.has(k)) {
+      if (ruins.length < RUINS_MAX) ruins.push([X + x, Y + y, Z + z, null, blocks.get(k), blockMeta.get(k)]);
+      blocks.delete(k); blockMeta.delete(k); n++; continue;
+    }
     const v = getVox(X + x, Y + y, Z + z);
     if (v === V.AIR || v === V.BEDROCK) continue;
+    if (ruins.length < RUINS_MAX) ruins.push([X + x, Y + y, Z + z, v]);
     setVox(X + x, Y + y, Z + z, V.AIR);
     n++;
   }
@@ -60,6 +67,26 @@ export function updateStrikes(dt) {
   }
 }
 export const pendingStrikes = () => queue.length;
+/** Kolik zničených kostek je zapamatováno (vrátí je /unat). */
+export const ruinsCount = () => ruins.length;
+
+/**
+ * /unat: vrátí všechno, co atomovky a meteory zničily (od nejnovějšího). Kde už mezitím někdo něco postavil, nechá to být.
+ * @returns {number} kolik kostek se vrátilo
+ */
+export function restoreStrikes() {
+  let n = 0;
+  while (ruins.length) {
+    const [x, y, z, v, type, meta] = ruins.pop(), k = bkey(x, y, z);
+    if (blocks.has(k)) continue;
+    if (v === null) { if (meta != null) blockMeta.set(k, meta); blocks.set(k, type); n++; continue; }
+    if (getVox(x, y, z) !== V.AIR) continue;
+    setVox(x, y, z, v);
+    n++;
+  }
+  if (n) NET.dirtyBlocks = true;
+  return n;
+}
 
 /** Meteorický déšť kolem bodu: n meteorů během ~sec sekund v kruhu o poloměru R. */
 export function meteorShower(cx, cz, spare, n = 30, R = 34, sec = 14) {
