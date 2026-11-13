@@ -24,9 +24,13 @@ export function applyDary(d) {
 
 /** Krátký žebříček do nápovědy u sochy: „Nejštědřejší: Ája 120 · Bára 40“. */
 export function donorsLine(k = 3) {
+  if (NET.jail) return jailLine();
   if (!DON.got) return 'socha darů';
   return DON.top.length ? 'Nejštědřejší: ' + DON.top.slice(0, k).map(([n, c]) => `${n} ${c}`).join(' · ') : 'zatím nikdo nedaroval';
 }
+
+/** Vězeň: kolik ok ještě chybí (vězení serveru kroužku, player/prison.js). */
+export const jailLine = () => `ve vězení: ještě ${Math.max(0, NET.jail.need - NET.jail.given)}× ${ITEMS[NET.jail.item]?.name || ''} a jsi volný`;
 
 /** Předmět v políčku na dar: poslat serveru (nebo vrátit, když tady dary nefungují). */
 export function flushDonation() {
@@ -51,7 +55,8 @@ export function renderDonationUI(area) {
   const top = DON.top.length ? `<ol class="dar-top">${DON.top.slice(0, 5).map(([n, c]) => `<li><b>${esc(n)}</b> ${c} ks</li>`).join('')}</ol>` : '<p class="mc-note">Zatím nikdo nedaroval. Buď první!</p>';
   const box = !DON.owner ? '' : `<div class="mc-title">V pokladničce (klik = vzít, bereš jen ty)</div>
     <div class="grid dar-box">${(DON.box || []).map(([id, n, w], i) => `<div class="slot" data-take="${i}" data-item="${id}">${slotInner({ id, n, ...(w ? { w } : {}) })}</div>`).join('') || '<p class="mc-note">Prázdná.</p>'}</div>`;
+  const note = NET.jail ? `Jsi ve vězení. Polož sem ${esc(ITEMS[NET.jail.item]?.name || '')} (${NET.jail.given}/${NET.jail.need}).<br>Oka dostane ${who}, ty dostaneš svobodu.` : `Polož sem, co chceš darovat.<br>Dar dostane ${who} a vzít zpátky už nejde.`;
   area.innerHTML = `<div class="mc-title">Pokladnička darů</div>
-    <div class="dar-ui">${slotHTML(DON.slot[0], 0, '', 'dar')}<div class="mc-note">Polož sem, co chceš darovat.<br>Dar dostane ${who} a vzít zpátky už nejde.</div></div>
+    <div class="dar-ui">${slotHTML(DON.slot[0], 0, '', 'dar')}<div class="mc-note">${note}</div></div>
     <div class="mc-title">Nejštědřejší dárci</div>${top}${box}`;
 }

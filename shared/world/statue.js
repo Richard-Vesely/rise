@@ -53,19 +53,22 @@ export function ensureStatue() {
   for (const dx of [-1, 1]) for (const y of [4, 5]) put(s.x + dx, B + y, s.z, 'statue_gold');
   // pokladnička před sochou
   put(s.x, B, s.z - 2, 'donation_box');
-  // stromy a balvany v půdorysu zmizí (jako pokácené)
-  const span = 4;
-  for (let cx = Math.floor((s.x - span) / TREE_CELL) - 1; cx <= Math.floor((s.x + span) / TREE_CELL) + 1; cx++)
-    for (let cz = Math.floor((s.z - span) / TREE_CELL) - 1; cz <= Math.floor((s.z + span) / TREE_CELL) + 1; cz++) {
-      const t = treeAt(cx, cz);
-      if (t && Math.hypot(t.x - s.x, t.z - s.z) < span) removed.add(t.key);
-    }
-  for (let cx = Math.floor((s.x - span) / ROCK_CELL) - 1; cx <= Math.floor((s.x + span) / ROCK_CELL) + 1; cx++)
-    for (let cz = Math.floor((s.z - span) / ROCK_CELL) - 1; cz <= Math.floor((s.z + span) / ROCK_CELL) + 1; cz++) {
-      const r = rockAt(cx, cz);
-      if (r && Math.hypot(r.x - s.x, r.z - s.z) < span) removed.add(r.key);
-    }
+  clearNature(s.x, s.z, 4); // stromy a balvany v půdorysu zmizí (jako pokácené)
   return s;
+}
+
+/** Stromy a balvany do vzdálenosti span od (x, z) zmizí (jako pokácené). Pro stavby serveru: socha, vězení. */
+export function clearNature(x, z, span) {
+  for (let cx = Math.floor((x - span) / TREE_CELL) - 1; cx <= Math.floor((x + span) / TREE_CELL) + 1; cx++)
+    for (let cz = Math.floor((z - span) / TREE_CELL) - 1; cz <= Math.floor((z + span) / TREE_CELL) + 1; cz++) {
+      const t = treeAt(cx, cz);
+      if (t && Math.hypot(t.x - x, t.z - z) < span) removed.add(t.key);
+    }
+  for (let cx = Math.floor((x - span) / ROCK_CELL) - 1; cx <= Math.floor((x + span) / ROCK_CELL) + 1; cx++)
+    for (let cz = Math.floor((z - span) / ROCK_CELL) - 1; cz <= Math.floor((z + span) / ROCK_CELL) + 1; cz++) {
+      const r = rockAt(cx, cz);
+      if (r && Math.hypot(r.x - x, r.z - z) < span) removed.add(r.key);
+    }
 }
 
 /**

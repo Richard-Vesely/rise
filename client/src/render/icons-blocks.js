@@ -150,6 +150,7 @@ function isoBoxes(top, side, boxes) {
     ingot: (x, y) => (y > 6 && y < 12 && x > 2 + (12 - y) * 0.4 && x < 14 - (12 - y) * 0.4 ? (y < 8 ? 'L' : y > 10.5 ? 'D' : 'M') : null),
     lump: (x, y) => (inE(x, y, 8, 9, 5.5, 4) ? ((x * 5 + y * 3) % 6 < 1 ? 'L' : 'M') : null),
     bottle: (x, y) => (inR(x, y, 6.5, 2, 9.5, 5) ? 'W' : inE(x, y, 8, 10.5, 4.5, 4.5) ? (x < 7 ? 'L' : 'M') : inR(x, y, 7, 5, 9, 7) ? 'L' : null),
+    eye: (x, y) => (Math.abs(y - 8) < 5 * (1 - ((x - 8) / 7.5) ** 2) ? (inE(x, y, 6.6, 6.6, 0.9, 0.9) ? 'W' : Math.abs(x - 8) < 0.8 && Math.abs(y - 8) < 2.6 ? 'K' : inE(x, y, 8, 8, 3, 3) ? 'A' : y < 6 ? 'L' : 'M') : null), // oko obřího pavouka
     lens: (x, y) => (inE(x, y, 8, 8, 6, 6) ? (inE(x, y, 6, 6, 1.5, 1.5) ? 'W' : 'M') : null),
     sheet: (x, y) => (inR(x, y, 2, 4, 14, 12) ? (x + y > 22 ? 'D' : inR(x, y, 3, 5, 6, 6) ? 'W' : 'M') : null),
     pile: (x, y) => (inE(x, y, 8, 12, 6.5, 3.5) || inE(x, y, 8, 9.5, 4, 2.5) ? ((x * 7 + y * 5) % 4 < 1 ? 'D' : 'M') : null),

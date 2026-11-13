@@ -56,9 +56,10 @@ function die() {
   const lost = NET.pvp ? 0 : dropEverything(); // batoh a brnění vypadnou na zem (v aréně je nová výbava)
   $('fade').style.opacity = 1;
   setTimeout(() => {
-    if (NET.pvp) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
+    const jail = NET.jail?.at; // vězeň se probudí zase ve vězení (player/prison.js)
+    if (NET.pvp && !jail) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
     const home = shrineOf(player.pos.x);
-    player.pos.set(home.x, 0.45, home.z + 14);
+    if (jail) player.pos.set(jail[0], jail[1], jail[2]); else player.pos.set(home.x, 0.45, home.z + 14);
     player.vel.set(0, 0, 0);
     player.yaw = 0;
     player.hp = 100;
@@ -66,7 +67,7 @@ function die() {
     player.alive = true;
     if (!MP) for (const m of [...mobs]) if (m.type === 'crawler') removeMob(m);
     $('fade').style.opacity = 0;
-    toast(lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
+    toast(jail ? (lost ? 'Jsi zase ve vězení. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Jsi zase ve vězení.') : lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
   }, 2600);
 }
 // Smrt: všechno z batohu, kurzoru a brnění vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí

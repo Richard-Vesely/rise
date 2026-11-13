@@ -59,6 +59,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
           case 'log': log(`[${w.id}] ${m.text}`); break;
           case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : w.pvpMark ? ' (souboje hráčů v Markově dimenzi)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
           case 'stopped': w.onStopped?.(); break;
+          case 'who': { const p = profiles.find(m.name); worker.postMessage({ t: 'who', q: m.q, profile: p?.id ?? null, name: p?.name ?? '' }); break; } // vězení: profil podle jména (server/prison.js)
           case 'donation': { // dar do pokladničky: zápis do knihy darů a nový žebříček do všech světů
             const e = donations.add({ by: m.by, name: nameOf(m.by) || m.name, id: m.id, n: m.n, world: w.id });
             if (!e) break;

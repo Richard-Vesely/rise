@@ -28,6 +28,8 @@ export const BLOCKS = {
   statue_stone: { name: 'Podstavec sochy', solid: true, hard: 99, drop: null, fixed: true, tint: 0xd6d0c2 },
   statue_gold: { name: 'Zlatá socha', solid: true, hard: 99, drop: null, fixed: true, tint: 0xe2b33c },
   donation_box: { name: 'Pokladnička darů', solid: true, hard: 99, drop: null, fixed: true, special: true },
+  // Vězení na serveru kroužku (shared/world/prison.js): bílé nezničitelné bloky
+  prison_block: { name: 'Vězeňský blok', solid: true, hard: 99, drop: null, fixed: true, tint: 0xf2f2ee },
 };
 
 // ============================================================ stavební bloky: kameny, schody, půlbloky, mříže, zábradlí

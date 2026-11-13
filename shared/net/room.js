@@ -29,6 +29,7 @@ export const room = {
   onChat() {}, // (jméno, text)
   onGift() {}, // (id dokumentu, od koho) – dokument pro hostitele
   onLog() {}, // zápis do logu serveru
+  onKill() {}, // (pid vítěze, pid poraženého) – hráč vyřadil hráče v souboji (server kroužku: vězení, server/prison.js)
 };
 
 // ---------- zprávy
@@ -186,7 +187,7 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged) {
   const now = performance.now() / 1000;
   if (now - (T.hurtAt || -9) < PVP.invuln) return false;
   T.hurtAt = now;
-  T.lastHit = { by: from === 'host' ? NET.name : A.name, t: now }; // komu připsat bod, když zraněný padne
+  T.lastHit = { by: from === 'host' ? NET.name : A.name, pid: from, t: now }; // komu připsat bod, když zraněný padne
   const n = clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
   const dx = -Math.sin(y) * k, dz = -Math.cos(y) * k;
   if (to === 'host') NET.hurtLocal?.(n, dx, dz); else sendTo(to, ['dmg', n, dx, dz]);
@@ -206,6 +207,7 @@ const scoreOf = (name) => { if (!scores.has(name)) scores.set(name, { k: 0, d: 0
 export function arenaDeath(P) {
   const hit = P.lastHit, killer = hit && performance.now() / 1000 - hit.t < KILL_WINDOW && hit.by !== P.name ? hit.by : null;
   P.lastHit = null;
+  if (killer) room.onKill(hit.pid, P.pid);
   if (!NET.pvp) { // pvp-mark: bez arény, jen hlášení, když ho vyřadil hráč
     if (killer) { room.onLog(`souboj: ${killer} vyřadil ${P.name}`); broadcast(['kill', killer, P.name]); }
     return;

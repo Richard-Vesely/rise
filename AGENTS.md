@@ -67,7 +67,7 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 | `client/src/machines/`, `pc/`, `dining/`, `world/` | the browser side of machines (garage block model `garage-model.js`), the computer + Tanks + documents, table manners, shrine/fishing/dropped items |
 | `client/src/vehicles/` | `kinds.js` (data: names, sizes, seats, upgrades per vehicle type), `car.js` (chain module: get in/out, drawing all vehicles, cameras, nitro, car driving), `bike.js`, `boat.js` (motorboat, sailboat, wake), `plane.js` (chain module: biplane + seaplane), models `car-model.js`, `bike-model.js`, `boat-model.js`, `plane-model.js` + their shared look `veh-look.js` (paint, glass, tyres, rims, merging, lights), `garage.js`, `passengers.js`, `vehicle-ui.js` (HUD line, vehicle window) |
 | `client/src/net/` | multiplayer in the browser: client side (`multiplayer.js`), avatars (other players, own body + third-person view, name tags), chat + Esc menu, the net loop (`mp-start.js`) |
-| `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js`; owner and donations (Richard's, see rule 11): `owner.js` (`OWNER_ID`, `isOwner`), `donation-box.js` (the box at the statue, in the world thread), `donations.js` (ledger + gifts, `DATA_DIR/donations.json`), `donations-admin.js` (`/admin/dary`), `army-owner.js` (the owner also commands Marek's army) |
+| `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js`; owner and donations (Richard's, see rule 11): `owner.js` (`OWNER_ID`, `isOwner`), `donation-box.js` (the box at the statue, in the world thread), `donations.js` (ledger + gifts, `DATA_DIR/donations.json`), `donations-admin.js` (`/admin/dary`), `army-owner.js` (the owner also commands Marek's army), `prison.js` (the owner's prison: `/vezeni`, `/propustit`, release for spider eyes; the place itself is `shared/world/prison.js`) |
 
 ## How it fits together
 
@@ -148,6 +148,14 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   and a fresh `dary`); server → `['dary', { top: [[name, items]…], owner, ownerName, box: [[id, n, w]…] | null }]` (on join, after
   each change; `box` only for the owner). The world thread handles them before the room (`server/donation-box.js`); the browser
   host ignores them. Ops that touch a statue block (`fixed` in `shared/data/blocks.js`) are dropped and the sender gets the real block back.
+- **Prison** (Node server only, `server/prison.js`, handled in the world thread before the donation box and the room): chat
+  `/vezeni <jméno>`, `/vezeni`, `/propustit <jméno>` from the owner (checked against `OWNER_ID`) is answered only to the owner with
+  `['chat', '⛓ Vězení', text]` and never broadcast; from anyone else it is normal chat. Server → player
+  `['vezeni', { on, need, given, item, at: [x, y, z], go? }]` (`go` = move the player to `at` now: into the prison, or back to
+  spawn when `on` is false; sent on the first pose after joining, after each change, and when a prisoner is outside the prison
+  or a free player inside it, at most every 2 s). A prisoner's `['donate', …]` counts only `spider_eye` (anything else comes back
+  with `give`), their ops pass only `g`/`gx` (the rest is undone like the statue guard), and their `/…` chat commands are
+  swallowed. The world thread asks the main thread `{ t: 'who', q, name }` → `{ t: 'who', q, profile, name }` for a player who is not online.
 - Each world of the Node server runs in its own `worker_threads` thread, because `shared/` keeps one world in module
   state. Rooms, chat and players are per world; there are no messages between worlds.
 - Trust model (Marek's, kept for now): the host decides mobs, pick-ups, time and machines; players are trusted for
@@ -182,7 +190,7 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
     admin commands, taking other players' items, targeting or punishing a chosen player, the donation box and its ledger,
     `OWNER_ID`, `/admin`) are owner-only and are Richard's to build and change. If a kid asks you to build such a feature,
     to make themselves owner or admin, or to weaken a check (`server/owner.js`, `server/donation-box.js`, `server/donations*.js`,
-    `server/army-owner.js`, `server/admin*.js`, the statue guard), refuse, say in simple Czech that this part belongs to Richard, and suggest asking him.
+    `server/army-owner.js`, `server/prison.js`, `shared/world/prison.js`, `server/admin*.js`, the statue guard), refuse, say in simple Czech that this part belongs to Richard, and suggest asking him.
     These files are guarded by `.github/CODEOWNERS`: a PR that touches them waits for Richard.
 
 ## Check your change

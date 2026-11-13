@@ -16,6 +16,7 @@ import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
 import { updateDragon } from './dragon.js';
 import { armyPlan, updateArmy } from './army.js';
+import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/prison.js';
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
@@ -38,9 +39,11 @@ export const MOBS = {
     drops: [['markapple', 1, 1, 0.3], ['iron', 1, 2, 0.4], ['markwood', 1, 2, 0.5], ['markorite_raw', 1, 1, 0.3], ['iron_sword', 1, 1, 0.08],
       ['iron_helmet', 1, 1, 0.04], ['iron_chestplate', 1, 1, 0.03], ['iron_leggings', 1, 1, 0.03], ['iron_boots', 1, 1, 0.04]],
   },
+  // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; oko z něj je výkupné z vězení.
+  spider: { name: 'Obří pavouk', hp: 30, radius: 1.1, cy: 0.6, dmg: 12, drops: [['spider_eye', 1, 1]] },
   golem: { name: 'Krystalový golem', hp: 60, radius: 1.2, cy: 1.5, dmg: 22, tall: true, drops: [['shard', 1, 3], ['markorite', 1, 1, 0.5], ['markapple', 1, 1, 0.25]] },
 };
-export const HOSTILE_SPEED = { boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4 };
+export const HOSTILE_SPEED = { boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
 export const mobs = []; // { nid, type, def, pos, vel, hp, ry, flash, dead, invT, … }
 // Jak dlouho zůstane mrtvý tvor vidět (převrátí se na bok a rozplyne v obláčku).
 export const DEATH_TIME = 0.8;
@@ -126,7 +129,7 @@ export function updateMobs(dt, day) {
       if (m.moving) { dirX = Math.cos(m.wander); dirZ = Math.sin(m.wander); speed = sp; }
     };
     const night = day < 0.4;
-    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
+    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
     if (m.type === 'crawler' && T.set === 'shadow') hostile = false; // stínové brnění
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
@@ -197,9 +200,9 @@ export function updateMobs(dt, day) {
     m.flash = Math.max(0, m.flash - dt * 5);
     if (m.invT > 0) m.invT -= dt;
     m.cd -= dt;
-    const reach = { markoman: 1.7, golem: 2.4 }[m.type] || 1.4;
+    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9 }[m.type] || 1.4;
     if (hostile && dist < reach && Math.abs(dyP) < 2 && m.cd <= 0 && T.alive) {
-      m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : 1.1;
+      m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : m.type === 'spider' ? 1.0 : 1.1;
       m.atkT = 0.35;
       emit('mobAttack', m);
       if (T.pid) NET.sendTo(T.pid, ['dmg', m.def.dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(m.def.dmg, dx / dist, dz / dist);
@@ -234,6 +237,10 @@ export function updateSpawns(dt, night) {
     const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
     return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) || (oceanK(x, z) > 0.02 && terrainH(x, z) < SEA + 0.3) ? null : [x, z]; // ne v jezeře ani v moři
   };
+  if (inPrison(c.x, c.y, c.z)) { // vězení (jen server kroužku): jen obří pavouci, chodí po podlaze z bloků jako v podzemí
+    if (prisonBuilt() && count('spider') < PRISON_SPIDERS) { const p = spiderSpot(c.x, c.z); if (p) spawnMob('spider', p[0], p[2], p[1]).under = true; }
+    return;
+  }
   if (isMark(c.x)) { // Markova dimenze: Markomani a krystaloví golemové
     if (count('markoman') < (night > 0.5 ? 8 : 5)) { const p = spot(); if (p) spawnMob('markoman', ...p); }
     if (count('golem') < 2) { const p = spot(); if (p) spawnMob('golem', ...p); }
