@@ -305,6 +305,29 @@ try {
   check('magic: a new level offers 3 spells, picking one learns it', r.cards.length === 3 && r.cards.includes('bolt') && r.learned.includes('bolt') && r.sel === 'bolt', JSON.stringify(r));
   check('magic: the wand casts the magic bolt: the boar takes 6, the mana goes down (8, it refills while the bolt flies)', r.hp0 - r.hp1 === 6 && r.mana0 - r.mana1 >= 4 && /Magická střela/.test(r.bar || ''), JSON.stringify(r));
   check('magic: a boar knocked out by spells gives XP', r.dead && r.xpGain === 4, JSON.stringify(r));
+  r = await ev(async () => { // obchod za zlato: /sell v chatu prodá zlato, /shop otevře obchod, koupě stojí zlaťáky; vychytávky fungují
+    const g = window.game, chat = (t) => { const c = document.getElementById('chatInput'); c.value = t; c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); };
+    T.clearInv(); T.give('gold_ingot', 20); T.give('gold_block', 2);
+    chat('/sell');
+    const coins = T.count('coin'), gold = T.count('gold_ingot');
+    chat('/shop');
+    await new Promise((ok) => setTimeout(ok, 300));
+    const items = [...document.querySelectorAll('#shopWin [data-buy]')].map((b) => b.dataset.buy);
+    document.querySelector('#shopWin [data-buy="saber_blue"]')?.click();
+    document.querySelector('#shopWin [data-buy="wings"]')?.click();
+    const after = { coins: T.count('coin'), saber: T.count('saber_blue'), wings: T.count('wings') };
+    document.querySelector('#shopWin [data-buy="jet"]')?.click(); // 400: na to už nemá
+    const jet = T.count('jet');
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    const closed = !document.getElementById('shopWin');
+    T.hold('wings'); g.player.flyT = 0; g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016);
+    const fly = g.player.flyT;
+    T.hold('saber_blue'); T.step(2);
+    return { coins, gold, items, after, jet, closed, fly };
+  });
+  check('shop: /sell turns gold into coins (20 ingots × 10 + 2 blocks × 90 = 380)', r.coins === 380 && r.gold === 0, JSON.stringify(r));
+  check('shop: /shop lists sabers, trident, wings, flamethrower, medkit and the jet; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
+  check('shop: wings give 30 s of flying on right click', r.fly > 29, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);

@@ -312,6 +312,14 @@ When you add or change a feature, update this file in the same pull request.
 cracks `client/src/render/crack.js`, chips and crit stars `client/src/render/chips.js`, tool and combat sounds `client/src/audio/tool-sounds.js`,
 mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
 
+- **Gold shop**: in the chat (T, now also in single player, where it is only for commands) `/sell` (or `/prodat`) sells
+  all gold from the backpack for coins (*Zlaťák*, a normal item: gold ingot 10, gold ore 6, gold block 90, gold wire 1, gold
+  contact 3) and `/shop` (or `/obchod`) opens the shop window. Gadgets only from the shop: light sabers (blue, green, purple
+  16 dmg, red 17; glowing blade in the hand), trident (stabs like a sword, right-click throws it: 14 dmg, stays in the hand),
+  wings (right-click = 30 s of flying), flamethrower (hold right-click = stream of fire ~9 m), medkit (full health) and the
+  fighter jet (*Stíhačka*, vehicle `jet`: flies like the biplane with a 3.4× stronger engine). Prices and items
+  `shared/data/shop.js`, window `client/src/ui/shop.js`, gadgets `client/src/player/gadgets.js`, jet model `client/src/vehicles/jet-model.js`.
+
 ## 5. Food and cooking
 - **Campfire** (*Táborák*): roast meat and fish, smelt iron, bake sand into glass, clay into tiles.
 - **Stove kitchen** (*Sporák*, cookbook *Kuchařka*): 36 dishes (goulash, schnitzel, dumplings, pizza, pancakes,
@@ -319,6 +327,9 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 - **Fields** (*Pole*): hoe turns grass into farmland; plant wheat, tomatoes, potatoes, rice; 4 growth stages.
 - **Animals**: chickens lay eggs (right-click), cows give milk (bucket), well gives water.
 - **Fishing** (*Prut*): cast into a pond, wait for *Zabírá!*, right-click fast: trout, salmon, seaweed.
+- **Rod hook**: right-click with the rod on a player or mob (up to 24 m) hooks them (a line leads to them); the second
+  right-click pulls them right in front of you, even after you went through a portal to another dimension. The world holder
+  checks that the place is within 5 m of the one pulling (`pullTarget` in `shared/net/room.js`); code `client/src/player/rod-hook.js`.
 - **Eating**: hold right-click. With **cutlery** (and chopsticks for sushi) you eat bite by bite with an animation
   (twirl spaghetti, cut steak, spoon soup); sitting at a **table** with cutlery gives a bigger bonus.
   Food can be put on a table. Every dish has its own 3D model.
@@ -513,7 +524,13 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   `/armada [n]` (90 units by default and at most: every fifth a crystal golem, the rest Markomen; never attacks Marek), `/utok <player>`, `/stop`,
   `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
   his backpack), `/rozpustit`, `/svet <name>` (club server only: Marek's browser leaves and joins that world by name or id),
-  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. Runs where the world is held (server or browser host); the soldiers are normal mobs
+  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`).
+  `/at <player>` = atomic bomb on that player: everyone sees a missile fall for 2.5 s, then a flash, fireball, mushroom cloud and
+  shock wave; the crater removes about 800 blocks (underground voxels and built blocks, not bedrock) and everyone within 16 m
+  dies (Marek too, if he stands there), mobs there die. `/meteor` = meteor shower: 30 meteors over 14 s within 34 m of Marek,
+  each a small crater and 9 damage within 4.5 m (Marek is spared). Rules `shared/sim/strikes.js`, look `client/src/world/boom.js`
+  (`game.boomFx('nuke', x, y, z, t)` shows it without damage). This destroys other players' builds: the lektor may want it only in some worlds.
+  Runs where the world is held (server or browser host); the soldiers are normal mobs
   whose goal comes from `armyPlan`. On the club server the name is protected by the PIN, and the server owner (`OWNER_ID`) can command the army too. Code: `shared/sim/army.js`, owner part `server/army-owner.js`.
 - **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
   Two players can hurt each other only when both have them on (pose `pv`, checked by the host in `hitPlayer`). After a hit both

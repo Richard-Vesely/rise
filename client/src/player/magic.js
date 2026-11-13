@@ -62,6 +62,38 @@ function bolt(id) {
     return true;
   } });
 }
+/**
+ * Obecná střela (vychytávky z obchodu, player/gadgets.js): letí rovně, zraní prvního tvora / hráče se souboji.
+ * @param {{ color: number, size: number, speed: number, ttl: number, dmg: number, trail?: number, spread?: number }} o
+ */
+export function shot(o) {
+  const v = aim();
+  if (o.spread) { v.x += (Math.random() - 0.5) * o.spread; v.y += (Math.random() - 0.5) * o.spread; v.z += (Math.random() - 0.5) * o.spread; v.normalize(); }
+  const pos = camera.position.clone().addScaledVector(v, 0.7);
+  pos.y -= 0.15;
+  const s = glowSprite(o.color, o.size), col = rgb(o.color);
+  v.multiplyScalar(o.speed);
+  scene.add(s);
+  let t = 0;
+  fx.push({ update(dt) {
+    t += dt;
+    const steps = Math.ceil((v.length() * dt) / 0.3);
+    for (let n = 0; n < steps; n++) {
+      const from = pos.clone();
+      pos.addScaledVector(v, dt / steps);
+      const m = mobOn(from, pos) || playerOn(from, pos);
+      if (m || solid(pos.x, pos.y, pos.z) || t > o.ttl) {
+        s.removeFromParent();
+        if (m) { strike(m, o.dmg, v); sparks.emit(pos.x, pos.y, pos.z, col, 10, 2.5, 1); }
+        return false;
+      }
+    }
+    s.position.copy(pos);
+    s.scale.setScalar(o.size * (o.grow ? 1 + t * o.grow : 1));
+    if (Math.random() < (o.trail ?? 0.6)) sparks.emit(pos.x, pos.y, pos.z, col, 1, 0.5, 0.1);
+    return true;
+  } });
+}
 function impact(id, pos, m, v) {
   sparks.emit(pos.x, pos.y, pos.z, rgb(COLORS[id]), id === 'fireball' ? 40 : 16, id === 'fireball' ? 5 : 3, 1.5);
   if (id === 'bolt') { if (m) strike(m, 6, v); toolSound('arrowHit'); return; }

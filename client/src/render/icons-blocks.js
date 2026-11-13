@@ -261,6 +261,7 @@ function isoBoxes(top, side, boxes) {
   const steel = (x, y) => ((x + y) % 7 ? '#8a96a4' : '#7a8694');
   const steelF = face(steel);
   const edge = (x, y) => x === 0 || y === 0 || x === 15 || y === 15;
+  const seg2 = (x, y, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - ax - dx * t, y - ay - dy * t) < 0.75; };
   // Luk (oblouk kolem bodu 12,12, tětiva po úhlopříčce) a šíp
   icon('bow', face((x, y) => {
     const d = Math.hypot(x - 12, y - 12), s = x + y;
@@ -285,6 +286,41 @@ function isoBoxes(top, side, boxes) {
     if (x >= 11 && y <= 4) return s >= 14 && s <= 16 ? '#c8ccd4' : null;
     if (x <= 4) return Math.abs(s - 15) <= 0.6 ? '#7a5a36' : '#e8e8e8';
     return Math.abs(s - 15) <= 0.6 ? '#9a7448' : null;
+  }));
+  // Obchod za zlato (shared/data/shop.js): zlaťák, světelné meče, trojzubec, křídla, plamenomet, lékárnička
+  icon('coin', face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d < 6.5 ? (d > 5.3 ? '#a8801a' : Math.abs(x - 7.5) < 1 && y > 4 && y < 11 ? '#fff0a0' : x + y < 13 ? '#ffe46a' : '#f0b82a') : null; }));
+  for (const [id, col, core] of [['saber_blue', '#3aa8ff', '#e0f4ff'], ['saber_green', '#3aff5a', '#e8ffe8'], ['saber_red', '#ff2a2a', '#ffe0e0'], ['saber_purple', '#b05aff', '#f4e8ff']]) {
+    icon(id, face((x, y) => {
+      const s = x + y, off = Math.abs(s - 15);
+      if (x <= 5 && y >= 10) return off <= 0.8 ? (x === 3 || x === 5 ? '#2a2a30' : '#9aa2ac') : null; // rukojeť
+      if (x >= 5 && x <= 6 && y >= 9 && y <= 10 && off <= 1.6) return '#5a5a62'; // záštita
+      if (x > 5 && y < 10) return off <= 0.5 ? core : off <= 1.5 ? col : null; // čepel
+      return null;
+    }));
+  }
+  icon('trident', face((x, y) => {
+    const s = x + y, off = Math.abs(s - 15);
+    if (x < 9 && off <= 0.6) return x < 4 ? '#5a3a20' : '#c8a040';
+    if (x >= 9 && (seg2(x, y, 9, 6, 14, 1) || seg2(x, y, 9, 6, 9, 1.5) || seg2(x, y, 9, 6, 13.5, 6) || seg2(x, y, 7.5, 7.5, 10.5, 4.5))) return y < 3 || x > 12 ? '#e8fbff' : '#38c8e8';
+    return null;
+  }));
+  icon('wings', face((x, y) => {
+    const dx = Math.abs(x - 7.5), feather = (y + Math.floor(dx)) % 3 === 0;
+    if (dx < 1 && y > 5 && y < 11) return '#8a5a2a';
+    return dx >= 1 && dx < 7.5 && y > 2 + dx * 0.4 && y < 13 - dx * 0.6 ? (feather ? '#c8d4e8' : '#ffffff') : null;
+  }));
+  icon('flamethrower', face((x, y) => {
+    if (y >= 7 && y <= 9 && x >= 2 && x <= 11) return x === 2 || y === 7 ? '#8a96a4' : '#5a646e'; // hlaveň
+    if (x >= 3 && x <= 6 && y >= 10 && y <= 13) return '#c82a2a'; // nádrž
+    if (x >= 7 && x <= 8 && y >= 10 && y <= 12) return '#2a2a30'; // rukojeť
+    if (x >= 12 && Math.abs(y - 8) < (x - 10) * 0.7) return x > 14 ? '#ffe070' : '#ff7a2a'; // plamen
+    return null;
+  }));
+  icon('medkit', face((x, y) => {
+    if (y < 4 && x > 5 && x < 10) return y === 2 ? null : '#5a5a62';
+    if (x < 1 || x > 14 || y < 3 || y > 13) return null;
+    if ((Math.abs(x - 7.5) < 1.5 && y > 4 && y < 12) || (Math.abs(y - 8) < 1.5 && x > 3 && x < 12)) return '#ffffff';
+    return x === 1 || x === 14 || y === 3 || y === 13 ? '#a81a1a' : '#e02a2a';
   }));
   icon('coal_generator', isoBoxes(steelF, face((x, y) => (edge(x, y) ? '#5a646e' : y > 3 && y < 9 && y % 2 ? '#2a2a30' : y > 10 && y < 13 && x > 4 && x < 11 ? '#ff7a2a' : steel(x, y))), FULL));
   icon('battery_block', isoBoxes(face((x, y) => (x > 2 && x < 7 && y > 6 && y < 9 ? '#d8783a' : x > 9 && x < 13 && y > 6 && y < 9 ? '#d0d0d0' : '#2e3a2e')),

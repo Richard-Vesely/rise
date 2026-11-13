@@ -5,7 +5,7 @@
 // Spojení (conn) má tvar jako PeerJS DataConnection: { peer: id, open, metadata: { name }, send(zpráva), on('data'|'close'|'error', fn), close() }.
 import { dayCount, dayTime } from '../sim/day.js';
 import { claimGroundItem } from '../sim/ground-items.js';
-import { armyCommand } from '../sim/army.js';
+import { armyCommand, armyHit } from '../sim/army.js';
 import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
@@ -137,8 +137,10 @@ function onClientMsg(P, msg) {
       if (!m) return;
       NET.killer = P.pid;
       try { hurtMob(m, clamp(Number(msg[2]) || 1, 0, 20), Number(msg[3]) || 0, clamp(Number(msg[4]) || 1, 0, 2)); } finally { NET.killer = null; }
+      armyHit(P.pid, P.name, { mob: m }); // Markova armáda jde po tvorovi, kterého praštil
       break;
     }
+    case 'pull': pullTarget(P.pid, String(msg[1]), msg[1] === 'm' ? msg[2] : String(msg[2]), msg[3], msg[4], msg[5]); break; // prut: přitáhnout hráče / tvora
     case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp nebo pvp-mark)
     case 'mu': { // slepice (vejce) a kráva (mléko)
       const m = mobs.find((x) => x.nid === msg[1] && !x.dead);
@@ -169,6 +171,29 @@ function playerOf(pid) {
   return hostP;
 }
 /**
+ * Prut: hráč from přitáhne zaháknutého hráče (kind 'p', id = pid) nebo tvora (kind 'm', id = nid; v hře pro jednoho
+ * přímo tvor) na místo (x, y, z) těsně před sebe. Funguje na jakoukoli vzdálenost (i do jiné dimenze); cíl musí
+ * být blízko toho, kdo táhne (do 5 m), aby nikdo nemohl posílat hráče kamkoli.
+ */
+export function pullTarget(from, kind, id, x, y, z) {
+  x = Number(x); y = Number(y); z = Number(z);
+  if (![x, y, z].every(Number.isFinite)) return false;
+  const me = playerOf(from)?.pose;
+  if (me && Math.hypot(me.x - x, me.y - y, me.z - z) > 5) return false;
+  if (kind === 'm') {
+    const m = mobs.find((q) => (q === id || q.nid === id) && !q.dead);
+    if (!m) return false;
+    m.pos.set(x, y, z); m.vel.set(0, 0, 0);
+    return true;
+  }
+  if (kind !== 'p' || id === from) return false;
+  const T = playerOf(id);
+  if (!T?.pose || T.pose.alive === false) return false;
+  const by = from === 'host' ? NET.name : playerOf(from)?.name;
+  if (id === 'host') NET.onTp?.(x, y, z, by); else sendTo(id, ['tp', x, y, z, by]);
+  return true;
+}
+/**
  * Zásah hráče jiným hráčem. Vrací true, když platí.
  * @param {string} from kdo útočí (pid)
  * @param {string} to koho zasáhl (pid)
@@ -197,6 +222,7 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
     X.pvLock = now + PVP.lock;
     if (pid === 'host') NET.onPvLock?.(PVP.lock); else sendTo(pid, ['pvlock', PVP.lock]);
   }
+  armyHit(from, from === 'host' ? NET.name : A.name, { pid: to, name: to === 'host' ? NET.name : T.name }); // Markova armáda jde po zasaženém
   return true;
 }
 // ---------- aréna: body za vyřazení (počítají se od startu serveru; klíč = jméno hráče)
@@ -231,6 +257,18 @@ export function armyChat(pid, name, text, leader = undefined) {
     give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
     reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },
     goto: pid === 'host' ? null : (w) => sendTo(pid, ['goto', w]), // jen server kroužku: prohlížeč se přepojí (client/src/net/multiplayer.js)
+    poseOf: (id) => playerOf(id)?.pose,
+    fx: (kind, x, y, z, t) => { broadcast(['fx', kind, x, y, z, t]); NET.onFx?.(kind, x, y, z, t); }, // atomovka / meteor: všichni vidí pád a výbuch
+    hurt: (x, y, z, r, dmg, spare) => { // úder z nebe zraní všechny v dosahu (kromě spare)
+      for (const id of ['host', ...others.keys()]) {
+        const q = playerOf(id)?.pose;
+        if (!q || id === spare || q.alive === false) continue;
+        const d = Math.hypot(q.x - x, q.y - y, q.z - z);
+        if (d >= r) continue;
+        const dx = (q.x - x) / (d || 1), dz = (q.z - z) / (d || 1);
+        if (id === 'host') NET.hurtLocal?.(dmg, dx, dz); else sendTo(id, ['dmg', dmg, dx, dz]);
+      }
+    },
   });
 }
 export function setPerm(P, on) {

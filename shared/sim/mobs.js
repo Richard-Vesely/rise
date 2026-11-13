@@ -208,7 +208,10 @@ export function updateMobs(dt, day) {
       m.atkT = 0.35;
       emit('mobAttack', m);
       const dmg = m.def.dmg || HUNT.dmg; // mírumilovné zvíře ve štvanici kousne za HUNT.dmg
-      if (T.pid) NET.sendTo(T.pid, ['dmg', dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(dmg, dx / dist, dz / dist);
+      if (T.mob) { // voják armády bije tvora, kterého praštil Marek
+        NET.killer = 'army';
+        try { hurtMob(T.mob, dmg, Math.atan2(-dx, -dz)); } finally { NET.killer = null; }
+      } else if (T.pid) NET.sendTo(T.pid, ['dmg', dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(dmg, dx / dist, dz / dist);
       m.vel.x -= (dx / dist) * 4;
       m.vel.z -= (dz / dist) * 4;
     }

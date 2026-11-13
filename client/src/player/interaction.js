@@ -50,6 +50,7 @@ import { addItem, addStack, consumeSelected, heldStack, inv } from './inventory.
 import { creative, input, isLocked, player, playerIntersects } from './player.js';
 import { pickTarget } from './targeting.js';
 import { updateMagic, updateWand } from './magic.js';
+import { updateGadgets } from './gadgets.js';
 import { addXp, updateXp } from './xp.js';
 import { XP_ORE } from '../../../shared/data/magic.js';
 
@@ -225,7 +226,8 @@ export function updateInteraction(dt) {
   updateArrows(dt);
   updateMagic(dt); updateXp(dt, player); // kouzla a XP (magic.js, xp.js)
   const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
-  if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
+  if (updateGadgets(dt, special)) { /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */ }
+  else if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
   else if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
   else {
     if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
@@ -376,7 +378,7 @@ export function useItem() {
   }
   if (vehHeld && target?.point && ['grass', 'ground', 'vox', 'block'].includes(target.kind) && (target.kind !== 'block' || target.normal?.[1] === 1)) {
     let [x, , z] = target.point, y = floorAt(x, z, target.point[1] + 0.5);
-    if (vehHeld === 'plane') { // letadlo je větší než dosah ruky: postaví se před hráče ocasem k němu
+    if (vehHeld === 'plane' || vehHeld === 'jet') { // letadlo je větší než dosah ruky: postaví se před hráče ocasem k němu
       const spot = planeSpot(target.point);
       if (!spot.ok) { toast(`Tady se letadlo nevejde – ${spot.why} (potřebuje asi 10 × 8 m)`); return; }
       ({ x, y, z } = spot);
@@ -384,7 +386,7 @@ export function useItem() {
       if (solidAt(Math.floor(x), Math.floor(y + 0.5), Math.floor(z)) || Math.hypot(x - player.pos.x, z - player.pos.z) < 0.8) { toast('Tady se kolo nevejde'); return; }
     } else if (carHits({ y }, x, z, player.yaw) || Math.hypot(x - player.pos.x, z - player.pos.z) < 2.2) { toast('Tady se auto nevejde'); return; }
     const K = vehDim(vehHeld);
-    placed(spawnVehicle(vehHeld, x, z, player.yaw), y, vehHeld === 'plane' ? 'Dvouplošník stojí. F = nastoupit, pravé tl. = palivo a zavazadla'
+    placed(spawnVehicle(vehHeld, x, z, player.yaw), y, vehHeld === 'jet' ? 'Stíhačka stojí. F = nastoupit, pravé tl. = palivo' : vehHeld === 'plane' ? 'Dvouplošník stojí. F = nastoupit, pravé tl. = palivo a zavazadla'
       : vehHeld === 'bike' ? 'Kolo stojí. F = nasednout, pravé tl. = košík' : `${K.name} stojí. F = nastoupit, pravé tl. = kufr (palivo a autobaterie)`);
     return;
   }

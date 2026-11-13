@@ -91,7 +91,7 @@ export function setCreative(on) {
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return; // psaní do chatu nebo do pole
-  if (MP && e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
+  if (e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
   if (e.code === 'KeyE' && !e.repeat) { invOpen ? closeInventory() : (isLocked() || game.testMode) && openInventory(); return; }
   if (e.code === 'Escape' && invOpen) { closeInventory(); return; }
   if (e.code === 'KeyH' && !e.repeat) { toggleGuide(); return; }
