@@ -2,7 +2,8 @@
 // XP: poražený tvor (kterého jsi zasáhl), vytěžená ruda, výroba a vaření. Nová úroveň = nabídka 3 kouzel, jedno si
 // vybereš (okno). K = kniha kouzel (naučená kouzla, výběr aktivního), R = další kouzlo. Ukládá se jako `magic`
 // (v prohlížeči i na serveru). Bez vedlejších účinků při načtení (okna a pruhy se vytvoří až při prvním použití).
-import { SPELLS, XP_MOB, cleanMagic, levelOf, manaMax, MANA_REGEN, offerSpells } from '../../../shared/data/magic.js';
+import { ITEMS } from '../../../shared/data/index.js';
+import { OWNER_SPELLS, SPELLS, XP_MOB, cleanMagic, levelOf, manaMax, MANA_REGEN, offerSpells } from '../../../shared/data/magic.js';
 import { uiSound } from '../audio/ui-sound.js';
 import { save } from '../game/save-load.js';
 import { toast } from '../ui/hud.js';
@@ -14,7 +15,12 @@ export const magic = Object.assign(M, { mana: manaMax(levelOf(M.xp).level), cd: 
 /** Co se ukládá (game/save.js). */
 export const magicState = () => ({ xp: M.xp, learned: M.learned, sel: M.sel, picks: M.picks });
 export const level = () => levelOf(M.xp).level;
-export const holdingWand = () => !!heldStack() && heldStack().id === 'wand';
+export const holdingWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.wand;
+/** Hůl vlastníka serveru v ruce: umí navíc jeho kouzla (OWNER_SPELLS); jestli platí, rozhoduje server. */
+export const holdingOwnerWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.owner;
+let ownerSel = OWNER_SPELLS[0]; // vybrané kouzlo hole vlastníka (null = naučené kouzlo M.sel); neukládá se
+/** Kouzlo, které teď hůl v ruce sešle. */
+export const activeSpell = () => (holdingOwnerWand() && ownerSel ? ownerSel : M.sel);
 
 /** Přidá XP; při nové úrovni nabídne kouzla. */
 export function addXp(n) {
@@ -60,10 +66,10 @@ let bars = null, lastKey = '';
 function renderBars() {
   if (!bars) { bars = document.createElement('div'); bars.id = 'xpBars'; document.body.append(bars); }
   const L = levelOf(M.xp), max = manaMax(L.level), wand = holdingWand();
-  const key = `${L.level}|${L.into}|${Math.round(M.mana)}|${wand}|${M.sel}|${M.wardT > 0}|${M.regenT > 0}`;
+  const cur = activeSpell(), key = `${L.level}|${L.into}|${Math.round(M.mana)}|${wand}|${cur}|${M.wardT > 0}|${M.regenT > 0}`;
   if (key === lastKey) return;
   lastKey = key;
-  const sp = M.sel && SPELLS[M.sel];
+  const sp = cur && SPELLS[cur];
   bars.innerHTML = `<div class="xp-row"><b class="lvl">${L.level}</b><div class="bar xp"><i style="width:${(L.into / L.need) * 100}%"></i></div></div>
     <div class="xp-row"><span class="mana-ico">✦</span><div class="bar mana"><i style="width:${(M.mana / max) * 100}%"></i><small>${Math.floor(M.mana)}/${max}</small></div></div>
     ${wand ? `<div class="spell">${sp ? `✦ ${sp.name} <small>(${sp.mana} many · R další · K kniha)</small>` : 'Hůl neumí žádné kouzlo – získej úroveň (XP)'}</div>` : ''}
@@ -109,13 +115,16 @@ export function toggleBook() {
   openWin(`<div class="mc-panel spell-panel"><div class="mc-title">✦ Kniha kouzel · úroveň ${L.level} (${L.into}/${L.need} XP do další)</div>
     ${M.learned.length ? `<div class="spell-cards">${M.learned.map((id) => card(id, 'sel').replace('spell-card', `spell-card${id === M.sel ? ' on' : ''}`)).join('')}</div>` : '<p>Zatím neumíš žádné kouzlo. XP dostaneš za poražené tvory, rudy, výrobu a vaření.</p>'}
     <p class="mc-note">Klikni na kouzlo, které má hůl sesílat. Zavřít: K nebo Esc.</p></div>`);
-  win.addEventListener('click', (e) => { const b = e.target.closest('[data-sel]'); if (b) { M.sel = b.dataset.sel; closeWin(); renderBars(); } });
+  win.addEventListener('click', (e) => { const b = e.target.closest('[data-sel]'); if (b) { M.sel = b.dataset.sel; ownerSel = null; closeWin(); renderBars(); } });
 }
 /** R: další naučené kouzlo. */
 export function nextSpell() {
-  if (!M.learned.length) return;
-  M.sel = M.learned[(M.learned.indexOf(M.sel) + 1) % M.learned.length];
-  toast(`✦ ${SPELLS[M.sel].name}`);
+  if (holdingOwnerWand()) { // hůl vlastníka: jeho kouzla a pak naučená
+    const list = [...OWNER_SPELLS, ...M.learned], id = list[(list.indexOf(activeSpell()) + 1) % list.length];
+    if (OWNER_SPELLS.includes(id)) ownerSel = id; else { ownerSel = null; M.sel = id; }
+  } else if (!M.learned.length) return;
+  else M.sel = M.learned[(M.learned.indexOf(M.sel) + 1) % M.learned.length];
+  toast(`✦ ${SPELLS[activeSpell()].name}`);
   renderBars();
 }
 export const bookOpen = () => !!win;

@@ -24,6 +24,7 @@ const DESC = {
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',
   wand: 'Pravé tl. = kouzlo. Kouzla se učí za XP (nová úroveň = vyber si kouzlo). R = další kouzlo, K = kniha kouzel.',
+  owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
   bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
 };
 // V kolika receptech je předmět surovinou

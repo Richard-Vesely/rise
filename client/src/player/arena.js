@@ -1,5 +1,6 @@
 // Aréna na straně hráče (svět se souboji, NET.pvp): po vstupu a po každé smrti nová výbava a místo v aréně,
 // hlášení o vyřazení a tabulka bodů (body počítá hostitel: arenaDeath v shared/net/room.js). Bez vedlejších účinků při načtení.
+import { ownerItem } from '../../../shared/data/magic.js';
 import { NET } from '../../../shared/net/net.js';
 import { ARENA, arenaSpawn } from '../../../shared/world/arena.js';
 import { $ } from '../ui/dom.js';
@@ -14,9 +15,11 @@ export const KIT_ARMOR = ['iron_helmet', 'iron_chestplate', 'iron_leggings', 'ir
 
 /** Vymění batoh a brnění za výbavu arény a postaví hráče na volné místo v ní. */
 export function arenaReset() {
+  const keep = [...inv.slots, inv.cursor].filter((s) => ownerItem(s?.id)); // hůl vlastníka zůstává
   inv.slots.fill(null);
   inv.cursor = null;
   KIT.forEach(([id, n], i) => { inv.slots[i] = { id, n }; });
+  for (const s of keep) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = s; }
   inv.sel = 0;
   KIT_ARMOR.forEach((id, i) => { armor[i] = { id, n: 1 }; });
   const [x, y, z] = arenaSpawn();
