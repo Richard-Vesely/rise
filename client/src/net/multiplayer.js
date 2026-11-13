@@ -24,6 +24,7 @@ import { cutGrass } from '../render/grass.js';
 import { scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
+import { applyDary } from '../ui/donation-ui.js';
 import { chatLine, leaveGame, renderPause, serverRestarting, sysLine } from './mp-ui.js';
 import { pvLock } from '../player/pvp.js';
 
@@ -108,6 +109,7 @@ export function onHostMsg(msg) {
       break;
     }
     case 'toast': toast(msg[1]); break;
+    case 'dary': applyDary(msg[1]); if (invOpen && ui.mode === 'dar') renderInventory(); break; // pokladnička darů u sochy (jen server kroužku)
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'pvlock': pvLock(msg[1]); break; // byl jsi v souboji: souboje 20 s nejdou vypnout
     case 'goto': try { sessionStorage.setItem('rise-goto', String(msg[1] || '').slice(0, 40)); } catch {} leaveGame(); break; // Marek: /svet (menu se samo připojí, menu.js)

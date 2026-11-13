@@ -11,7 +11,7 @@ test('data tables are complete (counts from Marek\'s version 2778d1b)', () => {
   // + 13 vozidel a dílů (kolo, lodě, hydroplán, garáž a vylepšení; shared/data/tech.js) + čarovná hůl
   assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1);
   assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1);
-  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1);
+  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3); // + socha darů: podstavec, zlato, pokladnička
   assert.equal(KITCHEN.length, 36);
   assert.equal(Object.keys(CROPS).length, 4);
 });

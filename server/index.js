@@ -13,10 +13,12 @@
 //   SAVE_SECONDS    jak často ukládat svět (výchozí 30)
 //   ADMIN_PASSWORD  heslo stránky /admin se seznamem hráčů a resetem PINu (prázdné = stránka vypnutá)
 //   SILENT_SECONDS  po kolika sekundách ticha se spojení s hráčem zavře (výchozí 30; testy na pomalém stroji víc)
+//   OWNER_ID        id profilu vlastníka serveru (z players.json): jen on bere dary z pokladničky u sochy (prázdné = nikdo)
 // Profily hráčů (přezdívka + PIN) jsou v DATA_DIR/players.json; správa z příkazové řádky: node server/admin.js
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './server.js';
+import { ownerIdFrom } from './owner.js';
 import { parseWorlds } from './worlds.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -37,6 +39,7 @@ const srv = await startServer({
   saveEveryMs: 1000 * Number(env.SAVE_SECONDS || 30),
   adminPassword: env.ADMIN_PASSWORD || '',
   silentMs: 1000 * Number(env.SILENT_SECONDS || 30),
+  ownerId: ownerIdFrom(env.OWNER_ID),
   log,
 });
 log(`Server Říše běží: http://localhost:${srv.port}/  (hráči se připojí na ws://<adresa>:${srv.port}/ws, světy: ${srv.worlds.join(', ')})`);
