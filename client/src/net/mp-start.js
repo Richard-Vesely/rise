@@ -17,7 +17,7 @@ import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
 import { fullSet, invOpen } from '../ui/inventory-ui.js';
 import { myPose, updateAvatars } from './avatars.js';
-import { chatLine, chatOpen, hidePause, leaveGame, netBox, renderNetBox, renderPause, showPause, sysLine } from './mp-ui.js';
+import { chatLine, chatOpen, hidePause, leaveGame, netBox, rejoinAfterRestart, renderNetBox, renderPause, restarting, showPause, sysLine } from './mp-ui.js';
 import { applyLaterKV, onHostMsg, toHost } from './multiplayer.js';
 
 // ---------- hlavní smyčka sítě (volá ji tick)
@@ -79,7 +79,7 @@ if (MP) {
     sysLine(`Server spuštěn. Kód pro kamarády: ${NET.code}`);
   } else {
     window.__netOnData = (d) => { try { onHostMsg(d); } catch (e) { console.error(e); } };
-    window.__netOnClose = () => { if (!NET.leaving) leaveGame(NET.kicked ? 'Hostitel tě vyhodil ze hry.' : BOOT.peer ? 'Hostitel ukončil hru.' : 'Spojení se přerušilo. Zkus se připojit znovu.'); };
+    window.__netOnClose = () => { if (restarting()) rejoinAfterRestart(); else if (!NET.leaving) leaveGame(NET.kicked ? 'Hostitel tě vyhodil ze hry.' : BOOT.peer ? 'Hostitel ukončil hru.' : 'Spojení se přerušilo. Zkus se připojit znovu.'); };
     for (const d of BOOT.queue || []) window.__netOnData(d);
     if (!NET.perm && creative) setCreative(false);
     sysLine(`Připojeno k serveru ${NET.code}${NET.worldName ? ` · svět ${NET.worldName}` : ''}`);
