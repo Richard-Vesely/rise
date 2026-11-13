@@ -3,20 +3,22 @@
 // Hlavní vlákno (server/server.js) drží WebSockety a posílá sem zprávy hráčů tohoto světa; odpovědi jdou zpátky.
 // Batohy hráčů (profily: server/profiles.js) se drží tady u světa a ukládají se do world.json (players: { id profilu: me }).
 // Pokladnička darů u sochy (server/donation-box.js) je taky tady; dary se hlásí hlavnímu vláknu do knihy darů.
+// Vlastník serveru a Markova armáda: server/army-owner.js.
 //   z hlavního vlákna: { t: 'join', cid, name, profile, gifts? } · { t: 'data', cid, raw } · { t: 'gone', cid } · { t: 'save' } · { t: 'stop' }
 //                      · { t: 'top', top } nový žebříček dárců · { t: 'gift', profile, gifts } dárky od správce pro hráče
 //   do hlavního vlákna: { t: 'ready', loaded } · { t: 'send', cid, raw } · { t: 'close', cid } · { t: 'stats', … } · { t: 'log', text } · { t: 'stopped' }
 //                      · { t: 'donation', by, name, id, n } hráč něco daroval
 import { parentPort, workerData } from 'node:worker_threads';
-import { accept, others } from '../shared/net/room.js';
+import { accept, armyChat, others } from '../shared/net/room.js';
 import { worldState } from '../shared/world/save.js';
 import { guardStatueOps } from '../shared/world/statue.js';
+import { createArmyOwner } from './army-owner.js';
 import { createDonationBox } from './donation-box.js';
 import { ME_MAX_BYTES, cleanMe } from './me.js';
 import { loadWorldFile, saveWorldFile } from './persist.js';
 import { setupWorld, stepWorld } from './sim.js';
 
-/** @type {{ id: string, name: string, creative: boolean, pvp: boolean, pvpMark: boolean, first: boolean, dir: string|null, maxPlayers: number, tickHz: number, saveEveryMs: number, ownerId?: string, ownerName?: string, top?: [string, number][] }} */
+/** @type {{ id: string, name: string, creative: boolean, pvp: boolean, pvpMark: boolean, first: boolean, dir: string|null, maxPlayers: number, tickHz: number, saveEveryMs: number, ownerId?: string, ownerName?: string, armyPhrase?: string, armyReturnPhrase?: string, top?: [string, number][] }} */
 const W = workerData;
 const post = (m) => parentPort.postMessage(m);
 const log = (text) => post({ t: 'log', text });
@@ -37,6 +39,14 @@ const dbox = createDonationBox({
   onDonation: (d) => post({ t: 'donation', ...d }),
 });
 dbox.setTop(W.top);
+
+// ---------- armáda: vlastník serveru smí velet vždycky (server/army-owner.js)
+const armyOwner = createArmyOwner({
+  ownerId: W.ownerId || '', ownerName: W.ownerName || '', phrase: W.armyPhrase || '', back: W.armyReturnPhrase || '', saved: saved?.army, log,
+  send: (cid, msg) => sendRaw(cid, msg),
+  command: (cid, name, text) => armyChat(cid, name, text, true),
+  players: () => [...others.values()].map((P) => [P.pid, P.name]),
+});
 
 // ---------- spojení hráčů: stejné funkce jako spojení PeerJS (shared/net/room.js je používá stejně)
 const conns = new Map(); // cid -> { handlers, shut, profile, name, gifts }
@@ -81,6 +91,7 @@ function onData(cid, raw) {
     return;
   }
   if (dbox.handle(cid, c.profile, c.name, msg)) return; // pokladnička darů
+  if (armyOwner.handle(cid, c.profile, others.get(cid)?.name ?? c.name, msg)) return; // armáda a vlastník serveru
   if (msg[0] === 'pose' && c.gifts.length) { // hra už běží: dárky od správce do batohu
     for (const g of c.gifts.splice(0)) sendRaw(cid, ['give', g.id, g.n]);
     sendRaw(cid, ['toast', 'Dostal(a) jsi dárek od správce serveru!']);
@@ -115,7 +126,7 @@ const ticker = setInterval(() => {
   last = now;
 }, 1000 / W.tickHz);
 const statsTimer = setInterval(stats, 1000);
-const save = () => { if (W.dir) saveWorldFile(W.dir, worldState(), players, { box: dbox.save() }); };
+const save = () => { if (W.dir) saveWorldFile(W.dir, worldState(), players, { box: dbox.save() }, armyOwner.save()); };
 const saver = setInterval(() => { try { save(); } catch (e) { log('Uložení selhalo: ' + e.message); } }, W.saveEveryMs);
 
 parentPort.on('message', (m) => {

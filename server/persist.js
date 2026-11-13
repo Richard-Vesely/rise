@@ -11,7 +11,7 @@ const VERSION = 2;
  * Načte uložený svět, nebo null (první spuštění). Starý soubor z verze 1 (jiná hra) se odloží stranou.
  * @param {string} dir složka s daty
  * @param {(msg: string) => void} [log]
- * @returns {{ world: object, players: Record<string, object>, donations: { box?: unknown[] } | null } | null} stav světa (worldState()), batohy hráčů (id profilu -> me) a pokladnička darů
+ * @returns {{ world: object, players: Record<string, object>, donations: { box?: unknown[] } | null, army: object | null } | null} stav světa (worldState()), batohy hráčů (id profilu -> me), pokladnička darů a kdo velí armádě
  */
 export function loadWorldFile(dir, log = () => {}) {
   const file = path.join(dir, 'world.json');
@@ -25,7 +25,8 @@ export function loadWorldFile(dir, log = () => {}) {
   }
   const players = data.players && typeof data.players === 'object' && !Array.isArray(data.players) ? data.players : {};
   const donations = data.donations && typeof data.donations === 'object' && !Array.isArray(data.donations) ? data.donations : null;
-  return { world: data.world, players, donations };
+  const army = data.army && typeof data.army === 'object' && !Array.isArray(data.army) ? data.army : null;
+  return { world: data.world, players, donations, army };
 }
 
 /**
@@ -34,9 +35,10 @@ export function loadWorldFile(dir, log = () => {}) {
  * @param {object} world stav světa (worldState())
  * @param {Record<string, object>} [players] id profilu -> stav hráče (batoh, pozice…)
  * @param {{ box: unknown[] }} [donations] předměty v pokladničce darů (server/donation-box.js)
+ * @param {object} [army] kdo velí armádě (server/army-owner.js)
  */
-export function saveWorldFile(dir, world, players = {}, donations = undefined) {
-  writeJSON(path.join(dir, 'world.json'), { version: VERSION, savedAt: new Date().toISOString(), world, players, ...(donations ? { donations } : {}) }, 'world');
+export function saveWorldFile(dir, world, players = {}, donations = undefined, army = undefined) {
+  writeJSON(path.join(dir, 'world.json'), { version: VERSION, savedAt: new Date().toISOString(), world, players, ...(donations ? { donations } : {}), ...(army ? { army } : {}) }, 'world');
 }
 
 /**
