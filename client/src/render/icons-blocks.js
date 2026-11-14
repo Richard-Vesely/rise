@@ -289,7 +289,7 @@ function isoBoxes(top, side, boxes) {
   }));
   // Obchod za zlato (shared/data/shop.js): zlaťák, světelné meče, trojzubec, křídla, plamenomet, lékárnička
   icon('coin', face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d < 6.5 ? (d > 5.3 ? '#a8801a' : Math.abs(x - 7.5) < 1 && y > 4 && y < 11 ? '#fff0a0' : x + y < 13 ? '#ffe46a' : '#f0b82a') : null; }));
-  for (const [id, col, core] of [['saber_blue', '#3aa8ff', '#e0f4ff'], ['saber_green', '#3aff5a', '#e8ffe8'], ['saber_red', '#ff2a2a', '#ffe0e0'], ['saber_purple', '#b05aff', '#f4e8ff'], ['fire_sword', '#ff5a1a', '#ffe070']]) {
+  for (const [id, col, core] of [['saber_blue', '#3aa8ff', '#e0f4ff'], ['saber_green', '#3aff5a', '#e8ffe8'], ['saber_red', '#ff2a2a', '#ffe0e0'], ['saber_purple', '#b05aff', '#f4e8ff'], ['fire_sword', '#ff5a1a', '#ffe070'], ['saber_gold', '#ffc830', '#fff8d0']]) {
     icon(id, face((x, y) => {
       const s = x + y, off = Math.abs(s - 15);
       if (x <= 5 && y >= 10) return off <= 0.8 ? (x === 3 || x === 5 ? '#2a2a30' : '#9aa2ac') : null; // rukojeť
@@ -331,6 +331,50 @@ function isoBoxes(top, side, boxes) {
     return x === 3 || x === 12 || y === 14 ? '#5a646e' : '#a8b0ba';
   }));
   icon('fire_charge', face((x, y) => { const d = Math.hypot(x - 7.5, y - 8); return d < 5.5 ? (d < 2.2 ? '#fff0a0' : d < 4 ? '#ffa020' : '#d8380a') : (y < 6 && Math.abs(x - 7.5 + (y - 3)) < 1 && y > 1 ? '#ff7a1a' : null); }));
+  // další vychytávky z obchodu (shared/data/shop.js)
+  icon('jetpack', face((x, y) => {
+    if (y > 11 && y < 15 && (x === 4 || x === 5 || x === 10 || x === 11)) return y > 12 ? '#ffd040' : '#ff7a1a'; // plameny
+    if ((x >= 3 && x <= 6) || (x >= 9 && x <= 12)) return y >= 2 && y <= 11 ? (y === 2 || x === 3 || x === 12 ? '#5a646e' : '#a8b0ba') : null;
+    if (x >= 7 && x <= 8 && y >= 4 && y <= 8) return '#2a2a30';
+    return null;
+  }));
+  icon('teleport_orb', face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d < 6 ? (d < 2 ? '#ffffff' : (x + y) % 3 ? '#9a5aff' : '#5a2aa8') : null; }));
+  const gun = (barrel, glow) => face((x, y) => {
+    if (y >= 5 && y <= 8 && x >= 3 && x <= 13) return x >= 12 ? glow : y === 5 ? '#8a96a4' : barrel;
+    if (y >= 9 && y <= 13 && x >= 4 && x <= 6) return '#2a2a30'; // rukojeť
+    if (y === 9 && x >= 7 && x <= 8) return '#2a2a30'; // spoušť
+    return null;
+  });
+  icon('freeze_ray', gun('#5a7a9a', '#8ae8ff'));
+  icon('blaster', gun('#3a3a42', '#ff3a2a'));
+  icon('thunder_hammer', face((x, y) => {
+    if (y >= 2 && y <= 6 && x >= 3 && x <= 12) return y === 2 ? '#d8dce2' : (x + y) % 4 ? '#8a96a4' : '#5a646e'; // hlava
+    if (x >= 7 && x <= 8 && y > 6 && y <= 14) return y % 3 ? '#7a5a36' : '#c8a040'; // násada
+    if (y === 4 && (x === 1 || x === 14)) return '#8ae8ff'; // jiskry
+    return null;
+  }));
+  icon('speed_potion', face((x, y) => {
+    if (y < 3) return x >= 6 && x <= 9 ? '#8a5a2a' : null; // zátka
+    if (y < 6) return x >= 6 && x <= 9 ? '#c8e8f0' : null; // hrdlo
+    const d = Math.hypot(x - 7.5, y - 10);
+    return d < 5 ? (y > 8 ? (d < 2 ? '#b0ffff' : '#2ad8e8') : '#c8e8f0') : null;
+  }));
+  icon('grenade', face((x, y) => {
+    if (y < 4) return x >= 7 && x <= 9 ? '#8a96a4' : x === 10 && y === 2 ? '#c8ccd4' : null;
+    const d = Math.hypot(x - 7.5, y - 9.5);
+    return d < 5 ? ((x + y) % 3 ? '#4a5a2a' : '#2e3a1a') : null;
+  }));
+  icon('firework', face((x, y) => {
+    if (x >= 6 && x <= 9 && y >= 5 && y <= 13) return y % 3 ? '#d83a3a' : '#f4f4f4';
+    if (y < 5 && Math.abs(x - 7.5) < 5 - y) return '#3a5ab0'; // špička
+    if (y === 14 && x === 8) return '#c8a040'; // doutnák
+    return null;
+  }));
+  icon('grapple', face((x, y) => {
+    if (y <= 4 && (Math.abs(x - 7.5 - (4 - y)) < 0.8 || Math.abs(x - 7.5 + (4 - y)) < 0.8 || (x >= 7 && x <= 8))) return '#a8b0ba'; // hák
+    if (x >= 7 && x <= 8 && y > 4) return y % 2 ? '#c8a060' : '#8a6a3a'; // lano
+    return null;
+  }));
   icon('medkit', face((x, y) => {
     if (y < 4 && x > 5 && x < 10) return y === 2 ? null : '#5a5a62';
     if (x < 1 || x > 14 || y < 3 || y > 13) return null;

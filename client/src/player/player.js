@@ -225,7 +225,8 @@ export function updatePlayer(dt) {
   const sprint = flying ? keys.has('ControlLeft') : shift && player.hunger > 5;
   // plavání: hruď pod hladinou (hluboký rybník, jezero)
   const swim = flying ? null : waterAt(player.pos.x, player.pos.y + 1.1, player.pos.z);
-  const speed = (flying ? (sprint ? 24 : 12) : sprint ? RUN : WALK) * (set === 'shadow' && !flying ? 1.25 : 1) * (swim !== null ? 0.55 : 1);
+  if (player.speedT > 0) player.speedT -= dt; // lektvar rychlosti (player/gadgets.js)
+  const speed = (flying ? (sprint ? 24 : 12) : sprint ? RUN : WALK) * (set === 'shadow' && !flying ? 1.25 : 1) * (player.speedT > 0 ? 1.6 : 1) * (swim !== null ? 0.55 : 1);
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   const tx = ((s * cos - f * sin) / len) * speed, tz = ((-s * sin - f * cos) / len) * speed;
   const v = player.vel, p = player.pos;

@@ -328,6 +328,28 @@ try {
   check('shop: /sell turns gold into coins (20 ingots × 10 + 2 blocks × 90 = 380)', r.coins === 380 && r.gold === 0, JSON.stringify(r));
   check('shop: /shop lists sabers, trident, wings, flamethrower, medkit, the jet and 123 more game items; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.items.length >= 138 && ['iron_pick', 'pizza', 'car'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
   check('shop: wings give 30 s of flying on right click', r.fly > 29, JSON.stringify(r));
+  r = await ev(() => { // speciální vychytávky: lektvar rychlosti, teleportační koule, raketový batoh, granát, hák
+    const g = window.game, use = (id) => { T.clearInv(); T.give(id, 1); T.hold(id); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016); };
+    g.mobs.length = 0; T.tpg(-40, 60); T.step(5);
+    use('speed_potion');
+    const speed = g.player.speedT, potionGone = T.count('speed_potion') === 0;
+    const p0 = g.player.pos.clone(); g.player.pitch = -0.1;
+    use('teleport_orb');
+    const moved = g.player.pos.distanceTo(p0);
+    T.tpg(-40, 60); T.step(5);
+    const y0 = g.player.pos.y; T.clearInv(); T.give('jetpack', 1); T.hold('jetpack'); g.input.rmb = true; T.step(20, 0.016); g.input.rmb = false;
+    const up = g.player.pos.y - y0;
+    T.tpg(-40, 60); T.step(20); g.player.flyT = 0;
+    const p = g.player.pos; g.spawnMob('boar', p.x, p.z - 6); const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp;
+    T.aim(m.pos.x, m.pos.y + 1.5, m.pos.z);
+    use('grenade'); for (let i = 0; i < 80; i++) T.step(1, 0.016);
+    const boom = hp0 - m.hp;
+    T.aim(p.x, p.y - 3, p.z - 12);
+    use('grapple');
+    const pulled = Math.hypot(g.player.vel.x, g.player.vel.z);
+    return { speed, potionGone, moved, up, boom, pulled };
+  });
+  check('gadgets: speed potion, teleport orb, jetpack, grenade and grappling hook work', r.speed > 29 && r.potionGone && r.moved > 5 && r.up > 1 && r.boom > 0 && r.pulled > 3, JSON.stringify(r));
   r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu
     const g = window.game, p = g.player.pos, k = `${Math.floor(p.x) + 2},${Math.floor(p.y)},${Math.floor(p.z)}`;
     g.Sound?.init?.();

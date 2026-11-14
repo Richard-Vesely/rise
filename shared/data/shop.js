@@ -21,6 +21,19 @@ BLOCKS.jukebox = { name: 'Přehrávač filmové hudby', solid: true, hard: 1.5, 
 add('jukebox', 'Přehrávač filmové hudby', { block: 'jukebox', stack: 8 });
 export const DISCS = [['disc_hero', 'Hrdinský pochod', '#e8c030'], ['disc_space', 'Hvězdná výprava (vesmírná opera)', '#3a6ae8'], ['disc_mystery', 'Tajemný les', '#2a8a4a'], ['disc_battle', 'Poslední bitva', '#c82a2a'], ['disc_finale', 'Velké finále', '#b05aff']];
 for (const [id, name] of DISCS) add(id, `Hudební disk: ${name}`, { disc: true, stack: 16 });
+// Další speciální vychytávky (client/src/player/gadgets.js). Pole: jetpack (drž pravé tl.), teleport = dosah (m),
+// ray = paprsková zbraň { dmg, cd, color, slow }, hammer = blesk na pravé tl. (cd s), speed = s rychlého běhu,
+// grenade = { dmg, r } výbuch, firework = ohňostroj, grapple = dosah háku (m).
+add('saber_gold', 'Zlatý světelný meč', { tool: 'sword', tier: 5, dmg: 18, dur: 8000, saber: 0xffc830 });
+add('jetpack', 'Raketový batoh', { jetpack: true, dur: 600 });
+add('teleport_orb', 'Teleportační koule', { teleport: 40, stack: 16 });
+add('freeze_ray', 'Mrazicí paprsek', { ray: { dmg: 5, cd: 0.6, color: 0x8ae8ff, slow: true }, dur: 500 });
+add('blaster', 'Blaster', { ray: { dmg: 6, cd: 0.18, color: 0xff3a2a, auto: true }, dur: 1200 });
+add('thunder_hammer', 'Hromové kladivo', { tool: 'sword', tier: 5, dmg: 13, dur: 2000, hammer: 3 });
+add('speed_potion', 'Lektvar rychlosti', { speed: 30, stack: 8 });
+add('grenade', 'Granát', { grenade: { dmg: 14, r: 4 }, stack: 16 });
+add('firework', 'Ohňostroj', { firework: true, stack: 32 });
+add('grapple', 'Hák na laně', { grapple: 35, dur: 400 });
 add('jet', 'Stíhačka', { vehicle: 'jet', art: ['jet', '#5a6470', '#ff5a2a'], cat: 'aircraft' });
 
 /** Co je v obchodě a za kolik zlaťáků (pořadí = pořadí v okně). */
@@ -28,6 +41,8 @@ export const SHOP = [
   ['medkit', 15], ['wings', 60], ['trident', 80], ['flamethrower', 100],
   ['saber_blue', 150], ['saber_green', 150], ['saber_purple', 150], ['saber_red', 180], ['jet', 400],
   ['jukebox', 60], ...DISCS.map(([id]) => [id, 25]),
+  ['saber_gold', 250], ['jetpack', 120], ['teleport_orb', 20], ['freeze_ray', 90], ['blaster', 110], ['thunder_hammer', 200],
+  ['speed_potion', 15], ['grenade', 12], ['firework', 3], ['grapple', 70],
 ];
 /** Další věci ze hry v obchodě (123 kusů): ceny v zlaťácích. Zlato tu není, aby nešlo dokola kupovat a prodávat. */
 export const SHOP_MORE = [

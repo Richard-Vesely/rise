@@ -318,6 +318,11 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
   16 dmg, red 17; glowing blade in the hand), trident (stabs like a sword, right-click throws it: 14 dmg, stays in the hand),
   wings (right-click = 30 s of flying), flamethrower (hold right-click = stream of fire ~9 m), medkit (full health) and the
   fighter jet (*Stíhačka*, vehicle `jet`: flies like the biplane with a 3.4× stronger engine). Prices and items
+  More special gadgets: golden light saber (18), jetpack (hold right-click = fly up), teleport orb (right-click = jump
+  where you look, up to 40 m, used up), freeze ray (5 damage, slows the mob 4 s), blaster (hold = fast laser fire, 6 each),
+  thunder hammer (13 like a sword, right-click = lightning where you aim, every 3 s), speed potion (30 s 60 % faster),
+  grenade (thrown in an arc, explodes: 14 damage within 4 m), firework (a rocket that bursts in a random colour) and the
+  grappling hook (catches a block or the ground up to 35 m away and pulls you there).
   Plus 123 normal game items (`SHOP_MORE`: basics, tools, armor, food, farming, building blocks, tech parts, vehicles; no gold,
   so nobody can buy and sell in a loop); the window has a search box and scrolls. Prices and items
   `shared/data/shop.js`, window `client/src/ui/shop.js`, gadgets `client/src/player/gadgets.js`, jet model `client/src/vehicles/jet-model.js`.
