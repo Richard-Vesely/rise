@@ -326,7 +326,7 @@ try {
     return { coins, gold, items, after, jet, closed, fly };
   });
   check('shop: /sell turns gold into coins (20 ingots × 10 + 2 blocks × 90 = 380)', r.coins === 380 && r.gold === 0, JSON.stringify(r));
-  check('shop: /shop lists sabers, trident, wings, flamethrower, medkit and the jet; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
+  check('shop: /shop lists sabers, trident, wings, flamethrower, medkit, the jet and 123 more game items; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.items.length >= 138 && ['iron_pick', 'pizza', 'car'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
   check('shop: wings give 30 s of flying on right click', r.fly > 29, JSON.stringify(r));
   r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu
     const g = window.game, p = g.player.pos, k = `${Math.floor(p.x) + 2},${Math.floor(p.y)},${Math.floor(p.z)}`;
