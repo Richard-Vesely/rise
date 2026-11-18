@@ -399,6 +399,10 @@ export function useItem() {
   const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
   const held0 = heldStack();
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && (target.type === 'prison_gate' || target.type === 'prison_rune')) { // bludiště vězení (player/prison.js)
+    if (NET.jail) NET.req(['vez', target.type === 'prison_gate' ? 'gate' : 'rune', ...target.cell]); else toast(target.type === 'prison_gate' ? 'Brána z vězení: otevře se jen vězňovi s hotovým úkolem' : 'Runa tiše září');
+    return;
+  }
   if (target?.kind === 'block' && target.type === 'donation_box') { openInventory('dar'); NET.req(['dary']); return; } // pokladnička darů u sochy (ui/donation-ui.js)
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }
   if (target?.kind === 'block' && target.type === 'hell_portal') { useHellPortal(); return; } // portál do pekla (world/hell.js)

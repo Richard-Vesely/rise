@@ -10,6 +10,7 @@ import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
 import { receiveGift } from '../pc/papers-world.js';
 import { startArena } from '../player/arena.js';
+import { askOpen } from '../player/prison.js';
 import { creative, guideOpen, isLocked, player, setCreative } from '../player/player.js';
 import { rebuildBlocks } from '../render/blocks.js';
 import { rebuildForest } from '../render/forest.js';
@@ -69,7 +70,7 @@ if (MP) {
   $('hint').textContent += ' · T chat · N souboje · Esc menu a hráči';
   document.addEventListener('pointerlockchange', () => {
     if (isLocked()) { hidePause(); return; }
-    if (!invOpen && !guideOpen && !chatOpen && !pcOpen && !docOpen && !NET.leaving) showPause();
+    if (!invOpen && !guideOpen && !chatOpen && !askOpen && !pcOpen && !docOpen && !NET.leaving) showPause();
   });
   window.__netOnPeerError = (e) => { if (NET.client && !BOOT.conn?.open) leaveGame('Spojení s hostitelem se přerušilo.'); else console.warn('PeerJS:', e?.type); };
   if (NET.host) {

@@ -43,7 +43,7 @@ export const MOBS = {
     drops: [['markapple', 1, 1, 0.3], ['iron', 1, 2, 0.4], ['markwood', 1, 2, 0.5], ['markorite_raw', 1, 1, 0.3], ['iron_sword', 1, 1, 0.08],
       ['iron_helmet', 1, 1, 0.04], ['iron_chestplate', 1, 1, 0.03], ['iron_leggings', 1, 1, 0.03], ['iron_boots', 1, 1, 0.04]],
   },
-  // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; oko z něj je výkupné z vězení.
+  // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; zabít ho je jeden z úkolů vězně (server/prison-tasks.js).
   spider: { name: 'Obří pavouk', hp: 30, radius: 1.1, cy: 0.6, dmg: 12, drops: [['spider_eye', 1, 1]] },
   // Ďábel: žije jen v pekle (shared/world/hell.js); rychlý, silný, padá z něj ohnivá koule a vzácně ohnivý drahokam a hororový disk.
   devil: { name: 'Ďábel', hp: 28, radius: 0.7, cy: 1.0, dmg: 11, tall: true, drops: [['fire_charge', 0, 2], ['fire_gem', 1, 1, 0.08], ['disc_horror', 1, 1, 0.05]] },

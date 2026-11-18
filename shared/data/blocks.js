@@ -30,6 +30,8 @@ export const BLOCKS = {
   donation_box: { name: 'Pokladnička darů', solid: true, hard: 99, drop: null, fixed: true, special: true },
   // Vězení na serveru kroužku (shared/world/prison.js): bílé nezničitelné bloky
   prison_block: { name: 'Vězeňský blok', solid: true, hard: 99, drop: null, fixed: true, tint: 0xf2f2ee },
+  prison_gate: { name: 'Brána z vězení', solid: true, hard: 99, drop: null, fixed: true, tint: 0xb8862b }, // brány bludiště (pravé tl. = ven)
+  prison_rune: { name: 'Runový kámen', solid: true, hard: 99, drop: null, fixed: true, tint: 0x45c8d8 }, // runy v slepých uličkách bludiště
 };
 
 // ============================================================ stavební bloky: kameny, schody, půlbloky, mříže, zábradlí

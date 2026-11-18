@@ -9,6 +9,7 @@ import { BIOME_NAMES, biomeAt, isMark, shrineOf } from '../../../shared/world/te
 import { isDragon } from '../../../shared/world/dragon-land.js';
 import { inPrison } from '../../../shared/world/prison.js';
 import { mobs } from '../../../shared/sim/mobs.js';
+import { NET } from '../../../shared/net/net.js';
 import { Sound } from '../audio/sound.js';
 import { countItem } from '../player/inventory.js';
 import { creative, player } from '../player/player.js';
@@ -35,6 +36,8 @@ for (let i = 0; i < 24; i++) addCompass('<div class="tick"></div>', '', (i / 24)
 const shrineMark = addCompass('◆<small></small>', 'shrine', 0);
 const shardMark = addCompass('✦<small></small>', 'shard', 0);
 const ruinMark = addCompass('▣<small></small>', 'ruin', 0);
+const jailMark = addCompass('⛓<small></small>', 'jail', 0); // vězeň: jeho brána z bludiště (player/prison.js)
+const JAIL_SHORT = { monsters: 'pavouci', runes: 'runy', math: 'příklady', logic: 'hádanky' };
 function placeCompass(item) {
   const diff = wrapAngle(item.yaw - player.yaw);
   item.el.style.display = Math.abs(diff) < 1.75 ? '' : 'none';
@@ -128,8 +131,10 @@ export function updateHUD(dt) {
   }
   setMarker(shrineMark, shrineOf(player.pos.x).x, 0);
   setMarker(shardMark, best ? best.x : null, best ? best.z : null);
+  const jx = NET.jail?.exit;
+  setMarker(jailMark, jx ? jx[0] : null, jx ? jx[1] : null);
   const h = Math.floor(dayTime * 24), mi = Math.floor((dayTime * 24 * 60) % 60);
-  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${inPrison(player.pos.x, player.pos.y, player.pos.z) ? ' · Vězení' : isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
+  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${NET.jail ? ` · Vězení: ${JAIL_SHORT[NET.jail.kind] || 'úkol'} ${NET.jail.done}/${NET.jail.need}` : inPrison(player.pos.x, player.pos.y, player.pos.z) ? ' · Vězení' : isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
   $('hpfill').style.width = `${Math.max(0, player.hp)}%`;
   $('foodfill').style.width = `${player.hunger}%`;
   $('armorfill').style.width = `${(armorPoints() / 23) * 100}%`;
