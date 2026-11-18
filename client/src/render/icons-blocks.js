@@ -280,6 +280,17 @@ function isoBoxes(top, side, boxes) {
     if (Math.abs(s - 15) <= 0.6 && x >= 2 && x <= 10) return x === 5 || x === 8 ? '#f0c040' : '#1a1a1a';
     return null;
   }));
+  icon('xp_potion', face((x, y) => { // lektvar nekonečných XP: baňka se zeleně a zlatě zářící tekutinou, na ní zlaté ∞
+    if (x >= 6 && x <= 9 && y <= 1) return '#8a5a2a'; // zátka
+    if (x >= 6 && x <= 9 && y <= 5) return x === 6 || x === 9 ? '#a8c8d0' : '#e0f4f8'; // hrdlo
+    const d = Math.hypot(x - 7.5, y - 10);
+    if (d > 5.6) return null;
+    if (d > 4.7) return '#a8c8d0'; // sklo
+    const INF = { 10: [5, 6, 9, 10], 11: [4, 7, 8, 11], 12: [5, 6, 9, 10] }; // ∞
+    if (INF[y]?.includes(x)) return '#ffe46a';
+    if (y < 7) return Math.hypot(x - 5.5, y - 7) < 1.2 ? '#ffffff' : '#d8f0e8'; // vzduch nad hladinou, odlesk
+    return y < 9 ? '#7aff8a' : (x + y) % 5 ? '#2bd85a' : '#c8ff6a';
+  }));
   icon('arrow', face((x, y) => {
     const s = x + y;
     if (Math.abs(s - 15) > 1.6) return null;

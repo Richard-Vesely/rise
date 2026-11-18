@@ -83,7 +83,7 @@ function dropEverything() {
   const { x, y, z } = player.pos;
   let n = 0;
   const drop = (s) => { if (s) { popGroundItem(s.id, s.n, x, y + 0.8, z, s.w || 0); n++; } };
-  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // hůl vlastníka zůstává v batohu
+  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // předměty vlastníka (hůl, lektvar) zůstávají v batohu
   if (ownerItem(inv.cursor?.id)) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = inv.cursor; } else drop(inv.cursor);
   inv.cursor = null;
   armor.forEach((s, i) => { drop(s); armor[i] = null; });
