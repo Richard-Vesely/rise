@@ -85,29 +85,40 @@ test('one dragon spawns in its cave, even after repeated spawn checks', () => {
   assert.equal(mobs[0].hp, 300);
   for (const [id] of MOBS.dragon.drops) assert.ok(ITEMS[id]);
 });
+
+test('brutal dragon closes distance at 18 m/s and keeps moving after launch', () => {
+  target.pos.z = 28;
+  const m = spawnMob('dragon', DRAGON_CX, -72);
+  step(20);
+  assert.ok(m.vel.length() > 17 && m.vel.length() <= 18);
+  assert.ok(m.pos.z > -58, 'outpaces a sprinting player');
+  m.pos.set(DRAGON_CX, 0, -72); m.vel.set(0, 0, 0); target.pos.z = -52;
+  step(16); const z = m.pos.z;
+  step(6); assert.ok(m.pos.z > z + 1, 'does not freeze throughout a fireball flight');
+});
 test('fireball warns, locks its aim, travels, then damages once at range', () => {
   target.pos.z = -52;
   const m = spawnMob('dragon', DRAGON_CX, -72);
   step(1); const c = m.dragonCast;
-  assert.equal(m.hp, 300); assert.equal(c.charge, 0.9); assert.equal(c.to.z, -52);
+  assert.equal(m.hp, 300); assert.equal(c.charge, 0.75); assert.equal(c.to.z, -52);
   step(18); assert.deepEqual(hits, [], 'warning alone deals no damage');
   assert.ok(m.dragonCast.t < c.charge + c.flight);
-  step(24); assert.deepEqual(hits, [32]);
-  step(5); assert.deepEqual(hits, [32], 'one hit per explosion');
+  step(24); assert.deepEqual(hits, [44]);
+  step(5); assert.deepEqual(hits, [44], 'one hit per explosion');
 });
 
 test('an early sidestep followed by standing still is tracked and hit', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72);
   step(1); target.pos.x += 5; step(5);
   assert.equal(m.dragonCast.to.x, target.pos.x, 'tracks during early charge');
-  step(38); assert.deepEqual(hits, [32]);
+  step(38); assert.deepEqual(hits, [44]);
 });
 
 test('aim locks before launch, so a late committed dodge still works', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72);
-  step(15); const aim = m.dragonCast.to.x;
+  step(15); const c = m.dragonCast, aim = c.to.x;
   target.pos.x += 5; step(25);
-  assert.equal(m.dragonCast.to.x, aim, 'cannot home after the lock');
+  assert.equal(c.to.x, aim, 'cannot home after the lock');
   assert.deepEqual(hits, []);
 });
 
@@ -122,7 +133,7 @@ test('walls stop aiming and also stop a fireball already in flight', () => {
 
 test('half-health rage speeds the warning up but leaves time to dodge', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72); m.hp = 150;
-  step(1); assert.equal(m.dragonCast.charge, 0.65); assert.equal(m.dragonCast.damage, 40);
+  step(1); assert.equal(m.dragonCast.charge, 0.55); assert.equal(m.dragonCast.damage, 55);
   step(9); target.pos.x += 5; step(24); assert.deepEqual(hits, []);
 });
 
@@ -131,11 +142,11 @@ test('standing directly underneath triggers a warned radial stomp and nonzero kn
   const hurt = t.mock.method(NET, 'hurtLocal', (dmg) => hits.push(dmg));
   const m = spawnMob('dragon', DRAGON_CX, -72, 4);
   step(1); assert.ok(m.dragonStomp); assert.equal(m.dragonCast, undefined);
-  step(16); assert.deepEqual(hits, [], 'time to run out');
-  step(2); assert.deepEqual(hits, [44]);
+  step(14); assert.deepEqual(hits, [], 'time to run out');
+  step(3); assert.deepEqual(hits, [95]);
   const [, x, z] = hurt.mock.calls[0].arguments;
   assert.ok(Math.hypot(x, z) > 0.99, 'armor and knockback also work at the exact center');
-  step(20); assert.deepEqual(hits, [44], 'only one hit per stomp');
+  step(20); assert.deepEqual(hits, [95], 'only one hit per stomp');
 });
 
 test('leaving the stomp circle avoids it and a solid floor blocks it', () => {
@@ -150,17 +161,17 @@ test('leaving the stomp circle avoids it and a solid floor blocks it', () => {
 
 test('landing remains a melee opening, then close camping is punished again', () => {
   target.pos.z = -72;
-  const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonRest = 4;
-  step(60); assert.equal(m.dragonStomp, undefined); assert.deepEqual(hits, []);
+  const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonRest = 2.5;
+  step(35); assert.equal(m.dragonStomp, undefined); assert.deepEqual(hits, []);
   step(24); assert.ok(m.dragonStomp, 'stomp returns after the rest window');
 });
 
 test('the third volley cancels a pending stomp so the landing opening stays safe', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonShots = 2;
-  step(33); target.pos.set(m.pos.x, 0, m.pos.z);
+  step(23); target.pos.set(m.pos.x, 0, m.pos.z);
   step(1); assert.ok(m.dragonStomp);
   step(12); assert.ok(m.dragonRest > 0); assert.equal(m.dragonStomp, null);
-  step(60); assert.deepEqual(hits, []);
+  step(35); assert.deepEqual(hits, []);
 });
 
 test('every second volley covers both sideways dodge lanes', () => {
@@ -170,23 +181,23 @@ test('every second volley covers both sideways dodge lanes', () => {
   const centers = [c, ...c.extra].map((s) => s.to.x).sort((a, b) => a - b);
   assert.deepEqual(centers, [DRAGON_CX - 4.8, DRAGON_CX, DRAGON_CX + 4.8]);
   step(15); target.pos.x += 4.8; step(24);
-  assert.deepEqual(hits, [32], 'the side fireball catches the old sideways dodge');
+  assert.deepEqual(hits, [44], 'the side fireball catches the old sideways dodge');
 });
 
 test('overlapping fan explosions damage a player only once per volley', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonShotId = 1;
   step(15); target.pos.x += 2.4; step(24);
-  assert.deepEqual(hits, [32]);
+  assert.deepEqual(hits, [44]);
 });
 
-test('three shots lead to a four-second landing with no attacks', () => {
+test('three shots lead to a short landing with no attacks', () => {
   target.pos.z = -52;
   const m = spawnMob('dragon', DRAGON_CX, -72);
   let steps = 0;
   while (!(m.dragonRest > 0) && steps++ < 400) step(1);
-  assert.ok(m.dragonRest > 3.9); assert.equal(hits.length, 3);
+  assert.ok(m.dragonRest > 2.4); assert.equal(hits.length, 3);
   assert.equal(m.dragonCast, null);
-  step(60); assert.equal(hits.length, 3); assert.equal(m.dragonCast, null);
+  step(35); assert.equal(hits.length, 3); assert.equal(m.dragonCast, null);
   assert.ok(m.pos.y < 0.2, 'lands low enough for a sword');
   step(24); assert.ok(m.dragonCast, 'returns to the next attack cycle');
 });
@@ -196,7 +207,7 @@ test('remote fireball damage uses the existing message and a unit knockback for 
   const send = t.mock.method(NET, 'sendTo', () => {});
   spawnMob('dragon', DRAGON_CX, -72); step(43);
   assert.equal(send.mock.callCount(), 1);
-  assert.deepEqual(send.mock.calls[0].arguments, ['fighter', ['dmg', 32, 0, 1]]);
+  assert.deepEqual(send.mock.calls[0].arguments, ['fighter', ['dmg', 44, 0, 1]]);
   assert.deepEqual(hits, []);
 });
 
@@ -210,7 +221,7 @@ test('blast respects nearby players, creative mode, death and cover independentl
   spawnMob('dragon', DRAGON_CX, -72); step(1);
   for (let y = 0; y < 4; y++) blocks.set(bkey(DRAGON_CX - 1, y, -52), 'basalt');
   step(43);
-  assert.deepEqual(hits, [32]);
+  assert.deepEqual(hits, [44]);
   assert.deepEqual(send.mock.calls.map((c) => c.arguments[0]), ['nearby']);
 });
 
@@ -263,7 +274,7 @@ test('room broadcasts the full fire warning in the optional mob snapshot field',
   try { updateRoom(0.05); } finally { others.clear(); }
   const snapshot = messages.find((msg) => msg[0] === 'mobs')[3][0];
   assert.equal(snapshot[1], 'dragon'); assert.equal(snapshot[6], 300);
-  assert.equal(snapshot[12].cast.to.z, -52); assert.equal(snapshot[12].cast.charge, 0.9);
+  assert.equal(snapshot[12].cast.to.z, -52); assert.equal(snapshot[12].cast.charge, 0.75);
   assert.equal(snapshot[12].rest, 0);
 });
 

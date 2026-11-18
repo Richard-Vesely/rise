@@ -13,9 +13,9 @@ try {
       document.getElementById('intro').style.display = 'none';
       game.setCreative(true); T.clearInv(); T.tp(-40000, -52, 0); T.step(80);
       if (style !== 'careless' && style !== 'camp') {
-        for (const [i, part] of ['helmet','chestplate','leggings','boots'].entries()) game.armor[i] = { id: 'iron_' + part, n: 1 };
-        T.give(['bow','sideways'].includes(style) ? 'bow' : 'iron_sword', 1);
-        T.give('arrow', 64); T.hold(['bow','sideways'].includes(style) ? 'bow' : 'iron_sword');
+        for (const [i, part] of ['helmet','chestplate','leggings','boots'].entries()) game.armor[i] = { id: (style==='sideways'?'iron_':'markorite_') + part, n: 1 };
+        T.give(['bow','sideways'].includes(style) ? 'bow' : 'markorite_sword', 1);
+        T.give('arrow', 128); T.hold(['bow','sideways'].includes(style) ? 'bow' : 'markorite_sword');
       }
       if (style === 'camp') { const m=game.mobs.find(m=>m.type==='dragon'); T.tp(m.pos.x,m.pos.z,0); T.give('markorite_sword',1); T.hold('markorite_sword'); }
       game.setCreative(false); game.player.hp = 100; game.player.hunger = 90;
@@ -42,7 +42,8 @@ try {
           if(!p.alive || !m || m.dead) break;
           const dx=m.pos.x-p.pos.x,dz=m.pos.z-p.pos.z,d=Math.hypot(dx,dz);
           // Aim each frame; gravity compensation for the ordinary bow.
-          T.aim(m.pos.x,m.pos.y+2+(isBow?15*d*d/(2*46*46):0),m.pos.z);
+          const lead=isBow?d/46:0;
+          T.aim(m.pos.x+m.vel.x*lead,m.pos.y+2+(isBow?15*d*d/(2*46*46):0),m.pos.z+m.vel.z*lead);
           game.keys.clear(); game.input.lmb=false; game.input.rmb=false;
           if(style!=='careless') {
             const c=m.dragonCast, stomp=m.dragonStomp;

@@ -377,14 +377,15 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
 | Obří pavouk (giant spider) | 30 | only in the club server's prison: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka* (the prison item) |
-| Drak Země draka | 300 | ranged fireball boss; locks a marked impact circle, charges for 0.9 s, tracks until 0.3 s before launch, then fires up to 48 m away at 26 m/s; blast radius 3.2 m, damage 32 before armor; below half health charges in 0.65 s and deals 40; alternates single shots and a three-ball fan covering both side lanes; after three shots lands for four seconds without attacking, giving melee fighters an opening |
+| Drak Země draka | 300 | ranged fireball boss; locks a marked impact circle, charges for 0.75 s, tracks until 0.3 s before launch, then fires up to 48 m away at 42 m/s; blast radius 3.2 m, damage 44 before armor; below half health charges in 0.55 s and deals 55; alternates single shots and a three-ball fan covering both side lanes; after three shots lands for 2.5 seconds without attacking, giving melee fighters an opening |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
 Fireballs track during the yellow warning, then lock for the final 0.3 s before launch. Keep moving; fan volleys also cover both side lanes, so dodge along their axis or use cover. Walls intercept shots already in flight. Overlapping balls from the same volley hurt each player only once.
-Within 4.5 m the dragon warns of a radial stomp (0.85 s, or 0.7 s below half HP), dealing 44 / 55 damage and knockback even directly beneath its body. Sprint out of the red circle; walls and solid floors block the strike. No new stomp starts during the four-second landing window.
-The dragon stops to aim, keeps roughly 8-15 m distance between attacks, and flies at up to 5 m/s. It descends while resting so a sword can reach it.
+Within 4.5 m the dragon warns of a radial stomp (0.8 s, or 0.7 s below half HP), dealing 95 / 130 damage and knockback even directly beneath its body. Sprint out of the red circle; walls and solid floors block the strike. No new stomp starts during the 2.5-second landing window.
+The dragon stops only to aim, stomp or rest, keeps roughly 7-12 m distance, chases at up to 18 m/s and retreats at 9 m/s; after launch it keeps moving instead of waiting for the explosion. It descends while resting so a sword can reach it.
 It prioritizes survival players, so a creative bystander cannot shield another fighter. Creative players, dead players and players outside the dragon dimension are safe.
 After a lethal fireball it restores all 300 HP; surviving or escaping the attack does not heal it. Dead dragons cannot finish an attack.
+Stomps recharge in 1.4 s; between volleys it waits only 0.55 s, or 0.35 s below half health. Heavy armor and sprinting are strongly advised.
 The host synchronizes all three fireball trajectories, stomp warnings, explosions and the landing timer with all clients through an optional extra field of the mob snapshot.
 Defeating it guarantees a complete sky armor set
 (helmet, chestplate, leggings, boots; double jump, slow fall and healing), a markorite sword and pick,
