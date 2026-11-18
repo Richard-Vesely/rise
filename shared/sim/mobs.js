@@ -25,7 +25,7 @@ const HELL_DEVILS = 5; // kolik ďáblů najednou žije v pekle
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
   dragon: {
-    name: 'Drak Země draka', hp: 300, radius: 2.4, cy: 2, dmg: 44, tall: true,
+    name: 'Drak Země draka', hp: 1200, radius: 2.4, cy: 2, dmg: 44, tall: true,
     drops: [['sky_helmet', 1, 1], ['sky_chestplate', 1, 1], ['sky_leggings', 1, 1], ['sky_boots', 1, 1],
       ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 128, 128], ['gold_ingot', 32, 32],
       ['shard', 24, 24], ['markapple', 10, 10]],

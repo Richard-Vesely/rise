@@ -19,7 +19,7 @@ try {
       }
       if (style === 'camp') { const m=game.mobs.find(m=>m.type==='dragon'); T.tp(m.pos.x,m.pos.z,0); T.give('markorite_sword',1); T.hold('markorite_sword'); }
       game.setCreative(false); game.player.hp = 100; game.player.hunger = 90;
-      window.battle = { t: 0, shots: 0, minHP: 100, landings: 0, wasResting: false, damageTaken: 0, previousHP: 100, minDragonHP: 300 };
+      window.battle = { t: 0, shots: 0, minHP: 100, landings: 0, wasResting: false, damageTaken: 0, previousHP: 100, minDragonHP: 1200 };
     }, style);
     // See the attack before playing through it.
     if (style === 'bow' && !process.env.PLAYTEST_NO_SHOTS) {
@@ -31,7 +31,7 @@ try {
         const m=game.mobs.find(m=>m.type==='dragon'); const f=game.mobView(m).dragonFire;
         return { hp:m.hp, warning: f.root.visible && f.ring.visible, label:f.label.visible };
       });
-      assert.deepEqual(visible,{hp:300,warning:true,label:true});
+      assert.deepEqual(visible,{hp:1200,warning:true,label:true});
     }
     let result;
     for (let batch=0;batch<36;batch++) {
