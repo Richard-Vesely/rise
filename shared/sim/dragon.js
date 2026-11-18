@@ -1,11 +1,12 @@
-// Ohnivy souboj: oznaceny dopad, pomala koule a odpocinek pro utok mecem.
+// Ohnivy souboj: pozdni zamereni, vejire kouli, blizke dupnuti a odpocinek pro mec.
 import { emit } from '../events.js';
 import { NET, nearestTarget } from '../net/net.js';
 import { solidAny } from '../world/collision.js';
 import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { groundHeight } from '../world/voxels.js';
 
-export const DRAGON_FIRE = { range: 48, radius: 2.6, charge: 0.9, speed: 18, rest: 4, shots: 3 };
+export const DRAGON_FIRE = { range: 48, radius: 3.2, charge: 0.9, speed: 26, lock: 0.3, spread: 4.8, rest: 4, shots: 3 };
+export const DRAGON_STOMP = { radius: 4.5, charge: 0.85, cooldown: 2.6, damage: 44 };
 const point = (x, y, z) => ({ x, y, z });
 export function dragonSight(a, b) {
   const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
@@ -22,7 +23,7 @@ export function dragonFirePosition(c, time = c.t) {
     c.from.y + (c.to.y - c.from.y) * k + Math.sin(k * Math.PI) * 1.5,
     c.from.z + (c.to.z - c.from.z) * k);
 }
-export const dragonNet = (m) => ({ cast: m.dragonCast ?? null, rest: m.dragonRest || 0 });
+export const dragonNet = (m) => ({ cast: m.dragonCast ?? null, stomp: m.dragonStomp ?? null, rest: m.dragonRest || 0 });
 
 function impact(m, c, at) {
   c.burst = at; c.t = c.charge + c.flight;
@@ -31,6 +32,9 @@ function impact(m, c, at) {
     if (!T.alive || T.creative || !isDragon(T.pos.x)) continue;
     const chest = point(T.pos.x, T.pos.y + 1, T.pos.z);
     if (Math.hypot(chest.x - at.x, chest.y - at.y, chest.z - at.z) > c.radius || !dragonSight(at, chest)) continue;
+    const pid = T.pid ?? 'local';
+    if (m.dragonVolleyHits?.has(pid)) continue; // prekryv tri kouli nenasobi zraneni
+    m.dragonVolleyHits?.add(pid);
     let dx = chest.x - at.x, dz = chest.z - at.z;
     if (Math.hypot(dx, dz) < 0.01) { dx = c.to.x - c.from.x; dz = c.to.z - c.from.z; }
     if (Math.hypot(dx, dz) < 0.01) dz = 1; // primy zasah take pouziva brneni
@@ -40,9 +44,7 @@ function impact(m, c, at) {
     else NET.hurtLocal?.(c.damage, dx / d, dz / d);
   }
 }
-function updateFire(m, dt) {
-  const c = m.dragonCast;
-  if (!c) return;
+function advanceFire(m, c, dt) {
   const old = c.t; c.t += dt;
   m.windup = Math.max(0, c.charge - c.t);
   if (!c.burst && c.t >= c.charge) {
@@ -59,11 +61,58 @@ function updateFire(m, dt) {
     }
     if (!c.burst && c.t >= c.charge + c.flight) impact(m, c, c.to);
   }
-  if (c.burst && c.t >= c.charge + c.flight + 0.4) {
+}
+function aimFire(m, c, T) {
+  const dx = T.pos.x - m.pos.x, dz = T.pos.z - m.pos.z, d = Math.hypot(dx, dz) || 1;
+  const reach = Math.min(3.6, d * 0.6);
+  c.from = point(m.pos.x + dx / d * reach, m.pos.y + 2.7, m.pos.z + dz / d * reach);
+  c.to = point(T.pos.x, T.pos.y + 1, T.pos.z);
+  for (let i = 0; i < (c.extra?.length || 0); i++) {
+    const side = i === 0 ? -1 : 1;
+    c.extra[i].from = c.from;
+    c.extra[i].to = point(c.to.x + dz / d * DRAGON_FIRE.spread * side, c.to.y, c.to.z - dx / d * DRAGON_FIRE.spread * side);
+  }
+}
+function updateFire(m, dt, T) {
+  const c = m.dragonCast;
+  if (!c) return;
+  if (c.t < c.charge - DRAGON_FIRE.lock) aimFire(m, c, T);
+  const shots = [c, ...(c.extra || [])];
+  for (const shot of shots) advanceFire(m, shot, dt);
+  if (shots.every((shot) => shot.burst && shot.t >= shot.charge + shot.flight + 0.4)) {
     m.dragonCast = null;
     m.dragonShots = (m.dragonShots || 0) + 1;
-    if (m.dragonShots >= DRAGON_FIRE.shots) { m.dragonRest = DRAGON_FIRE.rest; m.dragonShots = 0; }
-    else m.cd = m.hp <= m.def.hp / 2 ? 0.9 : 1.3;
+    if (m.dragonShots >= DRAGON_FIRE.shots) { m.dragonRest = DRAGON_FIRE.rest; m.dragonShots = 0; m.dragonStomp = null; }
+    else m.cd = m.hp <= m.def.hp / 2 ? 0.6 : 0.9;
+  }
+}
+function updateStomp(m, fighters, dt, resting) {
+  m.dragonStompCd = Math.max(0, (m.dragonStompCd || 0) - dt);
+  const c = m.dragonStomp;
+  if (c) {
+    c.t += dt;
+    if (!c.burst && c.t >= c.charge) {
+      c.burst = point(c.center.x, c.floor + 0.8, c.center.z);
+      m.atkT = 0.35;
+      for (const T of fighters) {
+        const dx = T.pos.x - c.center.x, dz = T.pos.z - c.center.z, d = Math.hypot(dx, dz);
+        if (d >= c.radius || Math.abs(T.pos.y - c.center.y) > 6 ||
+          !dragonSight(point(c.center.x, c.center.y + 1, c.center.z), point(T.pos.x, T.pos.y + 1, T.pos.z))) continue;
+        const hitX = d > 0.01 ? dx / d : -Math.sin(m.ry), hitZ = d > 0.01 ? dz / d : -Math.cos(m.ry);
+        (m.struckTargets ??= new Map()).set(T.pid ?? 'local', 1);
+        if (T.pid) NET.sendTo(T.pid, ['dmg', c.damage, hitX, hitZ]);
+        else NET.hurtLocal?.(c.damage, hitX, hitZ);
+      }
+    }
+    if (c.t >= c.charge + 0.4) { m.dragonStomp = null; m.dragonStompCd = DRAGON_STOMP.cooldown; }
+  } else if (!resting && m.dragonStompCd <= 0 && fighters.some((T) => Math.hypot(T.pos.x - m.pos.x, T.pos.z - m.pos.z) < DRAGON_STOMP.radius && Math.abs(T.pos.y - m.pos.y) < 6)) {
+    const rage = m.hp <= m.def.hp / 2;
+    m.dragonStomp = { id: (m.dragonStompId = (m.dragonStompId || 0) + 1), t: 0,
+      center: point(m.pos.x, m.pos.y, m.pos.z), floor: groundHeight(m.pos.x, m.pos.z),
+      radius: DRAGON_STOMP.radius, charge: rage ? 0.7 : DRAGON_STOMP.charge, damage: rage ? 55 : DRAGON_STOMP.damage };
+    // Blizka obrana nespousti novy zasah do stejneho mista zaroven se zamerenim koule.
+    if (m.dragonCast && m.dragonCast.t < m.dragonCast.charge) { m.dragonCast = null; m.windup = 0; m.cd = 0.6; }
+    emit('mobSound', m);
   }
 }
 function healAfterKill(m, dt) {
@@ -87,27 +136,29 @@ export function updateDragon(m, fallback, dt) {
   m.flash = Math.max(0, m.flash - dt * 5); m.invT = Math.max(0, (m.invT || 0) - dt);
   m.cd = Math.max(0, m.cd - dt);
   m.dragonRest = Math.max(0, (m.dragonRest || 0) - dt);
-  if (!fighters.length) { m.dragonCast = null; m.windup = 0; m.dragonShots = 0; }
-  else updateFire(m, dt);
+  if (!fighters.length) { m.dragonCast = null; m.dragonStomp = null; m.windup = 0; m.dragonShots = 0; }
+  else { updateStomp(m, fighters, dt, m.dragonRest > 0); updateFire(m, dt, T); }
   healAfterKill(m, 0);
   const resting = m.dragonRest > 0;
-  if (fighters.length && !resting && !m.dragonCast && m.cd <= 0 && d < DRAGON_FIRE.range) {
+  if (fighters.length && !resting && !m.dragonStomp && !m.dragonCast && m.cd <= 0 && d < DRAGON_FIRE.range) {
     const from = point(p.x, p.y + 2, p.z), to = point(tp.x, tp.y + 1, tp.z);
     if (dragonSight(from, to)) {
       const rage = m.hp <= m.def.hp / 2;
-      m.dragonCast = { id: (m.dragonShotId = (m.dragonShotId || 0) + 1), t: 0, from, to,
-        charge: rage ? 0.65 : DRAGON_FIRE.charge, flight: Math.max(0.6, d / DRAGON_FIRE.speed),
+      const c = m.dragonCast = { id: (m.dragonShotId = (m.dragonShotId || 0) + 1), t: 0, from, to,
+        charge: rage ? 0.65 : DRAGON_FIRE.charge, flight: Math.max(0.5, d / DRAGON_FIRE.speed),
         radius: DRAGON_FIRE.radius, damage: rage ? m.def.dmg * 1.25 : m.def.dmg };
+      if (c.id % 2 === 0) c.extra = [-1, 1].map((side) => ({ ...c, id: `${c.id}:${side}` }));
+      aimFire(m, c, T); m.dragonVolleyHits = new Set();
       m.windup = m.dragonCast.charge;
       emit('mobSound', m);
     }
   }
   // V letu drzi odstup. Pri zamereni stoji a pri odpocinku klesne k meci.
-  const speed = resting || m.dragonCast ? 0 : hunting ? (d > 15 ? Math.min(5, d - 15) : d < 8 ? -3 : 0) : d > 1 ? 2 : 0;
+  const speed = resting || m.dragonStomp || m.dragonCast ? 0 : hunting ? (d > 15 ? Math.min(5, d - 15) : d < 8 ? -3 : 0) : d > 1 ? 2 : 0;
   m.vel.x += (dx / d * speed - m.vel.x) * Math.min(1, dt * 6);
   m.vel.z += (dz / d * speed - m.vel.z) * Math.min(1, dt * 6);
   const nx = p.x + m.vel.x * dt, nz = p.z + m.vel.z * dt, gy = groundHeight(nx, nz);
-  const hover = resting ? 0.1 : 1.6;
+  const hover = resting || m.dragonStomp ? 0.1 : 1.6;
   const flyHeight = hunting ? Math.max(gy + hover, (T.pos.y || gy) + hover) : gy + 2;
   const nextY = p.y + (flyHeight - p.y) * Math.min(1, dt * 4);
   let free = Number.isFinite(gy);
