@@ -13,6 +13,7 @@ import { bkey, blocks, chests, lights, spawners } from '../world/state.js';
 import { SEA, biomeAt, forest, inLake, isMark, oceanK, shrineDist, shrineOf, terrainH } from '../world/terrain.js';
 import { groundHeight, topY } from '../world/voxels.js';
 import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
+import { dragonCycle, DRAGON_RESPAWN_MS, DRAGON_VICTORY } from '../world/dragon-cycle.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
 import { updateDragon } from './dragon.js';
 import { armyPlan, updateArmy } from './army.js';
@@ -26,8 +27,8 @@ export const MOBS = {
   dragon: {
     name: 'Drak Země draka', hp: 500, radius: 2.4, cy: 2, dmg: 75, tall: true,
     drops: [['sky_helmet', 1, 1], ['sky_chestplate', 1, 1], ['sky_leggings', 1, 1], ['sky_boots', 1, 1],
-      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 16, 16], ['gold_ingot', 16, 16],
-      ['shard', 12, 12], ['markapple', 5, 5]],
+      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 128, 128], ['gold_ingot', 32, 32],
+      ['shard', 24, 24], ['markapple', 10, 10]],
   },
   sheep: { name: 'Ovce', hp: 5, radius: 0.75, cy: 0.75, drops: [['raw_mutton', 1, 2], ['wool', 1, 2]] },
   boar: { name: 'Kanec', hp: 12, radius: 0.8, cy: 0.7, dmg: 10, drops: [['raw_pork', 2, 3], ['bone', 0, 1]] },
@@ -88,10 +89,14 @@ export function hurtMob(m, dmg, yaw, kb = 1) {
 }
 // Kořist: ze zabití hráčem jde do batohu; z pasti (hroty) do nejbližší truhly do 5 bloků – základ farmy.
 export function killMob(m, drops, trap = false) {
+  if (m.dead) return;
   m.dead = true;
   emit('mobKilled', m);
   if (!drops) return;
-  if (m.type === 'dragon') ruinsOpened.add(DRAGON_DEN.key);
+  if (m.type === 'dragon') {
+    ruinsOpened.add(DRAGON_DEN.key); // historie průzkumu; další souboj řídí čas, ne tento příznak
+    dragonCycle.respawnAt = Date.now() + DRAGON_RESPAWN_MS;
+  }
   let chest = null;
   if (trap) {
     let best = 26;
@@ -109,6 +114,10 @@ export function killMob(m, drops, trap = false) {
     else NET.localLoot?.(m, id, n); // hráč u této obrazovky (je-li blízko)
   }
   if (chest) emit('chestLoot', chest);
+  if (m.type === 'dragon') {
+    if (NET.killer) NET.sendTo(NET.killer, ['toast', DRAGON_VICTORY]);
+    else emit('dragonVictory', DRAGON_VICTORY);
+  }
 }
 
 export function updateMobs(dt, day) {
@@ -238,7 +247,7 @@ export function updateSpawns(dt, night) {
     return;
   }
   if (isDragon(c.x)) {
-    if (ruinsBuilt.has(DRAGON_DEN.key) && !ruinsOpened.has(DRAGON_DEN.key) &&
+    if (ruinsBuilt.has(DRAGON_DEN.key) && Date.now() >= dragonCycle.respawnAt &&
       Math.hypot(c.x - DRAGON_DEN.x, c.z - DRAGON_DEN.z) < 80 && !mobs.some((m) => m.type === 'dragon')) {
       spawnMob('dragon', DRAGON_DEN.x, DRAGON_DEN.z);
     }

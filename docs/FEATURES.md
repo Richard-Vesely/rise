@@ -386,8 +386,13 @@ Its bite reaches players directly underneath it, up to 6 m below its feet; the l
 After killing a bitten player it restores all 500 HP. Local kills heal immediately; remote kills count when the player's death arrives within 1 s of the bite, even if the dragon has switched targets. Escaping or surviving a bite does not heal it.
 It does not attack creative players or bite through walls. Defeating it guarantees a complete sky armor set
 (helmet, chestplate, leggings, boots; double jump, slow fall and healing), a markorite sword and pick,
-16 markorite ingots, 16 gold ingots, 12 light shards and 5 Mark apples. Equipment is unworn.
-It marks its cave cleared in the existing `ruinsOpened` set: it stays defeated after saving and reloading.
+128 markorite ingots (two stacks), 32 gold ingots, 24 light shards and 10 Mark apples. Equipment is unworn.
+The player who lands the killing blow gets the reward on every victory, including ranged kills; local backpack overflow drops at the winner's feet.
+A Czech victory message gives the winner **two real minutes to return home through the portal** before the dragon can return.
+It marks its cave explored in `ruinsOpened`, but this no longer prevents another fight. The optional saved field
+`dragonRespawnAt` keeps the return deadline across reloads and server restarts; time offline counts too.
+After that deadline, one dragon with full health spawns in its cave when a player is within 80 m in the dragon dimension.
+Old saves without a deadline can spawn a dragon again, including caves cleared in earlier versions.
 Leaving an undefeated dragon and returning can restore its health, as for other monsters.
 Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`.
 

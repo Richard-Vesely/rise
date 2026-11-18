@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { ITEMS } from '../../shared/data/index.js';
 import { NET } from '../../shared/net/net.js';
 import { Vec3 } from '../../shared/vec3.js';
-import { MOBS, mobs, spawnMob, updateMobs, updateSpawns, hurtMob } from '../../shared/sim/mobs.js';
+import { MOBS, mobs, spawnMob, updateMobs, updateSpawns, hurtMob, killMob } from '../../shared/sim/mobs.js';
+import { dragonCycle, loadDragonCycle, DRAGON_RESPAWN_MS, DRAGON_VICTORY } from '../../shared/world/dragon-cycle.js';
 import { DRAGON_CX, DRAGON_DEN, DRAGON_SHRINE, isDragon } from '../../shared/world/dragon-land.js';
 import { terrainH, shrineOf, biomeAt, pondOf, lakeOf, volcanoOf } from '../../shared/world/terrain.js';
 import { bkey, blocks, ruinsBuilt, ruinsOpened } from '../../shared/world/state.js';
@@ -13,6 +14,7 @@ import { worldState, loadWorld } from '../../shared/world/save.js';
 let target, hits;
 beforeEach(() => {
   mobs.length = 0; blocks.clear(); ruinsBuilt.clear(); ruinsOpened.clear();
+  loadDragonCycle(0);
   NET.mode = 'sp'; NET.client = false; NET.killer = null;
   target = { pos: new Vec3(DRAGON_CX, 0, -69), alive: true, creative: false, pid: null };
   hits = []; NET.targets = () => [target]; NET.spawnCenter = () => target.pos;
@@ -31,22 +33,26 @@ test('defeating the dragon delivers guaranteed rare equipment and treasure once'
   for (const id of ['markorite_sword', 'markorite_pick']) {
     assert.equal(loot.get(id), 1); assert.equal(ITEMS[id].tier, 5);
   }
-  assert.equal(loot.get('markorite'), 16); assert.equal(loot.get('gold_ingot'), 16);
-  assert.equal(loot.get('shard'), 12); assert.equal(loot.get('markapple'), 5);
+  assert.equal(loot.get('markorite'), 2 * ITEMS.markorite.stack); assert.equal(loot.get('gold_ingot'), 32);
+  assert.equal(loot.get('shard'), 24); assert.equal(loot.get('markapple'), 10);
   assert.equal(hurtMob(m, 1, 0), false);
-  assert.equal(loot.get('markorite'), 16, 'dead dragon does not award treasure again');
+  killMob(m, true);
+  assert.equal(loot.get('markorite'), 128, 'dead dragon does not award treasure again');
 });
 
 test('dragon treasure goes to the connected killer instead of the local player', (t) => {
   NET.killer = 'dragon-slayer';
   const give = t.mock.method(NET, 'give', () => {});
   const local = t.mock.method(NET, 'localLoot', () => {});
+  const send = t.mock.method(NET, 'sendTo', () => {});
   const m = spawnMob('dragon', DRAGON_CX, -72);
   hurtMob(m, m.hp, 0);
   assert.equal(local.mock.callCount(), 0);
   assert.equal(give.mock.callCount(), 10);
   assert.ok(give.mock.calls.every((c) => c.arguments[0] === 'dragon-slayer'));
   assert.ok(give.mock.calls.some((c) => c.arguments[1] === 'markorite_sword' && c.arguments[2] === 1));
+  assert.ok(give.mock.calls.some((c) => c.arguments[1] === 'markorite' && c.arguments[2] === 128));
+  assert.deepEqual(send.mock.calls[0].arguments, ['dragon-slayer', ['toast', DRAGON_VICTORY]]);
 });
 
 test('new dimension has dry, flat entrances; the old shrines are unchanged', () => {
@@ -243,7 +249,9 @@ test('dragon faces the player after moving, even when the player circles behind 
     assert.ok(facing > 0.9999, 'head points at target, never the back');
   }
 });
-test('dragon pursues a player inside its cave and can be defeated permanently', () => {
+test('dragon defeat saves the full escape time and allows one new fight afterwards', (t) => {
+  let now = 1800000000000;
+  t.mock.method(Date, 'now', () => now);
   buildStructure(DRAGON_DEN); target.pos.z = -61;
   const m = spawnMob('dragon', DRAGON_CX, -72);
   step(40); assert.ok(m.pos.z > -70, 'approaches player');
@@ -251,9 +259,47 @@ test('dragon pursues a player inside its cave and can be defeated permanently', 
   step(11);
   assert.equal(hurtMob(m, 200, 0), true); assert.equal(m.dead, true);
   assert.ok(ruinsOpened.has(DRAGON_DEN.key));
+  assert.equal(dragonCycle.respawnAt, now + DRAGON_RESPAWN_MS);
   const saved = JSON.parse(JSON.stringify(worldState()));
   blocks.clear(); ruinsBuilt.clear(); ruinsOpened.clear(); mobs.length = 0;
   loadWorld(saved); updateSpawns(4, 0);
   assert.ok(ruinsOpened.has(DRAGON_DEN.key)); assert.equal(mobs.length, 0);
+  now += DRAGON_RESPAWN_MS - 1;
+  updateSpawns(4, 0); assert.equal(mobs.length, 0, 'no dragon before the deadline');
+  now++;
+  for (let i = 0; i < 5; i++) updateSpawns(4, 0);
+  assert.equal(mobs.length, 1); assert.equal(mobs[0].hp, 500);
+  const loot = t.mock.method(NET, 'give', () => {});
+  NET.killer = 'next-player';
+  hurtMob(mobs[0], 500, 0);
+  assert.ok(loot.mock.calls.some((c) => c.arguments[0] === 'next-player' && c.arguments[1] === 'markorite' && c.arguments[2] === 128));
+  assert.equal(dragonCycle.respawnAt, now + DRAGON_RESPAWN_MS, 'each victory starts a new escape period');
   assert.ok(blocks.has(bkey(DRAGON_CX, 12, -72)), 'saved cave remains');
+});
+
+test('the return deadline runs while everyone is home or offline', (t) => {
+  let now = 1800000000000;
+  t.mock.method(Date, 'now', () => now);
+  buildStructure(DRAGON_DEN);
+  hurtMob(spawnMob('dragon', DRAGON_CX, -72), 500, 0);
+  const saved = JSON.parse(JSON.stringify(worldState()));
+  mobs.length = 0; loadWorld(saved);
+  target.pos.set(0, 0, 0);
+  now += DRAGON_RESPAWN_MS;
+  updateSpawns(4, 0);
+  assert.ok(!mobs.some((m) => m.type === 'dragon'), 'waits until someone visits the cave');
+  mobs.length = 0;
+  target.pos.set(DRAGON_CX, 0, -69);
+  updateSpawns(4, 0);
+  assert.equal(mobs.filter((m) => m.type === 'dragon').length, 1);
+});
+
+test('old cleared saves can host another dragon and new worlds reset the deadline', () => {
+  buildStructure(DRAGON_DEN); ruinsOpened.add(DRAGON_DEN.key);
+  const saved = JSON.parse(JSON.stringify(worldState())); delete saved.dragonRespawnAt;
+  dragonCycle.respawnAt = Date.now() + DRAGON_RESPAWN_MS;
+  loadWorld(saved); updateSpawns(4, 0);
+  assert.equal(mobs.length, 1); assert.equal(mobs[0].type, 'dragon');
+  dragonCycle.respawnAt = Date.now() + DRAGON_RESPAWN_MS;
+  loadWorld(null); assert.equal(dragonCycle.respawnAt, 0);
 });

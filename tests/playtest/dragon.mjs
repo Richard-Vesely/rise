@@ -116,11 +116,11 @@ try {
   });
   assert.equal(death.flag, true);
   assert.deepEqual(death.loot, { sky_helmet: 1, sky_chestplate: 1, sky_leggings: 1, sky_boots: 1,
-    markorite_sword: 1, markorite_pick: 1, markorite: 16, gold_ingot: 16, shard: 12, markapple: 5 });
+    markorite_sword: 1, markorite_pick: 1, markorite: 128, gold_ingot: 32, shard: 24, markapple: 10 });
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.click('#mSolo'); await waitGame(page);
   const restored = await page.evaluate(() => { T.step(90); return { dragon: game.mobs.some(m => m.type === 'dragon'), cleared: game.worldState().ruinsOpened.includes('dragon-den-v1'), cave: game.blocks.has('-40000,12,-72') }; });
   assert.deepEqual(restored, { dragon: false, cleared: true, cave: true });
-  console.log('PASS dragon loot and permanent defeat after reload');
+  console.log('PASS dragon loot and safe escape period after reload');
   const home = await page.evaluate(() => {
     game.setCreative(true); T.tp(-40000, -1.5, 0.45); game.player.yaw = Math.PI;
     game.keys.add('KeyW'); T.step(18); game.keys.delete('KeyW'); T.step(80);
