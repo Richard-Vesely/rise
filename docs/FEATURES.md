@@ -626,6 +626,14 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
     Mobs do not hurt the player inside a shrine (11 m). Works in every world.
   *Kód:* `server/owner-wand.js` (in `server/world-worker.js`), hunt rules `shared/sim/hunt.js` (used by `shared/sim/mobs.js`),
   browser `client/src/player/owner-wand.js`, item `shared/data/items.js`, spells `shared/data/magic.js`.
+- **Owner's XP potion** (*Lektvar nekonečných XP*, club server only; Richard, 18.11.2026): an owner item with the same rules as the
+  owner's wand (`OWNER_ITEMS`: the owner always has exactly one of each, given back when missing; nobody else keeps it; not
+  craftable, not in the creative list, cannot be thrown, dropped at death, put into a chest, machine, car or the crafting grid,
+  or donated). Right button with it in hand = drink: it gives exactly the XP still missing to the next level (`xpToLevelUp`),
+  so every drink is a level-up with the spell pick. It is never used up; holding the button drinks at most once a second.
+  Anyone else, or single player / a browser host, gets a toast that it works only for the server owner.
+  *Kód:* item `shared/data/items.js`, `xpToLevelUp` in `shared/data/magic.js`, drink `client/src/player/owner-wand.js`
+  (`drinkXpPotion`, called from `client/src/player/gadgets.js`), server `server/owner-wand.js`.
 - **Prison** (*Vězení*, every world of the club server; owner power, Richard's): a maze of unbreakable white *Vězeňský blok*
   high in the sky far from everything (x 0, z −24000, y 120; 9×9 cells, 3-block corridors, 4-block walls, lanterns on some
   posts; always the same maze). Only the owner sends players there, by chat: `/vezeni <jméno>` (also a

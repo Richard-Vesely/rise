@@ -17,7 +17,7 @@ export const magicState = () => ({ xp: M.xp, learned: M.learned, sel: M.sel, pic
 export const level = () => levelOf(M.xp).level;
 export const holdingWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.wand;
 /** Hůl vlastníka serveru v ruce: umí navíc jeho kouzla (OWNER_SPELLS); jestli platí, rozhoduje server. */
-export const holdingOwnerWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.owner;
+export const holdingOwnerWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.wand && !!ITEMS[heldStack().id]?.owner;
 let ownerSel = OWNER_SPELLS[0]; // vybrané kouzlo hole vlastníka (null = naučené kouzlo M.sel); neukládá se
 /** Kouzlo, které teď hůl v ruce sešle. */
 export const activeSpell = () => (holdingOwnerWand() && ownerSel ? ownerSel : M.sel);

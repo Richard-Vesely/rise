@@ -57,6 +57,9 @@ ITEMS.wand = { name: 'Čarovná hůl', wand: true, stack: 1 };
 // Hůl vlastníka serveru (jen server kroužku, server/owner-wand.js): má ji vždycky jen vlastník, nejde vyrobit, zahodit ani dát
 // do truhly; umí kouzlo Avada Kedavra. hidden = není v nabídce kreativního režimu, owner = patří jen vlastníkovi.
 ITEMS.owner_wand = { name: 'Hůl vlastníka', wand: true, owner: true, hidden: true, stack: 1 };
+// Lektvar nekonečných XP (jen vlastník serveru, stejná pravidla jako hůl vlastníka): pravé tlačítko = vypít, dá přesně tolik XP,
+// kolik chybí do další úrovně; nikdy se nevypije (client/src/player/owner-wand.js).
+ITEMS.xp_potion = { name: 'Lektvar nekonečných XP', xpPotion: true, owner: true, hidden: true, stack: 1 };
 // Brnění: helma, brnění, kalhoty, boty. Každý bod ochrany ubere 3,5 % zranění (max. 80 %).
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
 export const ARMOR_SLOT_NAMES = ['Helma', 'Brnění', 'Kalhoty', 'Boty'];

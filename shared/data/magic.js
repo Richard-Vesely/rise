@@ -44,11 +44,13 @@ export const SPELLS = {
 export const SPELL_IDS = Object.keys(SPELLS);
 /** Kouzla hole vlastníka (nejdou se naučit; hůl je umí sama). */
 export const OWNER_SPELLS = SPELL_IDS.filter((id) => SPELLS[id].owner);
-/** Předměty jen pro vlastníka serveru (hůl vlastníka): nikdo jiný je mít nesmí. */
-export const OWNER_ITEMS = new Set(['owner_wand']);
+/** Předměty jen pro vlastníka serveru (hůl vlastníka, lektvar nekonečných XP): vlastník má od každého právě jeden, nikdo jiný je mít nesmí. */
+export const OWNER_ITEMS = new Set(['owner_wand', 'xp_potion']);
 export const ownerItem = (id) => OWNER_ITEMS.has(id);
 /** Hůl vlastníka: dosah paprsku (m; dál se nedohlédne) a zranění Avada Kedavra, které zabije každého (Richard, 18.11.2026). */
 export const AVADA = { range: 1000, dmg: 1000000 };
+/** XP, které lektvar nekonečných XP dá při celkových XP `xp`: přesně tolik, aby hráč dosáhl další úrovně. */
+export const xpToLevelUp = (xp) => { const L = levelOf(xp); return L.need - L.into; };
 /** Kouzla, která už jde vybrat (úroveň a předchozí kouzlo), a hráč je ještě nemá. */
 export const spellChoices = (level, learned) => SPELL_IDS.filter((id) => !SPELLS[id].owner && !learned.includes(id) && SPELLS[id].level <= level && (!SPELLS[id].needs || learned.includes(SPELLS[id].needs)));
 /** Až 3 nabídnutá kouzla: od každého druhu nejvýš jedno, když to jde (rnd = náhoda 0–1). */

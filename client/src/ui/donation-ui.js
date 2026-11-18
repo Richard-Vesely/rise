@@ -34,7 +34,7 @@ export function flushDonation() {
   const s = DON.slot[0];
   if (!s) return;
   DON.slot[0] = null;
-  if (ownerItem(s.id)) { addItem(s.id, s.n, true); toast('Hůl vlastníka se darovat nedá'); return; }
+  if (ownerItem(s.id)) { addItem(s.id, s.n, true); toast(`${ITEMS[s.id].name} se darovat nedá`); return; }
   if (!NET.client || !DON.got || !ITEMS[s.id]) { addItem(s.id, s.n, true, s.w || 0); toast('Darovat jde jen na serveru kroužku'); return; }
   NET.req(s.w ? ['donate', s.id, s.n, s.w] : ['donate', s.id, s.n]);
 }

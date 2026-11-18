@@ -15,7 +15,7 @@ export const KIT_ARMOR = ['iron_helmet', 'iron_chestplate', 'iron_leggings', 'ir
 
 /** Vymění batoh a brnění za výbavu arény a postaví hráče na volné místo v ní. */
 export function arenaReset() {
-  const keep = [...inv.slots, inv.cursor].filter((s) => ownerItem(s?.id)); // hůl vlastníka zůstává
+  const keep = [...inv.slots, inv.cursor].filter((s) => ownerItem(s?.id)); // předměty vlastníka (hůl, lektvar) zůstávají
   inv.slots.fill(null);
   inv.cursor = null;
   KIT.forEach(([id, n], i) => { inv.slots[i] = { id, n }; });

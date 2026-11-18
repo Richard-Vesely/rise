@@ -1,6 +1,7 @@
 // Vychytávky z obchodu za zlato (data shared/data/shop.js): pravé tlačítko s předmětem v ruce.
 //   trojzubec = hod (letí a zraní, do ruky se vrátí sám) · křídla = 30 s letu · plamenomet = drž pravé tl. ·
-//   lékárnička = vyléčí do plna. Světelné meče jsou obyčejné meče (silné), svítí v ruce (render/held-item.js).
+//   lékárnička = vyléčí do plna · lektvar nekonečných XP (jen vlastník serveru, owner-wand.js) = další úroveň.
+//   Světelné meče jsou obyčejné meče (silné), svítí v ruce (render/held-item.js).
 // Bez vedlejších účinků při načtení.
 import { ITEMS } from '../../../shared/data/index.js';
 import { toolSound } from '../audio/tool-sounds.js';
@@ -10,6 +11,7 @@ import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
 import { heldStack, removeItem } from './inventory.js';
 import { lightning, shot } from './magic.js';
+import { drinkXpPotion } from './owner-wand.js';
 import { pickTarget } from './targeting.js';
 import { groundHeight } from '../../../shared/world/voxels.js';
 import { camera } from '../render/renderer.js';
@@ -24,7 +26,7 @@ export function updateGadgets(dt, special) {
   prevRmb = input.rmb;
   cd -= dt;
   const id = heldStack()?.id, d = ITEMS[id];
-  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple) || special) return false;
+  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion) || special) return false;
   if (d.throw && fresh && cd <= 0) { // trojzubec
     cd = d.throw.cd;
     shot({ color: 0x38c8e8, size: 0.8, speed: 42, ttl: 1.6, dmg: d.throw.dmg, trail: 1 });
@@ -100,6 +102,9 @@ export function updateGadgets(dt, special) {
     sparks.emit(to.x, to.y, to.z, [0.9, 0.9, 0.9], 12, 2, 1);
     toolSound('whoosh', 1);
     wearHeld(1);
+  } else if (d.xpPotion && input.rmb && cd <= 0) { // lektvar nekonečných XP: držíš = pije se nejvýš jednou za sekundu
+    cd = 1;
+    drinkXpPotion();
   } else if (d.medkit && fresh) {
     if (player.hp >= 100) { toast('Jsi zdravý, lékárnička počká'); return true; }
     player.hp = 100;
