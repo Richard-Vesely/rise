@@ -7,6 +7,7 @@ import { RIM, animateCharacter, buildMobModel } from './mob-models.js';
 import { on } from '../../../shared/events.js';
 import { NET } from '../../../shared/net/net.js';
 import { DEATH_TIME, hurtMob, mobs } from '../../../shared/sim/mobs.js';
+import { spawnGroundItem } from '../../../shared/sim/ground-items.js';
 import { MOB_INVULN } from '../../../shared/tools.js';
 import { nearLight } from '../../../shared/world/collision.js';
 import { shrineDist } from '../../../shared/world/terrain.js';
@@ -21,6 +22,7 @@ import { scene } from '../render/renderer.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
 import { noteHit } from '../player/xp.js';
 import { armyHit } from '../../../shared/sim/army.js';
+import { toast } from '../ui/hud.js';
 
 // ============================================================ tvorové: modely (mob-models.js), animace a „život“
 // Oči mrkají, hlava sleduje hráče do 8 m, uši a ocas sebou škubnou, zvířata se na místě pasou a rozhlížejí,
@@ -250,6 +252,12 @@ on('mobBurn', (m) => debris.emit(m.pos.x, m.pos.y + 0.8, m.pos.z, [0.1, 0.1, 0.1
 on('mobAttack', (m) => mobAt(m, () => { if (m.type === 'markoman' || m.type === 'golem') Sound.swing(); else if (m.type === 'dragon' || m.type === 'wolf' || m.type === 'boar' || m.type === 'crawler' || m.type === 'spider') Sound.mobVoice(m.type); }));
 on('mobSound', (m) => mobAt(m, () => Sound.mobVoice(m.type), m.type === 'wolf' || m.type === 'cow' ? 8 : 4)); // vytí a bučení je slyšet dál
 on('spawnerSpawn', (x, y, z) => sparks.emit(x, y, z, [0.8, 0.3, 1], 25, 2, 1));
-// Kořist pro hráče u této obrazovky, když je do 24 m; zranění od tvora.
-NET.localLoot = (m, id, n) => { if (Math.hypot(m.pos.x - player.pos.x, m.pos.y - player.pos.y, m.pos.z - player.pos.z) < 24) addItem(id, n); };
+// Místní kořist do 24 m; drak odmění vítěze i za zásah z dálky. Zranění od tvora.
+NET.localLoot = (m, id, n) => {
+  if (m.type !== 'dragon' && Math.hypot(m.pos.x - player.pos.x, m.pos.y - player.pos.y, m.pos.z - player.pos.z) >= 24) return;
+  const left = addItem(id, n);
+  // Velká dračí odměna se nesmí ztratit ani při plném batohu.
+  if (m.type === 'dragon' && left > 0) spawnGroundItem(id, left, player.pos.clone().add(new THREE.Vector3(0, 0.5, 0)), new THREE.Vector3(), 3);
+};
+on('dragonVictory', (text) => toast(text));
 NET.hurtLocal = (dmg, dx, dz) => damagePlayer(dmg, dx, dz);
