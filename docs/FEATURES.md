@@ -377,14 +377,15 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
 | Obří pavouk (giant spider) | 30 | only in the club server's prison: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka* (the prison item) |
-| Drak Země draka | 1500 | guards the dragon cave; bites for 100 before armor, with 0.35 s warning and 0.9 s between attacks; within 3.2 m uses a stronger bite for 120 with 0.2 s warning and 0.75 s between attacks; continuously pursues players throughout the dragon dimension at up to 12 m/s, including during bite warnings, descends and closes to about 1.2 m for melee, and does not despawn when far away |
+| Drak Země draka | 300 | ranged fireball boss; locks a marked impact circle, charges for 0.9 s and launches a visible non-homing fireball up to 48 m away at 18 m/s; blast radius 2.6 m, damage 28 before armor; below half health charges in 0.65 s and deals 35; after three shots lands for four seconds without attacking, giving melee fighters an opening |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
-It starts following as soon as a player enters the dragon dimension, including at the return portal and in creative mode.
-Its body and head face its target immediately, even when the player circles behind it; it follows without biting in creative mode. In survival it also attacks at the return portal, including directly underneath its body.
-Its bite reaches players directly underneath it, up to 6 m below its feet; the line of sight follows the downward strike and cannot pass through a solid floor.
-After killing a bitten player it restores all 1500 HP. Local kills heal immediately; remote kills count when the player's death arrives within 1 s of the bite, even if the dragon has switched targets. Escaping or surviving a bite does not heal it.
-It does not attack creative players or bite through walls. Defeating it guarantees a complete sky armor set
+Fireballs mark their target before launch: move out of the orange circle or shelter behind a wall. Walls also intercept shots already in flight.
+The dragon stops to aim, keeps roughly 8-15 m distance between attacks, and flies at up to 5 m/s. It descends while resting so a sword can reach it.
+It prioritizes survival players, so a creative bystander cannot shield another fighter. Creative players, dead players and players outside the dragon dimension are safe.
+After a lethal fireball it restores all 300 HP; surviving or escaping the attack does not heal it. Dead dragons cannot finish an attack.
+The host synchronizes the warning, trajectory, explosion and landing timer with all clients through an optional extra field of the mob snapshot.
+Defeating it guarantees a complete sky armor set
 (helmet, chestplate, leggings, boots; double jump, slow fall and healing), a markorite sword and pick,
 128 markorite ingots (two stacks), 32 gold ingots, 24 light shards and 10 Mark apples. Equipment is unworn.
 The player who lands the killing blow gets the reward on every victory, including ranged kills; local backpack overflow drops at the winner's feet.
@@ -394,7 +395,7 @@ It marks its cave explored in `ruinsOpened`, but this no longer prevents another
 After that deadline, one dragon with full health spawns in its cave when a player is within 80 m in the dragon dimension.
 Old saves without a deadline can spawn a dragon again, including caves cleared in earlier versions.
 Leaving an undefeated dragon and returning can restore its health, as for other monsters.
-Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`.
+Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`; effects `client/src/mobs/dragon-fire.js`.
 
 Monsters stay away from the shrine; light blocks keep shadow-eaters away.
 

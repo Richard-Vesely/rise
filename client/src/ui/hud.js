@@ -101,7 +101,12 @@ function updateDragonHealth() {
   if (!m) return;
   dragonHealth.querySelector('b').textContent = `Drak Země draka · ${Math.ceil(m.hp)} / ${m.def.hp}`;
   dragonHealth.querySelector('progress').value = m.hp;
-  dragonHealth.querySelector('small').textContent = m.windup > 0 ? 'Chystá útok — uskoč!' : 'Strážce dračí jeskyně';
+  dragonHealth.querySelector('progress').max = m.def.hp;
+  const c = m.dragonCast, danger = c && !c.burst && Math.hypot(player.pos.x - c.to.x, player.pos.z - c.to.z) < c.radius + 0.5;
+  dragonHealth.querySelector('small').textContent = m.dragonRest > 0 ? `Drak odpočívá ${Math.ceil(m.dragonRest)} s — teď zaútoč!`
+    : danger ? 'Ohnivá koule míří sem — uhni do strany!'
+    : c && !c.burst ? 'Koule míří do kruhu — drž se mimo něj!'
+    : m.hp <= m.def.hp / 2 ? 'Rozzuřený drak! Po třech koulích přistane.' : 'Uhýbej koulím. Po třech výstřelech přistane.';
 }
 export function setVignette(v) { vignette = v; }
 export function updateHUD(dt) {

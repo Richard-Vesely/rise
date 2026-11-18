@@ -7,6 +7,7 @@ import { dayCount, dayTime } from '../sim/day.js';
 import { claimGroundItem } from '../sim/ground-items.js';
 import { armyCommand, armyHit } from '../sim/army.js';
 import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
+import { dragonNet } from '../sim/dragon.js';
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
 import { Vec3 } from '../vec3.js';
@@ -286,7 +287,7 @@ export function updateRoom(dt) {
   }
   if ((NET.mobT -= dt) <= 0) {
     NET.mobT = 0.2;
-    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0])]); // poslední = rudé oči (štvanice, sim/hunt.js)
+    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0].concat(m.type === 'dragon' ? [dragonNet(m)] : []))]);
   }
   if ((NET.kvT -= dt) <= 0) {
     NET.kvT = 0.5;

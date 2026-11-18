@@ -23,6 +23,7 @@ import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
 import { noteHit } from '../player/xp.js';
 import { armyHit } from '../../../shared/sim/army.js';
 import { toast } from '../ui/hud.js';
+import { createDragonFire, removeDragonFire, updateDragonFire } from './dragon-fire.js';
 
 // ============================================================ tvorové: modely (mob-models.js), animace a „život“
 // Oči mrkají, hlava sleduje hráče do 8 m, uši a ocas sebou škubnou, zvířata se na místě pasou a rozhlížejí,
@@ -48,7 +49,7 @@ export function syncMobViews() {
   for (const m of mobs) viewOf(m);
   if (views.size > mobs.length) {
     const alive = new Set(mobs);
-    for (const [m, V] of views) if (!alive.has(m)) { scene.remove(V.group, V.shadow); views.delete(m); }
+    for (const [m, V] of views) if (!alive.has(m)) { scene.remove(V.group, V.shadow); if (V.dragonFire) removeDragonFire(V.dragonFire); views.delete(m); }
   }
 }
 const lerpA = (a, b, k) => a + wrapAngle(b - a) * k;
@@ -69,6 +70,10 @@ function redEyes(V, on) {
  */
 export function poseMob(V, m, dt, sp) {
   V.t += dt;
+  if (m.type === 'dragon') {
+    V.dragonFire ??= createDragonFire(scene);
+    updateDragonFire(V.dragonFire, m);
+  }
   const k = (r) => 1 - Math.exp(-dt * r);
   if (m.dead) { animateDeath(V, m); return; }
   // Drak míří tělem i hlavou hned na cíl, bez opožděného otáčení zády.

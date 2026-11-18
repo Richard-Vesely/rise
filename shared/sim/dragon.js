@@ -1,84 +1,123 @@
-// Drak hlídá svou jeskyni. Úder předem ohlásí a nedosáhne přes skálu.
+// Ohnivy souboj: oznaceny dopad, pomala koule a odpocinek pro utok mecem.
 import { emit } from '../events.js';
-import { NET } from '../net/net.js';
+import { NET, nearestTarget } from '../net/net.js';
 import { solidAny } from '../world/collision.js';
-import { DRAGON_DEN } from '../world/dragon-land.js';
+import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
 import { groundHeight } from '../world/voxels.js';
 
+export const DRAGON_FIRE = { range: 48, radius: 2.6, charge: 0.9, speed: 18, rest: 4, shots: 3 };
+const point = (x, y, z) => ({ x, y, z });
 export function dragonSight(a, b) {
-  const dy = b.y + 1 - (a.y + 1.5);
-  const d = Math.hypot(b.x - a.x, dy, b.z - a.z);
-  for (let t = 0.5; t < d; t += 0.5) {
+  const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  for (let t = 0.2; t < d; t += 0.2) {
     const k = t / d;
-    if (solidAny(Math.floor(a.x + (b.x - a.x) * k), Math.floor(a.y + 1.5 + dy * k), Math.floor(a.z + (b.z - a.z) * k))) return false;
+    if (solidAny(Math.floor(a.x + (b.x - a.x) * k), Math.floor(a.y + (b.y - a.y) * k), Math.floor(a.z + (b.z - a.z) * k))) return false;
   }
   return true;
 }
-// Místní smrt je vidět hned; u připojeného hráče počkáme na jeho další polohu.
-function healAfterKill(m, dt) {
-  if (!m.bittenTargets?.size) return;
-  const targets = NET.targets();
-  for (const [pid, time] of m.bittenTargets) {
-    const target = targets.find((t) => (t.pid ?? 'local') === pid);
-    if (target?.alive === false) {
-      m.hp = m.def.hp;
-      m.bittenTargets.delete(pid);
-    } else if (!target || time <= dt) m.bittenTargets.delete(pid);
-    else m.bittenTargets.set(pid, time - dt);
+// Stejna draha pro kresleni i zasah; po zamereni uz koule hrace nesleduje.
+export function dragonFirePosition(c, time = c.t) {
+  const k = Math.max(0, Math.min(1, (time - c.charge) / c.flight));
+  return point(c.from.x + (c.to.x - c.from.x) * k,
+    c.from.y + (c.to.y - c.from.y) * k + Math.sin(k * Math.PI) * 1.5,
+    c.from.z + (c.to.z - c.from.z) * k);
+}
+export const dragonNet = (m) => ({ cast: m.dragonCast ?? null, rest: m.dragonRest || 0 });
+
+function impact(m, c, at) {
+  c.burst = at; c.t = c.charge + c.flight;
+  emit('dragonBlast', at);
+  for (const T of NET.targets()) {
+    if (!T.alive || T.creative || !isDragon(T.pos.x)) continue;
+    const chest = point(T.pos.x, T.pos.y + 1, T.pos.z);
+    if (Math.hypot(chest.x - at.x, chest.y - at.y, chest.z - at.z) > c.radius || !dragonSight(at, chest)) continue;
+    let dx = chest.x - at.x, dz = chest.z - at.z;
+    if (Math.hypot(dx, dz) < 0.01) { dx = c.to.x - c.from.x; dz = c.to.z - c.from.z; }
+    if (Math.hypot(dx, dz) < 0.01) dz = 1; // primy zasah take pouziva brneni
+    const d = Math.hypot(dx, dz);
+    (m.struckTargets ??= new Map()).set(T.pid ?? 'local', 1);
+    if (T.pid) NET.sendTo(T.pid, ['dmg', c.damage, dx / d, dz / d]);
+    else NET.hurtLocal?.(c.damage, dx / d, dz / d);
   }
 }
-export function updateDragon(m, T, dt) {
-  healAfterKill(m, dt);
-  const p = m.pos, tp = T.pos, dx = tp.x - p.x, dz = tp.z - p.z, d = Math.hypot(dx, dz) || 0.01;
-  m.aggro = T.alive && tp.x < -20000;
-  const hunting = m.aggro;
-  const canAttack = hunting && !T.creative;
-  const inHeight = tp.y - p.y > -6 && tp.y - p.y < 3;
-  m.flash = Math.max(0, m.flash - dt * 5);
-  m.invT = Math.max(0, (m.invT || 0) - dt);
-  m.cd -= dt;
-  if (m.windup > 0) {
-    m.windup = Math.max(0, m.windup - dt);
-    const reach = m.closeAttack ? 3.6 : 4.5;
-    if (!m.windup && canAttack && d < reach && inHeight && dragonSight(p, tp)) {
-      emit('mobAttack', m);
-      m.atkT = 0.35;
-      const dmg = m.def.dmg * (m.closeAttack ? 1.2 : 1);
-      // I přímo pod drakem má zásah směr, aby fungovalo brnění a odhození.
-      const hitX = d > 0.01 ? dx / d : -Math.sin(m.ry), hitZ = d > 0.01 ? dz / d : -Math.cos(m.ry);
-      (m.bittenTargets ??= new Map()).set(T.pid ?? 'local', 1);
-      if (T.pid) NET.sendTo(T.pid, ['dmg', dmg, hitX, hitZ]);
-      else NET.hurtLocal?.(dmg, hitX, hitZ);
-      healAfterKill(m, 0);
+function updateFire(m, dt) {
+  const c = m.dragonCast;
+  if (!c) return;
+  const old = c.t; c.t += dt;
+  m.windup = Math.max(0, c.charge - c.t);
+  if (!c.burst && c.t >= c.charge) {
+    // Male kroky: koule neproleti ani nove postavenou stenou.
+    const end = Math.min(c.t, c.charge + c.flight), start = Math.max(old, c.charge);
+    const steps = Math.max(1, Math.ceil((end - start) * DRAGON_FIRE.speed / 0.2));
+    let previous = dragonFirePosition(c, start);
+    for (let i = 1; i <= steps; i++) {
+      const at = dragonFirePosition(c, start + (end - start) * i / steps);
+      if (!dragonSight(previous, at) || solidAny(Math.floor(at.x), Math.floor(at.y), Math.floor(at.z))) {
+        impact(m, c, previous); break;
+      }
+      previous = at;
     }
-  } else if (canAttack && d < 5.2 && inHeight && dragonSight(p, tp) && m.cd <= 0) {
-    m.closeAttack = d < 3.2;
-    m.windup = m.closeAttack ? 0.2 : 0.35;
-    m.cd = m.closeAttack ? 0.75 : 0.9;
-    emit('mobSound', m);
+    if (!c.burst && c.t >= c.charge + c.flight) impact(m, c, c.to);
   }
-  const tx = hunting ? tp.x : DRAGON_DEN.x, tz = hunting ? tp.z : DRAGON_DEN.z;
-  const vx = tx - p.x, vz = tz - p.z, len = Math.hypot(vx, vz) || 1;
-  // Pronásleduje i během přípravy útoku; zpomalí až těsně u hráče.
-  const speed = hunting ? Math.min(12, Math.max(0, d - 1.2) * 5) : len < 0.5 ? 0 : 2.0;
-  m.vel.x += (vx / len * speed - m.vel.x) * Math.min(1, dt * 5);
-  m.vel.z += (vz / len * speed - m.vel.z) * Math.min(1, dt * 5);
+  if (c.burst && c.t >= c.charge + c.flight + 0.4) {
+    m.dragonCast = null;
+    m.dragonShots = (m.dragonShots || 0) + 1;
+    if (m.dragonShots >= DRAGON_FIRE.shots) { m.dragonRest = DRAGON_FIRE.rest; m.dragonShots = 0; }
+    else m.cd = m.hp <= m.def.hp / 2 ? 0.9 : 1.3;
+  }
+}
+function healAfterKill(m, dt) {
+  for (const [pid, time] of m.struckTargets || []) {
+    const T = NET.targets().find((t) => (t.pid ?? 'local') === pid);
+    if (T?.alive === false) { m.hp = m.def.hp; m.struckTargets.delete(pid); }
+    else if (!T || time <= dt) m.struckTargets.delete(pid);
+    else m.struckTargets.set(pid, time - dt);
+  }
+}
+
+export function updateDragon(m, fallback, dt) {
+  healAfterKill(m, dt);
+  const players = NET.targets().filter((t) => t.alive && isDragon(t.pos.x));
+  const fighters = players.filter((t) => !t.creative);
+  const T = players.length ? nearestTarget(fighters.length ? fighters : players, m.pos) : fallback;
+  const hunting = !!players.length;
+  const p = m.pos, tp = hunting ? T.pos : DRAGON_DEN;
+  const dx = tp.x - p.x, dz = tp.z - p.z, d = Math.hypot(dx, dz) || 0.01;
+  m.aggro = hunting;
+  m.flash = Math.max(0, m.flash - dt * 5); m.invT = Math.max(0, (m.invT || 0) - dt);
+  m.cd = Math.max(0, m.cd - dt);
+  m.dragonRest = Math.max(0, (m.dragonRest || 0) - dt);
+  if (!fighters.length) { m.dragonCast = null; m.windup = 0; m.dragonShots = 0; }
+  else updateFire(m, dt);
+  healAfterKill(m, 0);
+  const resting = m.dragonRest > 0;
+  if (fighters.length && !resting && !m.dragonCast && m.cd <= 0 && d < DRAGON_FIRE.range) {
+    const from = point(p.x, p.y + 2, p.z), to = point(tp.x, tp.y + 1, tp.z);
+    if (dragonSight(from, to)) {
+      const rage = m.hp <= m.def.hp / 2;
+      m.dragonCast = { id: (m.dragonShotId = (m.dragonShotId || 0) + 1), t: 0, from, to,
+        charge: rage ? 0.65 : DRAGON_FIRE.charge, flight: Math.max(0.6, d / DRAGON_FIRE.speed),
+        radius: DRAGON_FIRE.radius, damage: rage ? m.def.dmg * 1.25 : m.def.dmg };
+      m.windup = m.dragonCast.charge;
+      emit('mobSound', m);
+    }
+  }
+  // V letu drzi odstup. Pri zamereni stoji a pri odpocinku klesne k meci.
+  const speed = resting || m.dragonCast ? 0 : hunting ? (d > 15 ? Math.min(5, d - 15) : d < 8 ? -3 : 0) : d > 1 ? 2 : 0;
+  m.vel.x += (dx / d * speed - m.vel.x) * Math.min(1, dt * 6);
+  m.vel.z += (dz / d * speed - m.vel.z) * Math.min(1, dt * 6);
   const nx = p.x + m.vel.x * dt, nz = p.z + m.vel.z * dt, gy = groundHeight(nx, nz);
-  const denDist = Math.hypot(p.x - DRAGON_DEN.x, p.z - DRAGON_DEN.z);
-  let free = Number.isFinite(gy) && (hunting || Math.hypot(nx - DRAGON_DEN.x, nz - DRAGON_DEN.z) < Math.max(13, denDist));
-  // U hráče klesne, aby na něj dosáhl čelistmi i těsně pod sebou.
-  const hover = d < 5.2 ? 0.6 : 1.6;
-  const flyHeight = hunting ? Math.max(gy + hover, tp.y + hover + Math.sin(m.phase) * 0.2) : gy + 2.8 + Math.sin(m.phase * 0.6) * 0.4;
-  const nextY = p.y + (flyHeight - p.y) * Math.min(1, dt * 2.8);
+  const hover = resting ? 0.1 : 1.6;
+  const flyHeight = hunting ? Math.max(gy + hover, (T.pos.y || gy) + hover) : gy + 2;
+  const nextY = p.y + (flyHeight - p.y) * Math.min(1, dt * 4);
+  let free = Number.isFinite(gy);
   for (let a = 0; a < 8 && free; a++) for (let y = 0; y < 4; y++) {
     if (solidAny(Math.floor(nx + Math.cos(a * Math.PI / 4) * 1.8), Math.floor(nextY + 0.1) + y,
       Math.floor(nz + Math.sin(a * Math.PI / 4) * 1.8))) { free = false; break; }
   }
-  if (free) {
-    p.x = nx; p.y = nextY; p.z = nz;
-  } else { m.vel.x = 0; m.vel.z = 0; p.y = Math.max(gy, p.y + (gy + 2.8 - p.y) * Math.min(1, dt * 2)); }
+  if (free) { p.x = nx; p.y = nextY; p.z = nz; }
+  else { m.vel.x = 0; m.vel.z = 0; }
   m.groundY = groundHeight(p.x, p.z);
-  if (hunting && Math.hypot(tp.x - p.x, tp.z - p.z) > 0.001) m.ry = Math.atan2(p.x - tp.x, p.z - tp.z);
-  else if (speed) m.ry = Math.atan2(-vx, -vz);
+  if (hunting) m.ry = Math.atan2(p.x - tp.x, p.z - tp.z);
   if ((m.soundT -= dt) <= 0) { m.soundT = 7; if (d < 45) emit('mobSound', m); }
 }
