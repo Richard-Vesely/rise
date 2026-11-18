@@ -54,7 +54,7 @@ try {
     } finally { Date.now = originalNow; }
   }, Object.keys(expected));
   assert.equal(nextFight.early, false);
-  assert.equal(nextFight.count, 1); assert.equal(nextFight.fullHP, 500);
+  assert.equal(nextFight.count, 1); assert.equal(nextFight.fullHP, 1500);
   assert.equal(nextFight.deadline, 120000);
   assert.deepEqual(nextFight.dropped, expected);
   assert.deepEqual(page.errors, []);

@@ -377,13 +377,13 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
 | Obří pavouk (giant spider) | 30 | only in the club server's prison: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka* (the prison item) |
-| Drak Země draka | 500 | guards the dragon cave; bites for 75 before armor, with 0.35 s warning and 1.15 s between attacks; within 3.2 m uses a stronger bite for 90 with 0.2 s warning and 0.9 s between attacks; continuously pursues players throughout the dragon dimension at up to 10 m/s, including during bite warnings, descends and closes to about 1.2 m for melee, and does not despawn when far away |
+| Drak Země draka | 1500 | guards the dragon cave; bites for 100 before armor, with 0.35 s warning and 0.9 s between attacks; within 3.2 m uses a stronger bite for 120 with 0.2 s warning and 0.75 s between attacks; continuously pursues players throughout the dragon dimension at up to 12 m/s, including during bite warnings, descends and closes to about 1.2 m for melee, and does not despawn when far away |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
 It starts following as soon as a player enters the dragon dimension, including at the return portal and in creative mode.
 Its body and head face its target immediately, even when the player circles behind it; it follows without biting in creative mode. In survival it also attacks at the return portal, including directly underneath its body.
 Its bite reaches players directly underneath it, up to 6 m below its feet; the line of sight follows the downward strike and cannot pass through a solid floor.
-After killing a bitten player it restores all 500 HP. Local kills heal immediately; remote kills count when the player's death arrives within 1 s of the bite, even if the dragon has switched targets. Escaping or surviving a bite does not heal it.
+After killing a bitten player it restores all 1500 HP. Local kills heal immediately; remote kills count when the player's death arrives within 1 s of the bite, even if the dragon has switched targets. Escaping or surviving a bite does not heal it.
 It does not attack creative players or bite through walls. Defeating it guarantees a complete sky armor set
 (helmet, chestplate, leggings, boots; double jump, slow fall and healing), a markorite sword and pick,
 128 markorite ingots (two stacks), 32 gold ingots, 24 light shards and 10 Mark apples. Equipment is unworn.

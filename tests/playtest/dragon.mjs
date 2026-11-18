@@ -99,7 +99,7 @@ try {
       T.step(20);
       return { alive: game.player.alive, dragonHP: m.hp };
     }, attempt);
-    assert.deepEqual(kill, { alive: false, dragonHP: 500 }, 'bite from above kills and fully heals dragon every time');
+    assert.deepEqual(kill, { alive: false, dragonHP: 1500 }, 'bite from above kills and fully heals dragon every time');
     await page.waitForFunction(() => game.player.alive, null, { timeout: 10000 });
   }
   await page.evaluate(() => {
