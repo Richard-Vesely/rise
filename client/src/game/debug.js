@@ -67,6 +67,8 @@ import { jukeboxesPlaying, useJukebox } from '../audio/film-music.js';
 import { sendToHell, useAltar, usePortal as useHellPortal } from '../world/hell.js';
 import { HELL, HELL_SPOT, ALTAR, inHell } from '../../../shared/world/hell.js';
 import { cast } from '../player/magic.js';
+import { applyBonus, perks } from '../player/bonus.js';
+import { ghost, toggleGhost } from '../player/ghost.js';
 
 // Na břeh nejbližšího jezera (na straně k hráči), hráč se dívá na vodu. Vrátí jezero.
 function toLake() {
@@ -100,6 +102,7 @@ export const game = window.game = {
   toggleView, get viewMode() { return viewMode; }, openCostume, myPose, updateAvatars, localBody, mobView: viewOf, // pohled ze třetí osoby (V), výběr obleku (O), postavičky
   lakeOf, nearestLake, toLake, // jezera: game.toLake() = na břeh nejbližšího jezera
   KINDS, BIKE, BOATS, windAt, windRel, sailEff, levelAt, spawnOnLake, nitro, useNitro, vehMeshes, seatWorld, toggleCarCam, // vozidla: game.spawnOnLake('sailboat')
+  perks, applyBonus, ghost, toggleGhost, // bonusy pro dárce (player/bonus.js, player/ghost.js)
   Sound, soundEnv, materialAt, targetMaterial, // zvuky: game.Sound.music.start('night'), game.soundEnv, game.materialAt(x, y, z)
 };
 window.gameStarted = true;

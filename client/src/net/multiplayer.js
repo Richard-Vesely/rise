@@ -27,6 +27,7 @@ import { toast } from '../ui/hud.js';
 import { invOpen, renderInventory, ui } from '../ui/inventory-ui.js';
 import { applyDary } from '../ui/donation-ui.js';
 import { applyJail } from '../player/prison.js';
+import { applyBonus } from '../player/bonus.js';
 import { chatLine, leaveGame, renderPause, serverRestarting, sysLine } from './mp-ui.js';
 import { pvLock } from '../player/pvp.js';
 
@@ -112,6 +113,7 @@ export function onHostMsg(msg) {
     }
     case 'toast': toast(msg[1]); break;
     case 'dary': applyDary(msg[1]); if (invOpen && ui.mode === 'dar') renderInventory(); break; // pokladnička darů u sochy (jen server kroužku)
+    case 'bonus': applyBonus(msg[1]); break; // bonusy pro dárce od vlastníka (jen server kroužku, player/bonus.js)
     case 'vezeni': applyJail(msg[1]); if (invOpen && ui.mode === 'dar') renderInventory(); break; // vězení (jen server kroužku, player/prison.js)
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'tp': pulledTo(msg[1], msg[2], msg[3], msg[4]); break; // přitáhl tě někdo prutem

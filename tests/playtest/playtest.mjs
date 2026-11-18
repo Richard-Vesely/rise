@@ -668,6 +668,43 @@ try {
   });
   check('graphics: weather (rain, wet ground) and dusk/night sky', r.rain > 0.9 && r.rainVisible && r.wet > 0.05 && r.overcast > 0.8 && r.twilight > 0.3 && r.starsNight > 0.9 && r.moon > 0.9, JSON.stringify(r));
   if (!process.env.PLAYTEST_QUALITY) check('graphics: Automaticky picks nízká on software WebGL', r.gpu !== 'software' || r.quality === 'low', JSON.stringify(r));
+  // ------------------------------------------------------------ bonuses for donors (player/bonus.js, player/ghost.js); only on the club server, faked here with NET.client
+  r = await ev(() => {
+    const g = window.game, out = {};
+    T.tp(0, 14); T.step(5);
+    const body = g.player.pos.clone(), bx = Math.floor(body.x), bz = Math.floor(body.z) - 10;
+    for (let y = 0; y < 4; y++) g.blocks.set(`${bx},${y},${bz}`, 'planks'); // a pillar to land in
+    g.NET.client = true;
+    T.press('KeyX'); out.noPerkNoGhost = !g.ghost.on;
+    g.applyBonus(['teleport', 'let', 'obrana', 'syty']);
+    out.perks = [...g.perks].join();
+    g.player.hunger = 50; T.step(10); out.hunger = Math.round(g.player.hunger);
+    g.player.hp = 100; g.damagePlayer(30, 0, 0); out.hp = Math.round(g.player.hp); g.player.hp = 100;
+    g.player.flying = false; T.press('Space'); T.press('Space'); out.flying = g.player.flying;
+    const y0 = g.player.pos.y; g.keys.add('Space'); T.step(20); g.keys.delete('Space'); out.rose = +(g.player.pos.y - y0).toFixed(1);
+    g.player.flying = false; T.tp(body.x, body.z, body.y); T.step(10);
+    g.player.yaw = 0; g.player.pitch = 0;
+    const b0 = g.player.pos.clone();
+    T.press('KeyX'); out.ghostOn = g.ghost.on;
+    g.keys.add('KeyW'); T.step(20); g.keys.delete('KeyW');
+    out.bodyStays = g.player.pos.distanceTo(b0) < 0.01;
+    out.ghostFlew = +(b0.z - g.ghost.pos.z).toFixed(1);
+    out.camAtGhost = g.camera.position.distanceTo(g.ghost.pos) < 0.01;
+    g.ghost.pos.set(bx + 0.5, 1.5 + 1.62, bz + 0.5); // inside the pillar
+    T.press('KeyX'); out.landed = !g.ghost.on; out.at = [+(g.player.pos.x - bx).toFixed(1), +g.player.pos.y.toFixed(2), +(g.player.pos.z - bz).toFixed(1)];
+    T.press('KeyX'); g.damagePlayer(1, 0, 0); out.hurtEndsGhost = !g.ghost.on; g.player.hp = 100;
+    T.press('KeyX'); const g0 = g.player.pos.clone(); g.ghost.pos.x += 50; window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', shiftKey: true })); T.key('KeyX', false);
+    out.shiftXBack = !g.ghost.on && g.player.pos.distanceTo(g0) < 0.01;
+    g.NET.jail = { need: 1, given: 0, item: 'spider_eye', at: null }; T.press('KeyX'); out.noGhostInPrison = !g.ghost.on; g.NET.jail = null;
+    g.applyBonus([]); g.player.hunger = 50; T.step(20); out.hungryAgain = g.player.hunger < 50;
+    g.NET.client = false; g.player.flying = false;
+    for (let y = 0; y < 4; y++) g.blocks.delete(`${bx},${y},${bz}`);
+    T.tp(0, 14); T.step(5);
+    return out;
+  });
+  check('bonuses: no bonus = X does nothing; never hungry; a third of the damage; fly with double Space', r.noPerkNoGhost && r.perks === 'syty,obrana,let,teleport' && r.hunger === 100 && r.hp === 90 && r.flying && r.rose > 5, JSON.stringify(r));
+  check('bonuses: ghost (X) flies fast while the body stays; X again lands on top of the block it is in', r.ghostOn && r.bodyStays && r.ghostFlew > 25 && r.camAtGhost && r.landed && r.at[1] >= 4 && Math.abs(r.at[0] - 0.5) < 0.1 && Math.abs(r.at[2] - 0.5) < 0.1, JSON.stringify(r));
+  check('bonuses: a hit or Shift+X sends the ghost back; no ghost in prison; taken away = hungry again', r.hurtEndsGhost && r.shiftXBack && r.noGhostInPrison && r.hungryAgain, JSON.stringify(r));
   // ------------------------------------------------------------ 3D icons of blocks and machines (drawn in the background after the start)
   const icons3d = await page.waitForFunction(() => ['coal_generator', 'tech_panel', 'bricks', 'planks_stairs'].every((id) => window.game.ICONS[id]?.smooth && window.game.ICONS[id].canvas.width === 64), null, { timeout: 60000 }).then(() => true, () => false);
   check('block and machine icons are 3D renders (64 px, smooth)', icons3d);

@@ -630,6 +630,23 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   *Kód:* building and spider spots `shared/world/prison.js` (from `server/sim.js`), rules `server/prison.js` (in
   `server/world-worker.js`; owner kill via `room.onKill` in `shared/net/room.js`), spider `shared/sim/mobs.js` + `client/src/mobs/spider-model.js`,
   player side `client/src/player/prison.js`.
+- **Bonuses for donors** (*Bonusy*, club server only; owner power, Richard's): the owner gives players bonuses by chat:
+  `/bonus <jméno> <druh…>` (druh: `syty`, `obrana`, `let`, `teleport` or `vse`; Czech synonyms work, e.g. `duch`, `letani`, `hlad`),
+  `/odebrat <jméno> [druh…]` (no kind = all), `/bonus <jméno>` = what the player has, `/bonus` = everyone with bonuses. A name
+  works without diacritics (`/bonus bara` = Bára) and the player does not have to be online. The commands are never shown to
+  others; from anyone else they are normal chat. Bonuses belong to the profile and work in **every world** of the server,
+  survive a restart, and reach a player at once wherever they play (a toast says what they got and how to use it).
+  They do not work in prison or in an arena (`pvp` world).
+  - ***Bez hladu*** (`syty`): hunger never drops.
+  - ***Velká obrana*** (`obrana`): every hit does a third of its damage (`BONUS_DEFENSE`, after armor).
+  - ***Létání*** (`let`): double Space = fly, like in creative mode (Space up, Shift down, Ctrl faster).
+  - ***Teleport duchem*** (`teleport`): **X** = your ghost leaves the body and flies fast (30 m/s, Ctrl 90 m/s) through
+    blocks and the ground, looking where it flies; a blue veil shows the ghost, and you see your body standing where you left it
+    (others see only the body). **X** again = you teleport there (inside a block or the ground: on top of it). **Shift+X** = back
+    to the body without teleporting. A hit, death or losing the bonus sends the ghost back.
+  *Kód:* bonuses `shared/data/bonus.js`, commands in a world `server/bonus.js` (in `server/world-worker.js`), storage
+  `server/bonuses.js` (main thread, `DATA_DIR/bonuses.json`), player side `client/src/player/bonus.js` (hunger and damage in
+  `survival.js`, flying in `player.js`) and the ghost `client/src/player/ghost.js` (in `client/src/game/loop.js`).
 - **Pause menu** (Esc): code + copy, player list, host can allow creative for one player or everyone, and kick.
 - **Chat** (T), only to players in the same world.
 - Everyone sees other players in **their own suit** (*Můj oblek*, sent in the position as `lk`), with a modern

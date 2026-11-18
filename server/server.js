@@ -8,6 +8,7 @@ import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { WebSocketServer } from 'ws';
 import { adminPage, startAdminListener } from './admin-http.js';
+import { bonusQuery, bonusesFile, createBonuses } from './bonuses.js';
 import { createDonations, donationsFile } from './donations.js';
 import { createProfiles, profilesFile } from './profiles.js';
 import { staticHandler } from './static.js';
@@ -39,6 +40,8 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   const profiles = createProfiles(profilesFile(dataDir), { log });
   // Kniha darů (pokladnička u sochy) a dárky od správce: server/donations.js
   const donations = createDonations(donationsFile(dataDir), { log });
+  // Bonusy pro dárce (dává je vlastník serveru příkazem /bonus): server/bonuses.js
+  const bonuses = createBonuses(bonusesFile(dataDir), { log });
   const nameOf = (id) => profiles.get(id)?.name;
   if (ownerId) log(nameOf(ownerId) ? `Vlastník serveru (bere z pokladničky darů): ${nameOf(ownerId)}.` : `Pozor: OWNER_ID ${ownerId} není žádný profil hráče.`);
   const started = Date.now();
@@ -59,6 +62,12 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
           case 'log': log(`[${w.id}] ${m.text}`); break;
           case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : w.pvpMark ? ' (souboje hráčů v Markově dimenzi)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
           case 'stopped': w.onStopped?.(); break;
+          case 'bonus': { // bonusy pro dárce: příkaz vlastníka ze světa (server/bonus.js, server/bonuses.js)
+            const r = bonusQuery(bonuses, profiles, m);
+            worker.postMessage({ t: 'bonus', q: m.q, ...r.reply });
+            if (r.push) { log(`[${w.id}] Bonusy: ${nameOf(r.push.profile)} má teď ${r.push.list.join(', ') || 'nic'}.`); for (const x of W) x.worker?.postMessage({ t: 'bonusy', ...r.push }); }
+            break;
+          }
           case 'who': { const p = profiles.find(m.name); worker.postMessage({ t: 'who', q: m.q, profile: p?.id ?? null, name: p?.name ?? '' }); break; } // vězení: profil podle jména (server/prison.js)
           case 'donation': { // dar do pokladničky: zápis do knihy darů a nový žebříček do všech světů
             const e = donations.add({ by: m.by, name: nameOf(m.by) || m.name, id: m.id, n: m.n, world: w.id });
@@ -173,7 +182,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
       ws.profile = P.id;
       w.sockets.set(cid, ws);
       log(`[${w.id}] Přihlášen ${P.name}${r.created ? ' (nový hráč)' : r.newPin ? ' (nový PIN)' : ''}.`);
-      w.worker.postMessage({ t: 'join', cid, name: P.name, profile: P.id, gifts: donations.takeGifts(P.id) });
+      w.worker.postMessage({ t: 'join', cid, name: P.name, profile: P.id, gifts: donations.takeGifts(P.id), bonus: bonuses.get(P.id) });
     });
     const gone = () => {
       clearTimeout(hello);
