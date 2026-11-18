@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { dragonFirePosition } from '../../../shared/sim/dragon.js';
 import { Sound } from '../audio/sound.js';
 
-export function createDragonFire(scene) {
+function createShotFx(scene, title) {
   const root = new THREE.Group(); root.name = 'dragon-fire';
   const mat = (color, opacity = 1) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
   const ring = new THREE.Mesh(new THREE.RingGeometry(2.4, 2.6, 48), mat(0xff5e16, 0.9));
@@ -17,7 +17,7 @@ export function createDragonFire(scene) {
   const ctx = textCanvas.getContext('2d');
   ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff2c5';
   ctx.strokeStyle = '#422212'; ctx.lineWidth = 6;
-  ctx.strokeText('UHNI Z OHNIVÉHO KRUHU!', 256, 48); ctx.fillText('UHNI Z OHNIVÉHO KRUHU!', 256, 48);
+  ctx.strokeText(title, 256, 48); ctx.fillText(title, 256, 48);
   const texture = new THREE.CanvasTexture(textCanvas);
   const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false }));
   label.scale.set(6, 1.1, 1);
@@ -25,16 +25,17 @@ export function createDragonFire(scene) {
   return { root, ring, fill, ball, blast, label, texture };
 }
 
-export function updateDragonFire(fx, m) {
-  const c = m.dragonCast;
-  fx.root.visible = !!c && !m.dead;
+function updateShotFx(fx, c, dead) {
+  fx.root.visible = !!c && !dead;
   if (!fx.root.visible) return;
   const launched = c.t >= c.charge, burst = !!c.burst;
   const progress = Math.min(1, c.t / (c.charge + c.flight));
   fx.ring.position.set(c.to.x, c.to.y - 0.92, c.to.z);
   fx.fill.position.copy(fx.ring.position); fx.fill.position.y += 0.01;
   fx.fill.material.opacity = 0.12 + progress * 0.25;
-  fx.ring.scale.setScalar(1 + Math.sin(c.t * 15) * 0.04);
+  fx.ring.scale.setScalar(c.radius / 2.6 * (1 + Math.sin(c.t * 15) * 0.04));
+  fx.fill.scale.setScalar(c.radius / 2.6);
+  fx.ring.material.color.setHex(c.t < c.charge - 0.3 ? 0xffc34a : 0xff5318);
   fx.label.position.set(c.to.x, c.to.y + 2, c.to.z);
   fx.label.visible = !burst; fx.ring.visible = fx.fill.visible = !burst;
   fx.ball.visible = !burst;
@@ -54,8 +55,27 @@ export function updateDragonFire(fx, m) {
     fx.blast.material.opacity = (1 - fade) * 0.55;
   }
 }
-export function removeDragonFire(fx) {
+function removeShotFx(fx) {
   fx.root.removeFromParent();
   fx.root.traverse((o) => { if (o.isMesh) o.geometry.dispose(); o.material?.dispose(); });
   fx.texture.dispose();
+}
+
+export function createDragonFire(scene) {
+  const fx = createShotFx(scene, 'POZOR NA OHNIVÉ KOULE!');
+  fx.extra = [createShotFx(scene, 'OHNIVÝ VĚJÍŘ'), createShotFx(scene, 'OHNIVÝ VĚJÍŘ')];
+  fx.stomp = createShotFx(scene, 'DRAK DUPNE — UTEČ Z KRUHU!');
+  return fx;
+}
+export function updateDragonFire(fx, m) {
+  updateShotFx(fx, m.dragonCast, m.dead);
+  fx.extra.forEach((v, i) => updateShotFx(v, m.dragonCast?.extra?.[i], m.dead));
+  const s = m.dragonStomp;
+  updateShotFx(fx.stomp, s && { ...s, flight: 0.01,
+    to: { x: s.center.x, y: s.floor + 1, z: s.center.z }, from: s.center }, m.dead);
+  fx.stomp.ball.visible = false;
+  fx.stomp.ring.material.color.setHex(0xff3020);
+}
+export function removeDragonFire(fx) {
+  for (const v of [fx, ...fx.extra, fx.stomp]) removeShotFx(v);
 }

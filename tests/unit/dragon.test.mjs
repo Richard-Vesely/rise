@@ -18,7 +18,7 @@ beforeEach(() => {
   mobs.length = 0; blocks.clear(); ruinsBuilt.clear(); ruinsOpened.clear();
   loadDragonCycle(0);
   NET.mode = 'sp'; NET.client = false; NET.killer = null;
-  target = { pos: new Vec3(DRAGON_CX, 0, -69), alive: true, creative: false, pid: null };
+  target = { pos: new Vec3(DRAGON_CX, 0, -52), alive: true, creative: false, pid: null };
   hits = []; NET.targets = () => [target]; NET.spawnCenter = () => target.pos;
   NET.hurtLocal = (dmg) => hits.push(dmg); NET.localLoot = () => {};
 });
@@ -92,16 +92,23 @@ test('fireball warns, locks its aim, travels, then damages once at range', () =>
   assert.equal(m.hp, 300); assert.equal(c.charge, 0.9); assert.equal(c.to.z, -52);
   step(18); assert.deepEqual(hits, [], 'warning alone deals no damage');
   assert.ok(m.dragonCast.t < c.charge + c.flight);
-  step(24); assert.deepEqual(hits, [28]);
-  step(5); assert.deepEqual(hits, [28], 'one hit per explosion');
+  step(24); assert.deepEqual(hits, [32]);
+  step(5); assert.deepEqual(hits, [32], 'one hit per explosion');
 });
 
-test('moving out of the marked circle dodges the fireball', () => {
-  target.pos.z = -52;
+test('an early sidestep followed by standing still is tracked and hit', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72);
-  step(1); target.pos.x += 5;
-  assert.equal(m.dragonCast.to.x, DRAGON_CX, 'locked aim does not follow the dodge');
-  step(44); assert.deepEqual(hits, []);
+  step(1); target.pos.x += 5; step(5);
+  assert.equal(m.dragonCast.to.x, target.pos.x, 'tracks during early charge');
+  step(38); assert.deepEqual(hits, [32]);
+});
+
+test('aim locks before launch, so a late committed dodge still works', () => {
+  const m = spawnMob('dragon', DRAGON_CX, -72);
+  step(15); const aim = m.dragonCast.to.x;
+  target.pos.x += 5; step(25);
+  assert.equal(m.dragonCast.to.x, aim, 'cannot home after the lock');
+  assert.deepEqual(hits, []);
 });
 
 test('walls stop aiming and also stop a fireball already in flight', () => {
@@ -115,8 +122,61 @@ test('walls stop aiming and also stop a fireball already in flight', () => {
 
 test('half-health rage speeds the warning up but leaves time to dodge', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72); m.hp = 150;
-  step(1); assert.equal(m.dragonCast.charge, 0.65); assert.equal(m.dragonCast.damage, 35);
-  target.pos.x += 5; step(30); assert.deepEqual(hits, []);
+  step(1); assert.equal(m.dragonCast.charge, 0.65); assert.equal(m.dragonCast.damage, 40);
+  step(9); target.pos.x += 5; step(24); assert.deepEqual(hits, []);
+});
+
+test('standing directly underneath triggers a warned radial stomp and nonzero knockback', (t) => {
+  target.pos.z = -72;
+  const hurt = t.mock.method(NET, 'hurtLocal', (dmg) => hits.push(dmg));
+  const m = spawnMob('dragon', DRAGON_CX, -72, 4);
+  step(1); assert.ok(m.dragonStomp); assert.equal(m.dragonCast, undefined);
+  step(16); assert.deepEqual(hits, [], 'time to run out');
+  step(2); assert.deepEqual(hits, [44]);
+  const [, x, z] = hurt.mock.calls[0].arguments;
+  assert.ok(Math.hypot(x, z) > 0.99, 'armor and knockback also work at the exact center');
+  step(20); assert.deepEqual(hits, [44], 'only one hit per stomp');
+});
+
+test('leaving the stomp circle avoids it and a solid floor blocks it', () => {
+  target.pos.z = -72;
+  const m = spawnMob('dragon', DRAGON_CX, -72, 4);
+  step(1); target.pos.x += 6; step(22);
+  assert.deepEqual(hits, []);
+  m.dragonStomp = null; m.dragonStompCd = 0; target.pos.x = DRAGON_CX; m.pos.y = 4;
+  blocks.set(bkey(DRAGON_CX, 2, -72), 'basalt'); step(24);
+  assert.deepEqual(hits, [], 'does not strike through the floor');
+});
+
+test('landing remains a melee opening, then close camping is punished again', () => {
+  target.pos.z = -72;
+  const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonRest = 4;
+  step(60); assert.equal(m.dragonStomp, undefined); assert.deepEqual(hits, []);
+  step(24); assert.ok(m.dragonStomp, 'stomp returns after the rest window');
+});
+
+test('the third volley cancels a pending stomp so the landing opening stays safe', () => {
+  const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonShots = 2;
+  step(33); target.pos.set(m.pos.x, 0, m.pos.z);
+  step(1); assert.ok(m.dragonStomp);
+  step(12); assert.ok(m.dragonRest > 0); assert.equal(m.dragonStomp, null);
+  step(60); assert.deepEqual(hits, []);
+});
+
+test('every second volley covers both sideways dodge lanes', () => {
+  const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonShotId = 1;
+  step(1); const c = m.dragonCast;
+  assert.equal(c.extra.length, 2);
+  const centers = [c, ...c.extra].map((s) => s.to.x).sort((a, b) => a - b);
+  assert.deepEqual(centers, [DRAGON_CX - 4.8, DRAGON_CX, DRAGON_CX + 4.8]);
+  step(15); target.pos.x += 4.8; step(24);
+  assert.deepEqual(hits, [32], 'the side fireball catches the old sideways dodge');
+});
+
+test('overlapping fan explosions damage a player only once per volley', () => {
+  const m = spawnMob('dragon', DRAGON_CX, -72); m.dragonShotId = 1;
+  step(15); target.pos.x += 2.4; step(24);
+  assert.deepEqual(hits, [32]);
 });
 
 test('three shots lead to a four-second landing with no attacks', () => {
@@ -136,7 +196,7 @@ test('remote fireball damage uses the existing message and a unit knockback for 
   const send = t.mock.method(NET, 'sendTo', () => {});
   spawnMob('dragon', DRAGON_CX, -72); step(43);
   assert.equal(send.mock.callCount(), 1);
-  assert.deepEqual(send.mock.calls[0].arguments, ['fighter', ['dmg', 28, 0, 1]]);
+  assert.deepEqual(send.mock.calls[0].arguments, ['fighter', ['dmg', 32, 0, 1]]);
   assert.deepEqual(hits, []);
 });
 
@@ -150,7 +210,7 @@ test('blast respects nearby players, creative mode, death and cover independentl
   spawnMob('dragon', DRAGON_CX, -72); step(1);
   for (let y = 0; y < 4; y++) blocks.set(bkey(DRAGON_CX - 1, y, -52), 'basalt');
   step(43);
-  assert.deepEqual(hits, [28]);
+  assert.deepEqual(hits, [32]);
   assert.deepEqual(send.mock.calls.map((c) => c.arguments[0]), ['nearby']);
 });
 
@@ -189,9 +249,9 @@ test('the fireball arc and landing state are serialized for connected players', 
   target.pos.z = -52;
   const m = spawnMob('dragon', DRAGON_CX, -72); step(1);
   const state = JSON.parse(JSON.stringify(dragonNet(m)));
-  assert.equal(state.cast.to.z, -52); assert.equal(state.cast.radius, 2.6);
+  assert.equal(state.cast.to.z, -52); assert.equal(state.cast.radius, 3.2);
   const mid = dragonFirePosition(state.cast, state.cast.charge + state.cast.flight / 2);
-  assert.equal(mid.z, -62); assert.ok(mid.y > state.cast.to.y);
+  assert.equal(mid.z, (state.cast.from.z + state.cast.to.z) / 2); assert.ok(mid.y > state.cast.to.y);
 });
 
 test('room broadcasts the full fire warning in the optional mob snapshot field', () => {

@@ -6,22 +6,23 @@ const server = await serveDir(process.argv[2] || 'dist');
 const browser = await launch();
 fs.mkdirSync('test-results', { recursive: true });
 try {
-  for (const style of (process.argv[3] ? [process.argv[3]] : ['careless', 'bow', 'sword'])) {
+  for (const style of (process.argv[3] ? [process.argv[3]] : ['careless', 'camp', 'sideways', 'bow', 'sword'])) {
     const page = await openPage(browser, server.url);
     await page.click('#mSolo'); await waitGame(page);
     await page.evaluate((style) => {
       document.getElementById('intro').style.display = 'none';
       game.setCreative(true); T.clearInv(); T.tp(-40000, -52, 0); T.step(80);
-      if (style !== 'careless') {
+      if (style !== 'careless' && style !== 'camp') {
         for (const [i, part] of ['helmet','chestplate','leggings','boots'].entries()) game.armor[i] = { id: 'iron_' + part, n: 1 };
-        T.give(style === 'bow' ? 'bow' : 'iron_sword', 1);
-        T.give('arrow', 64); T.hold(style === 'bow' ? 'bow' : 'iron_sword');
+        T.give(['bow','sideways'].includes(style) ? 'bow' : 'iron_sword', 1);
+        T.give('arrow', 64); T.hold(['bow','sideways'].includes(style) ? 'bow' : 'iron_sword');
       }
+      if (style === 'camp') { const m=game.mobs.find(m=>m.type==='dragon'); T.tp(m.pos.x,m.pos.z,0); T.give('markorite_sword',1); T.hold('markorite_sword'); }
       game.setCreative(false); game.player.hp = 100; game.player.hunger = 90;
       window.battle = { t: 0, shots: 0, minHP: 100, landings: 0, wasResting: false, damageTaken: 0, previousHP: 100, minDragonHP: 300 };
     }, style);
     // See the attack before playing through it.
-    if (style === 'bow') {
+    if (style === 'bow' && !process.env.PLAYTEST_NO_SHOTS) {
       await page.evaluate(() => {
         const m=game.mobs.find(m=>m.type==='dragon'); T.aim(m.pos.x,m.pos.y+2,m.pos.z); T.step(4);
       });
@@ -35,30 +36,49 @@ try {
     let result;
     for (let batch=0;batch<36;batch++) {
       result=await page.evaluate(({style})=>{
-        const p=game.player, b=window.battle;
+        const p=game.player, b=window.battle, isBow=['bow','sideways'].includes(style);
         for(let i=0;i<100;i++) {
           const m=game.mobs.find(m=>m.type==='dragon');
           if(!p.alive || !m || m.dead) break;
           const dx=m.pos.x-p.pos.x,dz=m.pos.z-p.pos.z,d=Math.hypot(dx,dz);
           // Aim each frame; gravity compensation for the ordinary bow.
-          T.aim(m.pos.x,m.pos.y+2+(style==='bow'?15*d*d/(2*46*46):0),m.pos.z);
+          T.aim(m.pos.x,m.pos.y+2+(isBow?15*d*d/(2*46*46):0),m.pos.z);
           game.keys.clear(); game.input.lmb=false; game.input.rmb=false;
           if(style!=='careless') {
-            const c=m.dragonCast;
-            const casting=c&&!c.burst;
-            const inDanger=casting&&Math.hypot(p.pos.x-c.to.x,p.pos.z-c.to.z)<3.8;
-            if(casting) {
-              if(b.dodgeId!==c.id) {
+            const c=m.dragonCast, stomp=m.dragonStomp;
+            const pending=c&&!c.burst, close=stomp&&!stomp.burst;
+            if(style==='camp') {
+              if(d>2.8)game.keys.add('KeyW');
+              game.input.lmb=true;
+            } else if(style==='sideways') {
+              // Original easy tactic: sidestep once and stop outside the first circle.
+              const danger=pending&&Math.hypot(p.pos.x-c.to.x,p.pos.z-c.to.z)<3.8;
+              if(pending&&b.dodgeId!==c.id) {
                 b.dodgeId=c.id;
-                const rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw);
-                const score=(side)=>Math.abs(c.to.x+rx*side*5+40000)+Math.max(0,-(c.to.z+rz*side*5)-80)*3;
-                b.dodgeKey=score(1)<=score(-1)?'KeyD':'KeyA';
+                b.dodgeKey=p.pos.x>-40000?'KeyA':'KeyD';
               }
-              if(inDanger)game.keys.add(b.dodgeKey);
-            } else if(style==='sword'&&d>2.8 || style==='bow'&&d>23) {
+              if(danger)game.keys.add(b.dodgeKey);
+            } else if(close) {
+              game.keys.add('KeyS');game.keys.add('ShiftLeft');
+            } else if(m.dragonRest>0) {
+              if(style==='sword'&&d>2.8) {game.keys.add('KeyW');game.keys.add('ShiftLeft');}
+              else if(isBow&&d>21)game.keys.add('KeyW');
+            } else if(pending) {
+              if(c.extra?.length) {
+                // The fan covers both side lanes. Retreat along its axis instead.
+                game.keys.add(p.pos.z>-58&&d>10?'KeyW':'KeyS');
+              } else {
+                if(b.dodgeId!==c.id) {
+                  b.dodgeId=c.id;b.dodgeKey=p.pos.x>-40000?'KeyA':'KeyD';
+                }
+                game.keys.add(b.dodgeKey);
+              }
+              const safe=[c,...(c.extra||[])].every(shot=>Math.hypot(p.pos.x-shot.to.x,p.pos.z-shot.to.z)>shot.radius+0.8);
+              if(c.t>c.charge-0.3&&safe)game.keys.clear();else game.keys.add('ShiftLeft');
+            } else if(style==='sword'&&d>2.8 || isBow&&(d>23||game.pickTarget(48)?.kind!=='mob')) {
               game.keys.add('KeyW'); if(style==='sword')game.keys.add('ShiftLeft');
-            } else if(style==='bow'&&d<10)game.keys.add('KeyS');
-            if(style==='bow') {
+            } else if(isBow&&d<11)game.keys.add('KeyS');
+            if(isBow) {
               const firing=Math.floor(b.t/0.05)%25;
               game.input.rmb=firing<22;
               if(firing===22)b.shots++;
@@ -79,7 +99,8 @@ try {
       if(!result.alive||result.won)break;
     }
     console.log(JSON.stringify(result));
-    if(style==='careless')assert.equal(result.alive,false,'standing still must be dangerous');
+    if(['careless','camp'].includes(style))assert.equal(result.alive,false,'standing still or camping underneath must be dangerous');
+    else if(style==='sideways')assert.ok(result.damageTaken>10,'the original easy sideways dodge must now take damage');
     else {
       assert.equal(result.won,true,`${style}: ordinary inputs must win without god mode`);
       assert.equal(result.alive,true); assert.equal(result.reward,128);

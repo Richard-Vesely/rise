@@ -102,9 +102,11 @@ function updateDragonHealth() {
   dragonHealth.querySelector('b').textContent = `Drak Země draka · ${Math.ceil(m.hp)} / ${m.def.hp}`;
   dragonHealth.querySelector('progress').value = m.hp;
   dragonHealth.querySelector('progress').max = m.def.hp;
-  const c = m.dragonCast, danger = c && !c.burst && Math.hypot(player.pos.x - c.to.x, player.pos.z - c.to.z) < c.radius + 0.5;
-  dragonHealth.querySelector('small').textContent = m.dragonRest > 0 ? `Drak odpočívá ${Math.ceil(m.dragonRest)} s — teď zaútoč!`
-    : danger ? 'Ohnivá koule míří sem — uhni do strany!'
+  const c = m.dragonCast, s = m.dragonStomp;
+  const danger = c && [c, ...(c.extra || [])].some((shot) => !shot.burst && Math.hypot(player.pos.x - shot.to.x, player.pos.z - shot.to.z) < shot.radius + 0.5);
+  dragonHealth.querySelector('small').textContent = s && !s.burst ? 'Drak dupne — běž z červeného kruhu!'
+    : m.dragonRest > 0 ? `Drak odpočívá ${Math.ceil(m.dragonRest)} s — teď zaútoč!`
+    : danger ? c.extra?.length ? 'Ohnivý vějíř — uhni dopředu nebo dozadu!' : 'Drak tě zaměřuje — nezastavuj se!'
     : c && !c.burst ? 'Koule míří do kruhu — drž se mimo něj!'
     : m.hp <= m.def.hp / 2 ? 'Rozzuřený drak! Po třech koulích přistane.' : 'Uhýbej koulím. Po třech výstřelech přistane.';
 }
