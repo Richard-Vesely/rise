@@ -94,14 +94,14 @@ function updateDragonHealth() {
   if (!dragonHealth && !m) return;
   if (!dragonHealth) {
     dragonHealth = document.createElement('div'); dragonHealth.id = 'dragonHealth';
-    dragonHealth.innerHTML = '<b></b><progress max="300"></progress><small></small>';
+    dragonHealth.innerHTML = '<b></b><progress></progress><small></small>';
     document.body.append(dragonHealth);
   }
   dragonHealth.hidden = !m;
   if (!m) return;
   dragonHealth.querySelector('b').textContent = `Drak Země draka · ${Math.ceil(m.hp)} / ${m.def.hp}`;
-  dragonHealth.querySelector('progress').value = m.hp;
   dragonHealth.querySelector('progress').max = m.def.hp;
+  dragonHealth.querySelector('progress').value = m.hp;
   const c = m.dragonCast, s = m.dragonStomp;
   const danger = c && [c, ...(c.extra || [])].some((shot) => !shot.burst && Math.hypot(player.pos.x - shot.to.x, player.pos.z - shot.to.z) < shot.radius + 0.5);
   dragonHealth.querySelector('small').textContent = s && !s.burst ? 'Drak dupne — běž z červeného kruhu!'

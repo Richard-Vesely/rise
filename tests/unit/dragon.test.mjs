@@ -82,8 +82,19 @@ test('one dragon spawns in its cave, even after repeated spawn checks', () => {
   buildStructure(DRAGON_DEN);
   for (let i = 0; i < 10; i++) updateSpawns(4, 0);
   assert.equal(mobs.length, 1); assert.equal(mobs[0].type, 'dragon');
-  assert.equal(mobs[0].hp, 300);
+  assert.equal(mobs[0].hp, 1200);
   for (const [id] of MOBS.dragon.drops) assert.ok(ITEMS[id]);
+});
+
+test('1200 HP dragon survives the old 300-damage kill and enrages at half health', () => {
+  const m = spawnMob('dragon', DRAGON_CX, -72);
+  hurtMob(m, 300, 0);
+  assert.equal(m.hp, 900); assert.equal(m.dead, false);
+  step(1); assert.equal(m.dragonCast.damage, 44, 'above half health uses the normal attack');
+  step(11); hurtMob(m, 300, 0);
+  assert.equal(m.hp, 600); assert.equal(m.dead, false);
+  m.dragonCast = null; m.cd = 0; step(1);
+  assert.equal(m.dragonCast.damage, 55, 'rage starts at 600 HP');
 });
 
 test('brutal dragon closes distance at 18 m/s and keeps moving after launch', () => {
@@ -100,7 +111,7 @@ test('fireball warns, locks its aim, travels, then damages once at range', () =>
   target.pos.z = -52;
   const m = spawnMob('dragon', DRAGON_CX, -72);
   step(1); const c = m.dragonCast;
-  assert.equal(m.hp, 300); assert.equal(c.charge, 0.75); assert.equal(c.to.z, -52);
+  assert.equal(m.hp, 1200); assert.equal(c.charge, 0.75); assert.equal(c.to.z, -52);
   step(18); assert.deepEqual(hits, [], 'warning alone deals no damage');
   assert.ok(m.dragonCast.t < c.charge + c.flight);
   step(24); assert.deepEqual(hits, [44]);
@@ -132,7 +143,7 @@ test('walls stop aiming and also stop a fireball already in flight', () => {
 });
 
 test('half-health rage speeds the warning up but leaves time to dodge', () => {
-  const m = spawnMob('dragon', DRAGON_CX, -72); m.hp = 150;
+  const m = spawnMob('dragon', DRAGON_CX, -72); m.hp = 600;
   step(1); assert.equal(m.dragonCast.charge, 0.55); assert.equal(m.dragonCast.damage, 55);
   step(9); target.pos.x += 5; step(24); assert.deepEqual(hits, []);
 });
@@ -228,7 +239,7 @@ test('blast respects nearby players, creative mode, death and cover independentl
 test('killing the dragon cancels its unfinished fireball', () => {
   const m = spawnMob('dragon', DRAGON_CX, -72); step(1);
   assert.ok(m.dragonCast);
-  hurtMob(m, 300, 0); step(50);
+  hurtMob(m, 1200, 0); step(50);
   assert.deepEqual(hits, []);
 });
 
@@ -253,7 +264,7 @@ test('a lethal fireball still heals the dragon, surviving hits do not', (t) => {
   target.pos.z = -52;
   const m = spawnMob('dragon', DRAGON_CX, -72); m.hp = 100;
   t.mock.method(NET, 'hurtLocal', () => { target.alive = false; });
-  step(43); assert.equal(m.hp, 300);
+  step(43); assert.equal(m.hp, 1200);
 });
 
 test('the fireball arc and landing state are serialized for connected players', () => {
@@ -273,7 +284,7 @@ test('room broadcasts the full fire warning in the optional mob snapshot field',
   NET.ops = []; NET.mobT = 0; NET.poseT = 1; NET.kvT = 1;
   try { updateRoom(0.05); } finally { others.clear(); }
   const snapshot = messages.find((msg) => msg[0] === 'mobs')[3][0];
-  assert.equal(snapshot[1], 'dragon'); assert.equal(snapshot[6], 300);
+  assert.equal(snapshot[1], 'dragon'); assert.equal(snapshot[6], 1200);
   assert.equal(snapshot[12].cast.to.z, -52); assert.equal(snapshot[12].cast.charge, 0.75);
   assert.equal(snapshot[12].rest, 0);
 });
@@ -286,7 +297,7 @@ test('dragon defeat saves the full escape time and allows one new fight afterwar
   step(1); assert.ok(m.dragonCast, 'prepares a ranged attack');
   assert.equal(hurtMob(m, 100, 0), true); assert.equal(m.dead, false);
   step(11);
-  assert.equal(hurtMob(m, 200, 0), true); assert.equal(m.dead, true);
+  assert.equal(hurtMob(m, 1100, 0), true); assert.equal(m.dead, true);
   assert.ok(ruinsOpened.has(DRAGON_DEN.key));
   assert.equal(dragonCycle.respawnAt, now + DRAGON_RESPAWN_MS);
   const saved = JSON.parse(JSON.stringify(worldState()));
@@ -297,10 +308,10 @@ test('dragon defeat saves the full escape time and allows one new fight afterwar
   updateSpawns(4, 0); assert.equal(mobs.length, 0, 'no dragon before the deadline');
   now++;
   for (let i = 0; i < 5; i++) updateSpawns(4, 0);
-  assert.equal(mobs.length, 1); assert.equal(mobs[0].hp, 300);
+  assert.equal(mobs.length, 1); assert.equal(mobs[0].hp, 1200);
   const loot = t.mock.method(NET, 'give', () => {});
   NET.killer = 'next-player';
-  hurtMob(mobs[0], 300, 0);
+  hurtMob(mobs[0], 1200, 0);
   assert.ok(loot.mock.calls.some((c) => c.arguments[0] === 'next-player' && c.arguments[1] === 'markorite' && c.arguments[2] === 128));
   assert.equal(dragonCycle.respawnAt, now + DRAGON_RESPAWN_MS, 'each victory starts a new escape period');
   assert.ok(blocks.has(bkey(DRAGON_CX, 12, -72)), 'saved cave remains');
@@ -310,7 +321,7 @@ test('the return deadline runs while everyone is home or offline', (t) => {
   let now = 1800000000000;
   t.mock.method(Date, 'now', () => now);
   buildStructure(DRAGON_DEN);
-  hurtMob(spawnMob('dragon', DRAGON_CX, -72), 300, 0);
+  hurtMob(spawnMob('dragon', DRAGON_CX, -72), 1200, 0);
   const saved = JSON.parse(JSON.stringify(worldState()));
   mobs.length = 0; loadWorld(saved);
   target.pos.set(0, 0, 0);

@@ -18,10 +18,12 @@ try {
   const visual=await page.evaluate(()=>{
     const m=game.mobs.find(m=>m.type==='dragon');T.aim(m.pos.x,m.pos.y+2,m.pos.z);T.step(1);
     const fx=game.mobView(m).dragonFire;
-    return {client:game.NET.client,hp:m.hp,visible:fx.root.visible,ring:fx.ring.visible,to:m.dragonCast.to.z,hud:T.text('dragonHealth')};
+    const bar=document.querySelector('#dragonHealth progress');
+    return {client:game.NET.client,hp:m.hp,max:bar.max,value:bar.value,visible:fx.root.visible,ring:fx.ring.visible,to:m.dragonCast.to.z,hud:T.text('dragonHealth')};
   });
-  assert.equal(visual.client,true);assert.equal(visual.hp,300);assert.equal(visual.visible,true);assert.equal(visual.ring,true);
-  assert.ok(Math.abs(visual.to+52)<0.1);assert.ok(visual.hud.includes('300 / 300'));
+  assert.equal(visual.client,true);assert.equal(visual.hp,1200);assert.equal(visual.visible,true);assert.equal(visual.ring,true);
+  assert.equal(visual.max,1200);assert.equal(visual.value,1200);
+  assert.ok(Math.abs(visual.to+52)<0.1);assert.ok(visual.hud.includes('1200 / 1200'));
   await page.waitForFunction(()=>game.player.hp<90,null,{timeout:10000,polling:50});
   const hp=await page.evaluate(()=>game.player.hp);
   assert.ok(hp>50&&hp<65,'host applies one 44-damage explosion to the remote player');
