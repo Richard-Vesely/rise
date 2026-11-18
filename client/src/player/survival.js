@@ -22,11 +22,16 @@ import { creative, player } from './player.js';
 import { magic } from './xp.js';
 import { popGroundItem } from '../../../shared/sim/ground-items.js';
 import { ownerItem } from '../../../shared/data/magic.js';
+import { BONUS_DEFENSE } from '../../../shared/data/bonus.js';
+import { hasPerk } from './bonus.js';
+import { endGhost } from './ghost.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
   if (!player.alive || creative) return;
   if (magic.wardT > 0) amount *= 0.5; // kouzlo Ochranný štít (xp.js)
+  if (hasPerk('obrana')) amount *= BONUS_DEFENSE; // bonus pro dárce Velká obrana (bonus.js)
+  endGhost('Něco tě zranilo: duch je zpátky v těle'); // teleport duchem (ghost.js)
   if (dx || dz) { // brnění tlumí útoky a přitom se opotřebuje
     const raw = amount;
     amount *= 1 - Math.min(0.8, armorPoints() * 0.035);
@@ -51,6 +56,7 @@ function flashHearts() {
   w.classList.add('hit');
 }
 function die() {
+  endGhost();
   if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
@@ -101,7 +107,7 @@ export function updateSurvival(dt) {
     player.hp -= 3 * dt; setVignette(Math.max(vignette, 0.5));
     if (player.hp <= 0) die();
   }
-  player.hunger = Math.max(0, player.hunger - dt * (player.sprinting ? 0.3 : 0.11));
+  player.hunger = hasPerk('syty') ? 100 : Math.max(0, player.hunger - dt * (player.sprinting ? 0.3 : 0.11)); // bonus Bez hladu (bonus.js)
   if (player.hunger < 25 && !hungerWarned) { hungerWarned = true; toast('Máš hlad – sněz něco (pravé tlačítko)'); }
   if (player.hunger > 40) hungerWarned = false;
   if (player.hunger <= 0 && (starveT += dt) > 3) { starveT = 0; damagePlayer(4, 0, 0); }

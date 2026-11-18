@@ -25,6 +25,7 @@ import { toast } from '../ui/hud.js';
 import { armor, fullSet, invOpen, ui } from '../ui/inventory-ui.js';
 import { carCam, hornN, seatWorld, vehMeshes, vehPose } from '../vehicles/car.js';
 import { kindOf } from '../vehicles/kinds.js';
+import { ghost } from '../player/ghost.js';
 
 // ---------- můj oblek: z prohlížeče (podle jména), na serveru kroužku novější verze z profilu
 let myCostume = loadCostume(NET.name);
@@ -191,7 +192,7 @@ function blocked(x, y, z) {
   return y < terrainH(x, z) + 0.15 && y > topY(fx, fz) - 0.5 && !columnDug(fx, fz);
 }
 function thirdPersonCamera() {
-  if (!(viewMode > 0 && me?.group.visible) || player.vehicle) { camDist = 0; return; } // ve vozidle má kameru vozidlo
+  if (!(viewMode > 0 && me?.group.visible) || player.vehicle || ghost.on) { camDist = 0; return; } // ve vozidle má kameru vozidlo
   if (camera.position.distanceToSquared(applied) < 1e-8) return; // v tomhle snímku už posunutá (scéna se kreslí víckrát)
   eye.copy(camera.position); // hra kameru každý snímek vrací do očí
   dir.set(0, 0, viewMode === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
@@ -219,7 +220,7 @@ export function updateLocalBody(dt, moving) {
   myArmorKey = key;
   // na kole, v lodi a v kokpitu je vidět i vlastní postava, když je kamera vozidla zezadu (V)
   const veh = vehicles.get(player.vehicle), onSeat = !!veh && carCam === 1 && kindOf(veh.type).open && player.alive;
-  const show = (viewMode > 0 && player.alive && !player.vehicle && !player.riding) || onSeat;
+  const show = ((viewMode > 0 || ghost.on) && player.alive && !player.vehicle && !player.riding) || onSeat; // duch vidí svoje tělo (player/ghost.js)
   holder.visible = !show && !player.vehicle && !player.riding && !dining; // ve vozidle a u jídla u stolu ruka není vidět
   if (!show) { if (me) me.group.visible = false; return; }
   if (!me) { me = buildCharacter(myCostume); scene.add(me.group); me.anim.bodyYaw = player.yaw; myHeld = undefined; me.armorKey = null; }

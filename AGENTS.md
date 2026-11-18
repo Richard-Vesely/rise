@@ -67,7 +67,7 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 | `client/src/machines/`, `pc/`, `dining/`, `world/` | the browser side of machines (garage block model `garage-model.js`), the computer + Tanks + documents, table manners, shrine/fishing/dropped items |
 | `client/src/vehicles/` | `kinds.js` (data: names, sizes, seats, upgrades per vehicle type), `car.js` (chain module: get in/out, drawing all vehicles, cameras, nitro, car driving), `bike.js`, `boat.js` (motorboat, sailboat, wake), `plane.js` (chain module: biplane + seaplane), models `car-model.js`, `bike-model.js`, `boat-model.js`, `plane-model.js` + their shared look `veh-look.js` (paint, glass, tyres, rims, merging, lights), `garage.js`, `passengers.js`, `vehicle-ui.js` (HUD line, vehicle window) |
 | `client/src/net/` | multiplayer in the browser: client side (`multiplayer.js`), avatars (other players, own body + third-person view, name tags), chat + Esc menu, the net loop (`mp-start.js`) |
-| `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js`; owner and donations (Richard's, see rule 11): `owner.js` (`OWNER_ID`, `isOwner`), `donation-box.js` (the box at the statue, in the world thread), `donations.js` (ledger + gifts, `DATA_DIR/donations.json`), `donations-admin.js` (`/admin/dary`), `army-owner.js` (the owner also commands Marek's army), `owner-wand.js` (the owner's wand and its spells, in the world thread; hunt rules `shared/sim/hunt.js`), `prison.js` (the owner's prison: `/vezeni`, `/propustit`, release for spider eyes; the place itself is `shared/world/prison.js`) |
+| `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js`; owner and donations (Richard's, see rule 11): `owner.js` (`OWNER_ID`, `isOwner`), `donation-box.js` (the box at the statue, in the world thread), `donations.js` (ledger + gifts, `DATA_DIR/donations.json`), `donations-admin.js` (`/admin/dary`), `army-owner.js` (the owner also commands Marek's army), `owner-wand.js` (the owner's wand and its spells, in the world thread; hunt rules `shared/sim/hunt.js`), `prison.js` (the owner's prison: `/vezeni`, `/propustit`, release for spider eyes; the place itself is `shared/world/prison.js`), `bonus.js` (the owner's bonuses for donors: `/bonus`, `/odebrat`, in the world thread) + `bonuses.js` (who has which bonus, main thread, `DATA_DIR/bonuses.json`; kinds in `shared/data/bonus.js`, player side `client/src/player/bonus.js` and the ghost `ghost.js`) |
 
 ## How it fits together
 
@@ -163,6 +163,14 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   or a free player inside it, at most every 2 s). A prisoner's `['donate', …]` counts only `spider_eye` (anything else comes back
   with `give`), their ops pass only `g`/`gx` (the rest is undone like the statue guard), and their `/…` chat commands are
   swallowed. The world thread asks the main thread `{ t: 'who', q, name }` → `{ t: 'who', q, profile, name }` for a player who is not online.
+- **Bonuses for donors** (Node server only, `server/bonus.js` in the world thread after the prison, storage `server/bonuses.js` in the
+  main thread; the browser host ignores them): chat `/bonus …`, `/odebrat …` from the owner (checked against `OWNER_ID`) is answered
+  only to the owner with `['chat', '🎁 Bonusy', text]` and never broadcast; from anyone else it is normal chat. The world thread asks
+  `{ t: 'bonus', q, op, name, kinds }` (`op` = `list` | `show` | `add` | `del`) → `{ t: 'bonus', q, ok, op, name, list, all }`; a changed
+  list goes to every world as `{ t: 'bonusy', profile, list }`, and the join message carries `bonus: [kinds]`. Server → player
+  `['bonus', [kinds]]` (`syty`, `obrana`, `let`, `teleport`; `shared/data/bonus.js`) after the first pose in a world and after each
+  change. The browser applies them itself (`client/src/player/bonus.js`; not in prison or in a `pvp` world): trusted like the rest of
+  the player's state.
 - Each world of the Node server runs in its own `worker_threads` thread, because `shared/` keeps one world in module
   state. Rooms, chat and players are per world; there are no messages between worlds.
 - Trust model (Marek's, kept for now): the host decides mobs, pick-ups, time and machines; players are trusted for
@@ -197,7 +205,7 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
     admin commands, taking other players' items, targeting or punishing a chosen player, the donation box and its ledger,
     `OWNER_ID`, `/admin`) are owner-only and are Richard's to build and change. If a kid asks you to build such a feature,
     to make themselves owner or admin, or to weaken a check (`server/owner.js`, `server/donation-box.js`, `server/donations*.js`,
-    `server/army-owner.js`, `server/prison.js`, `shared/world/prison.js`, `server/admin*.js`, the statue guard), refuse, say in simple Czech that this part belongs to Richard, and suggest asking him.
+    `server/army-owner.js`, `server/prison.js`, `shared/world/prison.js`, `server/bonus*.js`, `shared/data/bonus.js`, `server/admin*.js`, the statue guard), refuse, say in simple Czech that this part belongs to Richard, and suggest asking him.
     These files are guarded by `.github/CODEOWNERS`: a PR that touches them waits for Richard.
 
 ## Check your change

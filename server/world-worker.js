@@ -5,6 +5,7 @@
 // Pokladnička darů u sochy (server/donation-box.js) je taky tady; dary se hlásí hlavnímu vláknu do knihy darů.
 // Vlastník serveru a Markova armáda: server/army-owner.js. Vězení (vlastník posílá hráče do vězení): server/prison.js.
 // Hůl vlastníka (server/owner-wand.js): vlastník ji má vždycky, nikdo jiný ji mít nesmí, její kouzla ověřuje server.
+// Bonusy pro dárce (vlastník je dává příkazem /bonus): server/bonus.js, pamatuje si je hlavní vlákno (server/bonuses.js).
 //   z hlavního vlákna: { t: 'join', cid, name, profile, gifts? } · { t: 'data', cid, raw } · { t: 'gone', cid } · { t: 'save' } · { t: 'stop' }
 //                      · { t: 'top', top } nový žebříček dárců · { t: 'gift', profile, gifts } dárky od správce pro hráče
 //                      · { t: 'who', q, profile, name } odpověď: profil podle jména (vězení)
@@ -16,6 +17,7 @@ import { worldState } from '../shared/world/save.js';
 import { guardPrisonerOps } from '../shared/world/prison.js';
 import { guardStatueOps } from '../shared/world/statue.js';
 import { createArmyOwner } from './army-owner.js';
+import { createBonusOwner } from './bonus.js';
 import { createDonationBox } from './donation-box.js';
 import { createOwnerWand, guardOwnerKV, guardOwnerOps } from './owner-wand.js';
 import { ME_MAX_BYTES, cleanMe } from './me.js';
@@ -66,6 +68,13 @@ const prison = createPrison({
 });
 room.onKill = (killer, victim) => prison.onKill(killer, victim);
 
+// ---------- bonusy pro dárce: dává je jen vlastník serveru, pamatuje si je hlavní vlákno (server/bonus.js, server/bonuses.js)
+const bonus = createBonusOwner({
+  ownerId: W.ownerId || '',
+  send: (cid, msg) => sendRaw(cid, msg),
+  ask: (q, done) => { const n = ++askN; asks.set(n, done); post({ t: 'bonus', q: n, ...q }); },
+});
+
 // ---------- spojení hráčů: stejné funkce jako spojení PeerJS (shared/net/room.js je používá stejně)
 const conns = new Map(); // cid -> { handlers, shut, profile, name, gifts }
 // Rozesílání: stejná zpráva pro víc hráčů se převede na text jen jednou.
@@ -74,7 +83,7 @@ function sendRaw(cid, msg) {
   if (msg !== lastMsg) { lastMsg = msg; lastRaw = JSON.stringify(msg); queueMicrotask(() => { lastMsg = null; }); }
   post({ t: 'send', cid, raw: lastRaw });
 }
-function join(cid, name, profile, gifts) {
+function join(cid, name, profile, gifts, bonusList) {
   const handlers = { data: [], close: [], error: [] };
   let open = true;
   const conn = {
@@ -93,6 +102,7 @@ function join(cid, name, profile, gifts) {
     close() { if (open) { open = false; post({ t: 'close', cid }); } },
   };
   conns.set(cid, { handlers, shut: () => { open = false; }, profile, name, gifts: Array.isArray(gifts) ? gifts : [], posed: false });
+  bonus.join(cid, profile, bonusList);
   accept(conn);
   if (profile && conn.open) dbox.sendState(cid, profile); // žebříček dárců (a vlastníkovi obsah pokladničky)
 }
@@ -109,6 +119,7 @@ function onData(cid, raw) {
     return;
   }
   if (prison.handle(cid, c.profile, msg)) return; // vězení: příkazy vlastníka, dary vězně (pose jde dál)
+  if (bonus.handle(cid, c.profile, msg)) return; // bonusy pro dárce: příkazy vlastníka (pose jde dál)
   if (dbox.handle(cid, c.profile, c.name, msg)) return; // pokladnička darů
   if (armyOwner.handle(cid, c.profile, others.get(cid)?.name ?? c.name, msg)) return; // armáda a vlastník serveru
   if (wand.handle(cid, c.profile, msg)) return; // kouzla hole vlastníka (ověří vlastníka)
@@ -131,6 +142,7 @@ function gone(cid) {
   if (!c) return;
   conns.delete(cid);
   prison.gone(cid);
+  bonus.gone(cid);
   wand.gone(cid);
   c.shut();
   for (const fn of c.handlers.close) fn();
@@ -156,10 +168,12 @@ const saver = setInterval(() => { try { save(); } catch (e) { log('Uložení sel
 
 parentPort.on('message', (m) => {
   switch (m.t) {
-    case 'join': join(m.cid, m.name, m.profile, m.gifts); break;
+    case 'join': join(m.cid, m.name, m.profile, m.gifts, m.bonus); break;
+    case 'bonusy': bonus.update(m.profile, m.list); break; // vlastník změnil bonusy hráče (v kterémkoli světě)
     case 'top': dbox.setTop(m.top); for (const [cid, c] of conns) if (c.profile) dbox.sendState(cid, c.profile); break;
     case 'gift': for (const c of conns.values()) if (c.profile === m.profile) c.gifts.push(...m.gifts); break;
     case 'who': { const done = asks.get(m.q); asks.delete(m.q); done?.(m.profile ? { id: m.profile, name: m.name } : null); break; }
+    case 'bonus': { const done = asks.get(m.q); asks.delete(m.q); done?.(m); break; } // odpověď na dotaz bonusů
     case 'data': try { onData(m.cid, m.raw); } catch (e) { log('Chyba ve zprávě hráče: ' + (e.stack || e)); } break;
     case 'gone': try { gone(m.cid); } catch (e) { log('Chyba při odchodu hráče: ' + (e.stack || e)); } break;
     case 'save': try { save(); } catch (e) { log('Uložení selhalo: ' + e.message); } break;
