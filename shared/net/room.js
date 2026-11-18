@@ -202,7 +202,8 @@ export function pullTarget(from, kind, id, x, y, z) {
  * @param {number} kb síla odhodu 0–2
  * @param {boolean} ranged šíp (větší dosah) nebo úder zblízka
  * @param {number} [kill] zranění, které zabije (jen server: Avada Kedavra hole vlastníka, server/owner-wand.js); platí jen ve světě
- *   se souboji (pvp, nebo pvp-mark a oba v Markově dimenzi), ne v souboji na klávesu N; bez odhodu, brnění ho netlumí
+ *   se souboji (pvp, nebo pvp-mark a oba v Markově dimenzi), ne v souboji na klávesu N; na jakoukoli vzdálenost (dosah hlídá
+ *   hůl), bez odhodu, brnění ho netlumí
  */
 export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
   if (from === to) return false;
@@ -210,9 +211,9 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
   if (!a || !t || a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
   const world = NET.pvp || (NET.pvpMark && isMark(a.x) && isMark(t.x)); // aréna, nebo pvp-mark: oba v Markově dimenzi
   if (!world && (kill || !(a.pv && t.pv))) return false; // jinde jen když mají souboje zapnuté oba (klávesa N)
-  if (Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
+  if (!kill && Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
   const now = performance.now() / 1000;
-  if (now - (T.hurtAt || -9) < PVP.invuln) return false;
+  if (!kill && now - (T.hurtAt || -9) < PVP.invuln) return false;
   T.hurtAt = now;
   T.lastHit = { by: from === 'host' ? NET.name : A.name, pid: from, t: now }; // komu připsat bod, když zraněný padne
   const n = kill || clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = kill ? 0 : clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;

@@ -150,9 +150,9 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   host ignores them. Ops that touch a statue block (`fixed` in `shared/data/blocks.js`) are dropped and the sender gets the real block back.
 - **Owner's wand** (Node server only, `server/owner-wand.js`, handled in the world thread before the room; the browser host ignores it):
   client → `['ospell', spell, 'm' | 'p', nid | pid]` (`spell` = `'avada'` Avada Kedavra or `'hunt'` Štvanice). The server checks the
-  profile against `OWNER_ID` (anyone else gets a `toast`), the caster's pose and reach (60 m), then kills the mob, or the player
-  through `hitPlayer(…, kill)` in `shared/net/room.js` (only in a `pvp` world or a `pvp-mark` world with both in Markova dimenze:
-  `['dmg', 1000, 0, 0]`), or starts the hunt (`startHunt`, `shared/sim/hunt.js`). Item `owner_wand` (`ownerItem` in
+  profile against `OWNER_ID` (anyone else gets a `toast`), the caster's pose and reach (`AVADA.range`, 1000 m), then kills the mob, or the player
+  through `hitPlayer(…, kill)` in `shared/net/room.js` (only in a `pvp` world or a `pvp-mark` world with both in Markova dimenze;
+  any distance: `['dmg', 1000000, 0, 0]`), or starts the hunt (`startHunt`, `shared/sim/hunt.js`). Item `owner_wand` (`ownerItem` in
   `shared/data/magic.js`): the server drops `g` ops and `kv` slots with it, removes it from other players' `me`, and sends the owner
   `['give', 'owner_wand', 1]` when his saved backpack lacks it.
 - **Prison** (Node server only, `server/prison.js`, handled in the world thread before the donation box and the room): chat

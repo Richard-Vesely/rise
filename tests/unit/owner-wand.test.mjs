@@ -108,7 +108,7 @@ test('Avada Kedavra: only the owner can cast it; it kills a mob anywhere', () =>
   assert.ok(golem.dead);
   assert.ok(msgs('c-boss').some((m) => m[0] === 'give'), 'the loot goes to the owner');
 
-  const far = (spawnMob('wolf', 0, 200), mobs.at(-1));
+  const far = (spawnMob('wolf', 0, 1200), mobs.at(-1));
   far.nid = 8; clock += 2;
   assert.equal(wand.spell('c-boss', 'boss', ['ospell', 'avada', 'm', 8]), 'miss', 'out of reach');
   const mark = (spawnMob('markoman', MARK_X + 500, 0), mobs.at(-1));
@@ -121,7 +121,7 @@ test('Avada Kedavra: only the owner can cast it; it kills a mob anywhere', () =>
   assert.equal(wand.spell('c-boss', 'boss', ['ospell', 'avada', 'm', 10]), 'miss', 'at most one cast a second');
 });
 
-test('Avada Kedavra: kills a player only where fights are on (pvp world, or pvp-mark with both in Markova dimenze)', () => {
+test('Avada Kedavra: kills a player only where fights are on (pvp world, or pvp-mark with both in Markova dimenze), at any distance', () => {
   addPlayer('c-boss', 'Riki', 0, 30);
   addPlayer('c-kid', 'Bára', 5, 30, { pv: 1 });
   const cast = () => { clock += 2; others.get('c-kid').hurtAt = 0; return wand.spell('c-boss', 'boss', ['ospell', 'avada', 'p', 'c-kid']); };
@@ -134,15 +134,20 @@ test('Avada Kedavra: kills a player only where fights are on (pvp world, or pvp-
   assert.equal(cast(), 'miss', 'pvp-mark world outside Markova dimenze: no');
   others.get('c-boss').pose.x = MARK_X + 10; others.get('c-kid').pose.x = MARK_X + 15;
   assert.equal(cast(), 'player', 'pvp-mark world, both in Markova dimenze: yes');
-  assert.deepEqual(dmg().at(-1), ['dmg', 1000, 0, 0], 'a kill-size hit with no knockback (armor does not soften it)');
+  assert.deepEqual(dmg().at(-1), ['dmg', 1000000, 0, 0], 'a kill-size hit with no knockback (armor does not soften it)');
   assert.ok(msgs('c-kid').some((m) => m[0] === 'toast' && /Avada/.test(m[1])));
   NET.pvpMark = false; NET.pvp = true;
   others.get('c-boss').pose.x = 0; others.get('c-kid').pose.x = 5;
   assert.equal(cast(), 'player', 'pvp world: yes');
-  others.get('c-kid').pose.cr = 1;
+  others.get('c-kid').pose.z = 30 + 900;
+  assert.equal(cast(), 'player', '900 m away: yes (an arrow reaches only 90 m)');
+  others.get('c-kid').hurtAt = 1e12; clock += 2;
+  assert.equal(wand.spell('c-boss', 'boss', ['ospell', 'avada', 'p', 'c-kid']), 'player', 'right after another hit: yes');
+  others.get('c-kid').pose.z = 30; others.get('c-kid').pose.cr = 1;
   assert.equal(cast(), 'miss', 'a creative player cannot be hit');
-  others.get('c-kid').pose.cr = 0; others.get('c-kid').pose.z = 200;
-  assert.equal(cast(), 'miss', 'out of reach');
+  others.get('c-kid').pose.cr = 0; others.get('c-kid').pose.z = 30 + 1100;
+  assert.equal(cast(), 'miss', 'beyond the beam (1000 m)');
+  NET.pvp = false;
 });
 
 test('Štvanice: only the owner; mobs around the victim get red eyes and hunt them; it ends', () => {
@@ -153,7 +158,8 @@ test('Štvanice: only the owner; mobs around the victim get red eyes and hunt th
   NET.targets = () => TG;
   assert.equal(wand.spell('c-kid', 'kid', ['ospell', 'hunt', 'p', 'c-boss']), 'denied', 'a non-owner cannot');
   assert.equal(hunts.size, 0);
-  assert.equal(wand.spell('c-boss', 'boss', ['ospell', 'hunt', 'p', 'c-kid']), 'miss', 'the victim must be within reach of the owner');
+  others.get('c-kid').pose.x = 1200;
+  assert.equal(wand.spell('c-boss', 'boss', ['ospell', 'hunt', 'p', 'c-kid']), 'miss', 'the victim must be within reach of the beam (1000 m)');
   others.get('c-kid').pose.x = 40; TG[1].pos.set(40, groundHeight(40, 30), 30);
   sheep.pos.x = 50; wolf.pos.x = 35;
   clock += 2;

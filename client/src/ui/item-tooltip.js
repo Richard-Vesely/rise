@@ -35,7 +35,7 @@ const DESC = {
   grenade: 'Pravé tl. = hodíš granát: letí obloukem a vybuchne (4 m).', firework: 'Pravé tl. = ohňostroj v náhodné barvě.',
   grapple: 'Pravé tl. = hák se chytí bloku nebo země (do 35 m) a přitáhne tě tam.', medkit: 'Pravé tl. = zdraví do plna.',
   jet: 'Stíhačka: létá jako dvouplošník, ale s 3× silnějším motorem. Postav ji na zem a nastup (F).',
-  owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
+  owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora kdekoli, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
   bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
 };
 // V kolika receptech je předmět surovinou
