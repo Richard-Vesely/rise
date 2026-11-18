@@ -130,7 +130,7 @@ export function onHostMsg(msg) {
 // Tvorové na klientovi: loutky, které plynule následují pozice od hostitele.
 function syncPuppets(list) {
   const seen = new Set();
-  for (const [nid, type, x, y, z, ry, hp, fl, dead, eggs, milk, hunt] of list) { // hunt = rudé oči (štvanice; starý hostitel ho neposílá)
+  for (const [nid, type, x, y, z, ry, hp, fl, dead, eggs, milk, hunt, dragon] of list) { // volitelný stav dračí koule; starý hostitel ho neposílá
     if (!MOBS[type]) continue;
     seen.add(nid);
     let m = puppets.get(nid);
@@ -143,6 +143,7 @@ function syncPuppets(list) {
     }
     m.tgt.set(x, y, z);
     m.ry = ry; m.hp = hp; m.eggs = eggs; m.milkT = milk ? 1 : 0; m.hunt = hunt ? 1 : 0;
+    m.dragonCast = dragon?.cast ?? null; m.dragonRest = dragon?.rest || 0;
     m.flash = Math.max(m.flash, fl);
     if (dead && !m.dead) { m.dead = true; m.deathT = 0; }
   }
@@ -160,6 +161,10 @@ export function updatePuppets(dt) {
     const ox = m.pos.x, oz = m.pos.z;
     if (m.pos.distanceTo(m.tgt) > 8) m.pos.copy(m.tgt); else m.pos.lerp(m.tgt, 1 - Math.exp(-dt * 10));
     const sp = dt > 0 ? Math.hypot(m.pos.x - ox, m.pos.z - oz) / dt : 0;
+    if (m.dragonCast) m.dragonCast.t += dt;
+    m.dragonRest = Math.max(0, (m.dragonRest || 0) - dt);
+    m.windup = m.dragonCast ? Math.max(0, m.dragonCast.charge - m.dragonCast.t) : 0;
+    m.groundY = m.pos.y - (m.dragonRest > 0 ? 0.1 : 1.6);
     m.flash = Math.max(0, m.flash - dt * 5);
     poseMob(V, m, dt, sp);
   }
