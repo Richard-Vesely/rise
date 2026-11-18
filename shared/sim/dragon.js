@@ -54,13 +54,13 @@ export function updateDragon(m, T, dt) {
   } else if (canAttack && d < 5.2 && inHeight && dragonSight(p, tp) && m.cd <= 0) {
     m.closeAttack = d < 3.2;
     m.windup = m.closeAttack ? 0.2 : 0.35;
-    m.cd = m.closeAttack ? 0.9 : 1.15;
+    m.cd = m.closeAttack ? 0.75 : 0.9;
     emit('mobSound', m);
   }
   const tx = hunting ? tp.x : DRAGON_DEN.x, tz = hunting ? tp.z : DRAGON_DEN.z;
   const vx = tx - p.x, vz = tz - p.z, len = Math.hypot(vx, vz) || 1;
   // Pronásleduje i během přípravy útoku; zpomalí až těsně u hráče.
-  const speed = hunting ? Math.min(10, Math.max(0, d - 1.2) * 5) : len < 0.5 ? 0 : 2.0;
+  const speed = hunting ? Math.min(12, Math.max(0, d - 1.2) * 5) : len < 0.5 ? 0 : 2.0;
   m.vel.x += (vx / len * speed - m.vel.x) * Math.min(1, dt * 5);
   m.vel.z += (vz / len * speed - m.vel.z) * Math.min(1, dt * 5);
   const nx = p.x + m.vel.x * dt, nz = p.z + m.vel.z * dt, gy = groundHeight(nx, nz);
