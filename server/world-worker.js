@@ -12,6 +12,8 @@
 //   do hlavního vlákna: { t: 'ready', loaded } · { t: 'send', cid, raw } · { t: 'close', cid } · { t: 'stats', … } · { t: 'log', text } · { t: 'stopped' }
 //                      · { t: 'donation', by, name, id, n } hráč něco daroval · { t: 'who', q, name } najdi profil podle jména (vězení)
 import { parentPort, workerData } from 'node:worker_threads';
+import { on } from '../shared/events.js';
+import { NET } from '../shared/net/net.js';
 import { accept, armyChat, others, room } from '../shared/net/room.js';
 import { worldState } from '../shared/world/save.js';
 import { guardPrisonerOps } from '../shared/world/prison.js';
@@ -56,7 +58,7 @@ const armyOwner = createArmyOwner({
   players: () => [...others.values()].map((P) => [P.pid, P.name]),
 });
 
-// ---------- vězení: posílá do něj jen vlastník serveru (a kdo vlastníka zabije), ven za oka obřího pavouka (server/prison.js)
+// ---------- vězení: posílá do něj jen vlastník serveru (a kdo vlastníka zabije); bludiště, ven přes úkol a svou bránu (server/prison.js)
 const asks = new Map(); // q -> odpověď hlavního vlákna na 'who'
 let askN = 0;
 const prison = createPrison({
@@ -64,9 +66,9 @@ const prison = createPrison({
   send: (cid, msg) => sendRaw(cid, msg),
   conns: () => [...conns].map(([cid, c]) => [cid, { profile: c.profile, name: c.name }]),
   lookup: (name, done) => { const q = ++askN; asks.set(q, done); post({ t: 'who', q, name }); },
-  put: (id, n) => dbox.put(id, n),
 });
 room.onKill = (killer, victim) => prison.onKill(killer, victim);
+on('mobKilled', (m) => { if (NET.killer) prison.onMobKill(NET.killer, m); }); // pavouk v bludišti: úkol vězně 'monsters'
 
 // ---------- bonusy pro dárce: dává je jen vlastník serveru, pamatuje si je hlavní vlákno (server/bonus.js, server/bonuses.js)
 const bonus = createBonusOwner({

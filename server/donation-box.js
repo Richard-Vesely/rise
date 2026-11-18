@@ -94,7 +94,7 @@ export function createDonationBox({ ownerId, ownerName = '', saved, send, onDona
     sendState,
     /** Nový žebříček dárců z hlavního vlákna. */
     setTop(t) { top = Array.isArray(t) ? t : []; },
-    /** Předměty do pokladničky bez zápisu do knihy darů (výkupné z vězení, server/prison.js). */
+    /** Předměty do pokladničky bez zápisu do knihy darů (dnes je nic nevolá; dřív výkupné z vězení). */
     put(id, n) {
       if (!known(id) || !Number.isInteger(n) || n < 1) return;
       const same = box.find((s) => s.id === id && !s.w);

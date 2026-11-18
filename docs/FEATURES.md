@@ -376,7 +376,7 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Stínožrout (shadow-eater) | 10 | night monster, burns at sunrise, avoids light and the shrine; violet veins and a moonlit rim show its outline at night |
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
-| Obří pavouk (giant spider) | 30 | only in the club server's prison: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka* (the prison item) |
+| Obří pavouk (giant spider) | 30 | only in the club server's prison maze: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka*; killing 3 is one of the prison tasks |
 | Drak Země draka | 1200 | ranged fireball boss; locks a marked impact circle, charges for 0.75 s, tracks until 0.3 s before launch, then fires up to 48 m away at 42 m/s; blast radius 3.2 m, damage 44 before armor; below half health charges in 0.55 s and deals 55; alternates single shots and a three-ball fan covering both side lanes; after three shots lands for 2.5 seconds without attacking, giving melee fighters an opening |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
@@ -634,17 +634,22 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   Anyone else, or single player / a browser host, gets a toast that it works only for the server owner.
   *Kód:* item `shared/data/items.js`, `xpToLevelUp` in `shared/data/magic.js`, drink `client/src/player/owner-wand.js`
   (`drinkXpPotion`, called from `client/src/player/gadgets.js`), server `server/owner-wand.js`.
-- **Prison** (*Vězení*, every world of the club server; owner power, Richard's): a flat white platform of unbreakable
-  *Vězeňský blok* high in the sky far from everything (x 0, z −24000, y 120; 25×25 with a 3-block wall), with a small copy of
-  the donation statue and its box at the north wall. Only the owner sends players there, by chat: `/vezeni <jméno>` (also a
+- **Prison** (*Vězení*, every world of the club server; owner power, Richard's): a maze of unbreakable white *Vězeňský blok*
+  high in the sky far from everything (x 0, z −24000, y 120; 9×9 cells, 3-block corridors, 4-block walls, lanterns on some
+  posts; always the same maze). Only the owner sends players there, by chat: `/vezeni <jméno>` (also a
   player who is not online; they go in at their next login), `/propustit <jméno>`, `/vezeni` = who is inside and how far they
   are. The commands are never shown to others; from anyone else they are normal chat. Whoever kills the owner in a player
   fight goes to prison automatically. In prison you can't build, dig, place vehicles, use creative mode or chat commands;
-  leaving (flying, falling, a portal) or dying puts you back. Giant spiders live there and drop *Oko obřího pavouka*; donating
-  `PRISON_RELEASE` eyes (10 for now) to the box in the prison sets you free and puts you back at spawn (other items come back;
-  the eyes go to the owner's box, not to the donors' ledger). Who is in prison and how many eyes they gave is saved with the
-  world (`world.json` → `prison`), so it survives a restart and a new login; it is per world. Single player and the browser host have no prison.
-  *Kód:* building and spider spots `shared/world/prison.js` (from `server/sim.js`), rules `server/prison.js` (in
+  leaving (flying, falling, a portal) puts you back; dying puts you back at the start of the maze (the task progress stays).
+  **Getting out** (Richard, 18.11.2026: fun, about 5 minutes): the maze has a gate (*Brána z vězení*) in the middle of each side.
+  Each time a player is sent in, the server picks **one gate** for them (the compass shows it as ⛓; the others say "Tahle brána tě
+  nepustí") and **one task**: kill 3 giant spiders in the maze, touch 3 different *Runový kámen* in dead ends, or answer 3 math
+  problems / 3 logic riddles at the gate (number sequences, who is tallest, days of the week). Problems and riddles are new every
+  time and checked by the server (a wrong answer shows the right one and the gate waits 3 s). Task done + right click on the own
+  gate = free, back at spawn; the owner is told. The top line shows the progress (*Vězení: runy 1/3*). Who is in prison, their
+  gate, task and progress are saved with the world (`world.json` → `prison`; an old save from the spider-eye prison gets a new
+  task), so it survives a restart and a new login; it is per world. Single player and the browser host have no prison.
+  *Kód:* maze, gates, runes and spider spots `shared/world/prison.js` (from `server/sim.js`), tasks `server/prison-tasks.js`, rules `server/prison.js` (in
   `server/world-worker.js`; owner kill via `room.onKill` in `shared/net/room.js`), spider `shared/sim/mobs.js` + `client/src/mobs/spider-model.js`,
   player side `client/src/player/prison.js`.
 - **Bonuses for donors** (*Bonusy*, club server only; owner power, Richard's): the owner gives players bonuses by chat:

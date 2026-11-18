@@ -17,6 +17,7 @@ canvas { display: block; }
 #compass .shrine { color: var(--gold); font-size: 17px; }
 #compass .shard { color: var(--cyan); font-size: 17px; }
 #compass .ruin { color: #e070ff; font-size: 17px; }
+#compass .jail { color: #e8b44a; font-size: 17px; }
 
 #clock { position: fixed; top: 16px; left: 18px; padding: 8px 12px; background: var(--panel); border-radius: 4px; font: 700 13px 'Cinzel', serif; color: var(--gold); pointer-events: none; }
 #effects { position: fixed; top: 52px; left: 18px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; font: 15px 'Pixelify Sans', monospace; text-shadow: 2px 2px 0 #222; }
@@ -229,6 +230,11 @@ body.mp #effects { top: 92px; }
   color: #e6e6e6; background: rgba(16, 2, 16, 0.75); border: 2px solid #25084f; text-shadow: 2px 2px 0 #222; }
 #netbox .mc-btn { padding: 1px 8px; font-size: 13px; }
 #chatInput { position: fixed; left: 18px; bottom: 56px; width: min(460px, calc(100vw - 36px)); box-sizing: border-box; display: none; z-index: 6; }
+/* Otázka u brány z bludiště vězení (player/prison.js). */
+#jailAsk { position: fixed; left: 50%; top: 36%; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); box-sizing: border-box; display: none; flex-wrap: wrap; gap: 8px; padding: 12px 14px; background: #241b18ee; border: 2px solid #b8862b; z-index: 7; }
+#jailAsk b { width: 100%; font: 18px 'Pixelify Sans', monospace; color: #fff; }
+#jailAsk input { flex: 1; min-width: 0; font: 18px 'Pixelify Sans', monospace; color: #fff; padding: 7px 9px; background: #1e1e24; border: 2px solid #000; }
+#jailAsk input:focus { border-color: var(--gold); }
 #feed div.chat { animation-duration: 9s; max-width: 440px; white-space: normal; }
 #feed div.chat b { color: var(--gold); font-weight: 600; }
 #feed div.sys { color: #b8e6ff; }
