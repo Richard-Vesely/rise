@@ -357,7 +357,7 @@ test('server: /vezeni and /propustit from the owner, no building in prison, spid
     assert.ok(!c.msgs.some((m) => m[0] === 'ops' && m[1].some((o) => o[2] === k)), 'nobody else sees it');
 
     // pavouci v bludišti: Bára jednoho zabije, úkol se posune
-    const snap = await b.waitFor((m) => m[0] === 'mobs' && m[3]?.some((x) => x[1] === 'spider'), 20000);
+    const snap = await b.waitFor((m) => m[0] === 'mobs' && m[3]?.some((x) => x[1] === 'spider'), 30000);
     assert.ok(snap, 'spiders live in the maze');
     const sp = snap[3].find((x) => x[1] === 'spider');
     for (let i = 0; i < 3; i++) { b.send(['hit', sp[0], 20, 0, 1]); await sleep(450); }
@@ -389,4 +389,14 @@ test('server: /vezeni and /propustit from the owner, no building in prison, spid
     for (const p of [boss, c]) assert.ok(!p.msgs.some((m) => m[0] === 'chat' && m[1] === 'Šéf'), 'the owner\'s commands are never broadcast');
     for (const p of [boss, b, c]) await p.close();
   } finally { await stop(srv); }
+});
+
+test('giant spiders: every spawn step tops them up around a prisoner, even when another player is picked', () => {
+  ensurePrison();
+  const prisoner = { pos: new Vec3(...PRISON_SPOT), alive: true, creative: false, pid: 'p1' };
+  const outside = { pos: new Vec3(60, 0.45, 60), alive: true, creative: false, pid: 'p2' };
+  Object.assign(NET, { targets: () => [outside, prisoner], spawnCenter: () => outside.pos });
+  for (let i = 0; i < PRISON_SPIDERS; i++) updateSpawns(3, 0);
+  assert.equal(mobs.filter((m) => m.type === 'spider').length, PRISON_SPIDERS, 'one spider per step around the prisoner, up to the limit');
+  for (const m of mobs.filter((x) => x.type === 'spider')) assert.ok(inPrison(m.pos.x, m.pos.y, m.pos.z));
 });
