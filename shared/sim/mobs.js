@@ -242,6 +242,12 @@ export function updateSpawns(dt, night) {
   ensureHell(); // peklo (shared/world/hell.js) se postaví jednou, ať je kam vejít portálem
   const c = NET.spawnCenter(); // tvorové se rodí kolem některého z hráčů
   if (!c) return; // na serveru nikdo není
+  // vězení (jen server kroužku): pavouci kolem vězně v každém kroku, ne jen když náhoda vybere jeho (na plném serveru by jich bylo málo)
+  const jailed = NET.targets().find((t) => t.alive && inPrison(t.pos.x, t.pos.y, t.pos.z));
+  if (jailed && prisonBuilt() && mobs.filter((m) => m.type === 'spider' && !m.dead).length < PRISON_SPIDERS) {
+    const p = spiderSpot(jailed.pos.x, jailed.pos.z);
+    if (p) spawnMob('spider', p[0], p[2], p[1]).under = true;
+  }
   if (inHell(c.x, c.y, c.z)) { // peklo: jen ďáblové, chodí po podlaze z bloků
     if (hellBuilt() && mobs.filter((m) => m.type === 'devil' && !m.dead).length < HELL_DEVILS) { const p = devilSpot(c.x, c.z); if (p) spawnMob('devil', p[0], p[2], p[1]).under = true; }
     return;
@@ -261,10 +267,7 @@ export function updateSpawns(dt, night) {
     const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
     return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) || (oceanK(x, z) > 0.02 && terrainH(x, z) < SEA + 0.3) ? null : [x, z]; // ne v jezeře ani v moři
   };
-  if (inPrison(c.x, c.y, c.z)) { // vězení (jen server kroužku): jen obří pavouci, chodí po podlaze z bloků jako v podzemí
-    if (prisonBuilt() && count('spider') < PRISON_SPIDERS) { const p = spiderSpot(c.x, c.z); if (p) spawnMob('spider', p[0], p[2], p[1]).under = true; }
-    return;
-  }
+  if (inPrison(c.x, c.y, c.z)) return; // vězení: jen obří pavouci (výše), chodí po podlaze z bloků jako v podzemí
   if (isMark(c.x)) { // Markova dimenze: Markomani a krystaloví golemové
     if (count('markoman') < (night > 0.5 ? 8 : 5)) { const p = spot(); if (p) spawnMob('markoman', ...p); }
     if (count('golem') < 2) { const p = spot(); if (p) spawnMob('golem', ...p); }
