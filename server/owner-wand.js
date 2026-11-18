@@ -5,7 +5,8 @@
 //   (malé mapy, 'kv') se nedostane.
 // - Kouzla hole: hráč → server ['ospell', kouzlo, 'm' | 'p', nid tvora | pid hráče]. Server ověří vlastníka podle
 //   přihlášeného profilu (prohlížeči se nevěří), dosah a pak:
-//   'avada' (Avada Kedavra): tvora zabije kdekoli; hráče jen ve světě se souboji (hitPlayer v shared/net/room.js s parametrem kill),
+//   'avada' (Avada Kedavra): 1 000 000 zranění; tvora zabije kdekoli, hráče jen ve světě se souboji (hitPlayer v shared/net/room.js
+//   s parametrem kill),
 //   'hunt' (Štvanice): tvorové kolem hráče dostanou rudé oči a HUNT.time s ho loví (shared/sim/hunt.js); ve všech světech.
 import { AVADA, OWNER_SPELLS, ownerItem } from '../shared/data/magic.js';
 import { NET } from '../shared/net/net.js';
@@ -79,7 +80,7 @@ export function createOwnerWand({ ownerId, send, now = () => performance.now() /
     cast.set(cid, t);
     const a = others.get(cid)?.pose;
     if (!a || a.alive === false) return 'miss';
-    const near = (x, y, z) => Math.hypot(x - a.x, y - a.y, z - a.z) <= AVADA.range + 2;
+    const near = (x, y, z) => Math.hypot(x - a.x, y - a.y, z - a.z) <= AVADA.range + 20; // rezerva: poloha jde se zpožděním
     if (sp === 'hunt') { // Štvanice: jen na hráče
       const P = typeof id === 'string' && id !== cid ? others.get(id) : null, q = P?.pose;
       if (kind !== 'p' || !q || q.alive === false || !near(q.x, q.y, q.z)) return 'miss';
@@ -97,6 +98,8 @@ export function createOwnerWand({ ownerId, send, now = () => performance.now() /
       return m.dead ? 'mob' : 'miss';
     }
     if (kind === 'p' && typeof id === 'string') {
+      const q = id !== cid ? others.get(id)?.pose : null;
+      if (!q || !near(q.x, q.y, q.z)) return 'miss';
       if (!hitPlayer(cid, id, 0, 0, 0, true, AVADA.dmg)) {
         send(cid, ['toast', 'Tady Avada Kedavra hráče nezasáhne (souboje jsou tu vypnuté)']);
         return 'miss';

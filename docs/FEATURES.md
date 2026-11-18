@@ -613,10 +613,11 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   most every 20 s); anyone else loses it (the server removes it from their saved state, from ground drops and from chests;
   the browser removes it too). It casts like the magic wand (right button, **R** = next spell; the owner's learned spells
   work with it as well) plus two owner spells that the server checks against the logged-in profile:
-  - ***Avada Kedavra*** (green beam, 60 m, 5 mana, 1.5 s): kills a mob anywhere (loot and XP to the owner); kills a player
-    only where fights are on: a `pvp` world, or a `pvp-mark` world with both in Markova dimenze (not in fights by N, not a
-    creative player). Armor and *Ochranný štít* do not save you.
-  - ***Štvanice*** (red beam at a player, 60 m, 5 mana, 3 s): for 60 s (`HUNT.time`) every living mob within 40 m of that player
+  - ***Avada Kedavra*** (green beam, 1000 m, 5 mana, 1.5 s): 1 000 000 damage. Kills a mob anywhere, at any distance
+    the beam reaches (loot and XP to the owner); kills a player only where fights are on: a `pvp` world, or a `pvp-mark`
+    world with both in Markova dimenze (not in fights by N, not a creative player), also far away. Armor, *Ochranný štít*
+    and the donor bonus *obrana* do not save you. A wall stops the beam.
+  - ***Štvanice*** (red beam at a player, 1000 m, 5 mana, 3 s): for 60 s (`HUNT.time`) every living mob within 40 m of that player
     except the dragon and Marek's army (also normally peaceful animals: they bite for 6) gets **red glowing eyes** (everyone
     sees them) and hunts the player; a mob lets go beyond 80 m. Ends after 60 s, when the player falls or leaves the world.
     Mobs do not hurt the player inside a shrine (11 m). Works in every world.
