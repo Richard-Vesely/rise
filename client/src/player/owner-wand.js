@@ -1,14 +1,18 @@
 // Hůl vlastníka serveru na straně hráče (jen server kroužku; kdo je vlastník, ví jen server: server/owner-wand.js).
 // - Kouzla hole: Avada Kedavra (zelený paprsek) a Štvanice (rudý paprsek). Paprsek letí hned, hra najde prvního tvora
 //   nebo hráče na jeho cestě a pošle serveru ['ospell', kouzlo, 'm' | 'p', nid | pid]. Jestli platí, rozhoduje server.
-// - Hlídání předmětu: hůl nepatří do truhly, stroje, auta ani do mřížky (vrátí se do batohu); vlastník má jen jednu;
-//   kdo není vlastník (nebo hraje sám / u hostitele v prohlížeči), tomu hůl zmizí.
+// - Lektvar nekonečných XP: pravé tlačítko = vypít; dá přesně tolik XP, kolik chybí do další úrovně (nabídka kouzla),
+//   a nikdy se nevypije. Jen vlastníkovi na serveru kroužku (XP jsou stav hráče, hra jim věří jako zbytku batohu).
+// - Hlídání předmětů vlastníka (hůl, lektvar): nepatří do truhly, stroje, auta ani do mřížky (vrátí se do batohu);
+//   vlastník má od každého jen jeden; kdo není vlastník (nebo hraje sám / u hostitele v prohlížeči), tomu zmizí.
 // Bez vedlejších účinků při načtení.
 import * as THREE from 'three';
-import { AVADA, ownerItem } from '../../../shared/data/magic.js';
+import { ITEMS } from '../../../shared/data/index.js';
+import { AVADA, ownerItem, xpToLevelUp } from '../../../shared/data/magic.js';
 import { NET } from '../../../shared/net/net.js';
 import { others } from '../../../shared/net/room.js';
 import { isMark } from '../../../shared/world/terrain.js';
+import { Sound } from '../audio/sound.js';
 import { toolSound } from '../audio/tool-sounds.js';
 import { GLOW } from '../render/look.js';
 import { sparks } from '../render/particles.js';
@@ -20,6 +24,7 @@ import { container, invOpen, refreshUI, ui } from '../ui/inventory-ui.js';
 import { mobOn, solid } from './bow.js';
 import { addItem, inv } from './inventory.js';
 import { player } from './player.js';
+import { addXp, magic } from './xp.js';
 
 const LOOK = { avada: { color: 0x2bff5a, rgb: [0.2, 1, 0.35] }, hunt: { color: 0xff2a1a, rgb: [1, 0.15, 0.1] } };
 const BODY = [[0.55, 0.42], [1.3, 0.42]]; // tělo hráče = dvě koule nad místem, kde stojí (jako player/pvp.js)
@@ -100,22 +105,46 @@ export function ownerSpell(id) {
 /** Každý snímek: paprsky dohasínají. */
 export function updateOwnerFx(dt) { for (let i = fx.length - 1; i >= 0; i--) if (!fx[i](dt)) fx.splice(i, 1); }
 
-// ---------- hlídání hole (každý snímek; jen když je jasné, jestli jsem vlastník)
+// ---------- lektvar nekonečných XP (pravé tlačítko s ním v ruce, player/gadgets.js hlídá odpočet)
+/** Vypije lektvar: přesně tolik XP, kolik chybí do další úrovně. Lektvar zůstává. Vrací počet XP (0 = nefungoval). */
+export function drinkXpPotion() {
+  if (!NET.client || !DON.owner) { toast('Lektvar nekonečných XP funguje jen vlastníkovi na serveru kroužku'); return 0; }
+  if (!player.alive) return 0;
+  const n = xpToLevelUp(magic.xp);
+  addXp(n); // nová úroveň: +XP nad lištou, zpráva a nabídka kouzla (xp.js)
+  sparks.emit(player.pos.x, player.pos.y + 1.2, player.pos.z, [0.4, 1, 0.45], 26, 2, 2);
+  sparks.emit(player.pos.x, player.pos.y + 1.2, player.pos.z, [1, 0.85, 0.3], 16, 2.5, 2);
+  Sound.bite?.('drink');
+  Sound.eat?.();
+  return n;
+}
+
+// ---------- hlídání předmětů vlastníka (každý snímek; jen když je jasné, jestli jsem vlastník)
 const OUTSIDE = { chest: 'chest', fire: 'fire', furnace: 'furnace', power: 'power', car: 'car', kitchen: 'kitchen', dar: 'dar' };
 let told = false;
 export function guardOwnerItems() {
   if (NET.client && !DON.got) return; // server ještě neřekl, kdo je vlastník
   const mine = NET.client && DON.owner;
-  let changed = false;
-  if (invOpen) for (const c of ['craft', OUTSIDE[ui.mode]]) { // truhla, stroj, auto, mřížka: hůl zpátky do batohu
+  let changed = false, lost = null;
+  if (invOpen) for (const c of ['craft', OUTSIDE[ui.mode]]) { // truhla, stroj, auto, mřížka: zpátky do batohu
     if (!c) continue;
     const arr = container(c);
-    for (let i = 0; i < arr.length; i++) if (ownerItem(arr[i]?.id)) { arr[i] = null; if (mine) { addItem('owner_wand', 1, true); toast('Hůl vlastníka patří jen do batohu'); } changed = true; }
+    for (let i = 0; i < arr.length; i++) {
+      const id = arr[i]?.id;
+      if (!ownerItem(id)) continue;
+      arr[i] = null; changed = true; lost = id;
+      if (mine) { addItem(id, 1, true); toast(`${ITEMS[id].name} patří jen do batohu`); }
+    }
   }
-  let have = 0;
-  const check = (s) => { if (!ownerItem(s?.id)) return false; have++; return !mine || have > 1; }; // true = pryč (cizí, nebo druhá)
+  const have = new Set();
+  const check = (s) => { // true = pryč (cizí, nebo druhý kus téhož)
+    if (!ownerItem(s?.id)) return false;
+    if (!mine || have.has(s.id)) { lost = s.id; return true; }
+    have.add(s.id);
+    return false;
+  };
   for (let i = 0; i < inv.slots.length; i++) if (check(inv.slots[i])) { inv.slots[i] = null; changed = true; }
   if (check(inv.cursor)) { inv.cursor = null; changed = true; }
-  if (changed && !mine && !told) { told = true; toast('Hůl vlastníka patří jen vlastníkovi serveru'); }
+  if (changed && !mine && !told) { told = true; toast(`${ITEMS[lost].name} patří jen vlastníkovi serveru`); }
   if (changed) refreshUI();
 }
