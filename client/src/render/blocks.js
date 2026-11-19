@@ -20,7 +20,7 @@ import { buildSafeModel } from '../machines/safe-model.js';
 import { buildElecModel, rebuildCables } from '../machines/power.js';
 import { heldStack, inv } from '../player/inventory.js';
 import { player } from '../player/player.js';
-import { dummy, lumpy } from './forest.js';
+import { lumpy, uploadUsed } from './forest.js';
 import { U, camera, scene } from './renderer.js';
 import { renderIcons } from './icon-render.js';
 import { readyBlockMat, setupBlockMat } from './materials.js';
@@ -369,74 +369,128 @@ export function buildSpecial(type, key) {
   return { obj: g, flames };
 }
 
-on('blocksChanged', () => rebuildBlocks()); // pravidla změnila bloky (stavba, růst plodin)
+// Změny bloků z pravidel (pochodeň odpadla, postavila se zřícenina): přestaví se jednou na konci snímku (flushBlocks
+// v game/loop.js), ne po každé změně zvlášť. Vlastní stavění volá rebuildBlocks() hned, ať je blok vidět ve stejném snímku.
+let blocksDirty = false, lastRebuild = 0;
+on('blocksChanged', () => { blocksDirty = true; });
+/** Kdy naposledy proběhla celá přestavba (performance.now()); změny od ostatních hráčů se slučují (net/mp-start.js). */
+export const lastRebuildAt = () => lastRebuild;
+/** Na konci snímku: přestaví bloky, pokud se od minula něco změnilo. */
+export function flushBlocks() { if (blocksDirty) rebuildBlocks(); }
+
 const litBlocks = []; // obyčejné bloky, které svítí (neony): { type, x, y, z, ry }
+// typ bloku -> skupina „tvar|materiál“ (stejný tvar + materiál = jeden InstancedMesh), null = zvláštní blok nebo kabel
+const groupOfType = new Map();
+const groupOf = (type) => {
+  let g = groupOfType.get(type);
+  if (g === undefined) { const B = BLOCKS[type]; g = B.special || B.cable ? null : (B.shape || 'cube') + '|' + (B.mat || type); groupOfType.set(type, g); }
+  return g;
+};
+const XYZ = [0, 0, 0];
+/** "x,y,z" -> XYZ (bez nových polí; přestavba projde každý blok ve světě). */
+function parseKey(k) {
+  const i = k.indexOf(','), j = k.indexOf(',', i + 1);
+  XYZ[0] = +k.slice(0, i); XYZ[1] = +k.slice(i + 1, j); XYZ[2] = +k.slice(j + 1);
+  return XYZ;
+}
+const groupLists = new Map(); // skupina -> [x, y, z, meta, …] (pole se používají znovu)
+const QUARTER = [[1, 0], [0, 1], [-1, 0], [0, -1]]; // cos, sin otočení o 0–3 čtvrtotáčky
+const specialKeys = [];
 export function rebuildBlocks() {
+  blocksDirty = false;
+  lightsDirty = true;
+  lastRebuild = performance.now();
   litBlocks.length = 0;
-  for (const [k, type] of blocks) if (BLOCKS[type].light && !BLOCKS[type].special) { const [x, y, z] = k.split(',').map(Number); litBlocks.push({ type, x, y, z, ry: y + 0.5, flames: [] }); }
-  // Obyčejné bloky se kreslí po skupinách (stejný tvar + materiál = jeden InstancedMesh); schody a další tvary jsou natočené.
-  const groups = new Map();
+  specialKeys.length = 0;
+  for (const list of groupLists.values()) list.length = 0;
+  // Jeden průchod světem: obyčejné bloky do skupin, svítící bloky a zvláštní bloky (modely) zvlášť.
   for (const [k, type] of blocks) {
     const B = BLOCKS[type];
-    if (B.special || B.cable) continue; // kabely kreslí rebuildCables
-    const [x, y, z] = k.split(',').map(Number);
-    const meta = B.shape ? blockMeta.get(k) || 0 : 0;
-    dummy.position.set(x + 0.5, y + 0.5 + (meta & 4 ? 0.5 : 0), z + 0.5);
-    dummy.rotation.set(0, (meta & 3) * Math.PI / 2, 0);
-    dummy.scale.set(1, 1, 1);
-    dummy.updateMatrix();
-    const gk = (B.shape || 'cube') + '|' + (B.mat || type);
-    if (!groups.has(gk)) groups.set(gk, []);
-    groups.get(gk).push(dummy.matrix.clone());
+    if (B.special) { specialKeys.push(k); continue; }
+    if (B.light) { const [x, y, z] = parseKey(k); litBlocks.push({ type, x, y, z, ry: y + 0.5, flames: [] }); }
+    const gk = groupOf(type);
+    if (!gk) continue; // kabely kreslí rebuildCables
+    const [x, y, z] = parseKey(k);
+    let list = groupLists.get(gk);
+    if (!list) groupLists.set(gk, (list = []));
+    list.push(x, y, z, B.shape ? blockMeta.get(k) || 0 : 0);
   }
-  for (const [gk, list] of groups) {
+  for (const [gk, list] of groupLists) {
+    const n = list.length / 4;
     let m = instPool.get(gk);
-    if (!m || m.instanceMatrix.count < list.length) {
+    if (!n && !m) continue;
+    if (!m || m.instanceMatrix.count < n) {
       if (m) { scene.remove(m); m.dispose(); }
       const [shape, mk] = gk.split('|');
-      m = new THREE.InstancedMesh(shape === 'cube' ? boxGeo : shapeGeo(shape), readyMat(blockMats[mk]), Math.max(64, Math.ceil(list.length * 1.5)));
+      m = new THREE.InstancedMesh(shape === 'cube' ? boxGeo : shapeGeo(shape), readyMat(blockMats[mk]), Math.max(64, Math.ceil(n * 1.5)));
       m.frustumCulled = false;
       scene.add(m);
       instPool.set(gk, m);
     }
-    list.forEach((mt, i) => m.setMatrixAt(i, mt));
-    m.count = list.length;
-    m.instanceMatrix.needsUpdate = true;
+    // matice rovnou do bufferu: otočení kolem svislé osy po čtvrtotáčkách, horní půlblok o 0,5 výš
+    const te = m.instanceMatrix.array;
+    for (let i = 0; i < n; i++) {
+      const x = list[i * 4], y = list[i * 4 + 1], z = list[i * 4 + 2], meta = list[i * 4 + 3], [c, s] = QUARTER[meta & 3], o = i * 16;
+      te[o] = c; te[o + 1] = 0; te[o + 2] = -s; te[o + 3] = 0;
+      te[o + 4] = 0; te[o + 5] = 1; te[o + 6] = 0; te[o + 7] = 0;
+      te[o + 8] = s; te[o + 9] = 0; te[o + 10] = c; te[o + 11] = 0;
+      te[o + 12] = x + 0.5; te[o + 13] = y + 0.5 + (meta & 4 ? 0.5 : 0); te[o + 14] = z + 0.5; te[o + 15] = 1;
+    }
+    m.count = n;
+    uploadUsed(m.instanceMatrix, n);
   }
-  for (const [gk, m] of instPool) if (!groups.has(gk)) m.count = 0;
   rebuildCables();
   markPowerDirty(); // změna bloků = přepočítat elektrické sítě
-
-  for (const [k, type] of blocks) {
-    if (!BLOCKS[type].special) continue;
-    const old = specials.get(k);
-    if (old && (type !== 'torch' || old.tm === torchMeta(k, old.x, old.y, old.z))) continue;
-    if (old) { scene.remove(old.obj); specials.delete(k); } // pochodeň se přichytila jinak (stará pochodeň, jiný hráč)
-    const [x, y, z] = k.split(',').map(Number);
-    const { obj, flames } = buildSpecial(type, k);
-    const tm = type === 'torch' ? torchMeta(k, x, y, z) : 0, gh = groundHeight(x + 0.5, z + 0.5);
-    // pochodeň na zdi visí v buňce, stojící stojí na povrchu terénu, když je v její buňce
-    const ry = tm > 1 ? y : tm ? (gh > y - 0.3 && gh < y + 0.9 ? Math.max(y, gh) : y) : solidAt(x, y - 1, z) || solidVox(x, y - 1, z) ? y : Math.max(y, gh);
-    obj.position.set(x + 0.5, ry, z + 0.5);
-    if (BLOCKS[type].facing) obj.rotation.y = ((blockMeta.get(k) || 0) & 3) * Math.PI / 2; // pec a dílna čelem k hráči
-    scene.add(obj);
-    const f = tm && torchFlame(tm); // kde hoří plamen (světlo, jiskry, kouř)
-    specials.set(k, { type, x, y, z, ry, obj, flames, ...(tm ? { tm, lp: [x + 0.5 + f[0], ry + f[1], z + 0.5 + f[2]] } : {}) });
+  for (const k of specialKeys) {
+    const old = specials.get(k), type = blocks.get(k);
+    if (old && old.type === type && (type !== 'torch' || old.tm === torchMeta(k, old.x, old.y, old.z))) continue;
+    placeSpecial(k, type); // nový, jiný blok na stejném místě, nebo pochodeň přichycená jinak (stará pochodeň, jiný hráč)
   }
   for (const [k, s] of specials) if (!blocks.has(k)) { scene.remove(s.obj); specials.delete(k); }
+}
+// Postaví (znovu) model zvláštního bloku na místě k.
+function placeSpecial(k, type) {
+  lightsDirty = true;
+  const old = specials.get(k);
+  if (old) { scene.remove(old.obj); specials.delete(k); }
+  const [x, y, z] = k.split(',').map(Number);
+  const { obj, flames } = buildSpecial(type, k);
+  const tm = type === 'torch' ? torchMeta(k, x, y, z) : 0, gh = groundHeight(x + 0.5, z + 0.5);
+  // pochodeň na zdi visí v buňce, stojící stojí na povrchu terénu, když je v její buňce
+  const ry = tm > 1 ? y : tm ? (gh > y - 0.3 && gh < y + 0.9 ? Math.max(y, gh) : y) : solidAt(x, y - 1, z) || solidVox(x, y - 1, z) ? y : Math.max(y, gh);
+  obj.position.set(x + 0.5, ry, z + 0.5);
+  if (BLOCKS[type].facing) obj.rotation.y = ((blockMeta.get(k) || 0) & 3) * Math.PI / 2; // pec a dílna čelem k hráči
+  scene.add(obj);
+  const f = tm && torchFlame(tm); // kde hoří plamen (světlo, jiskry, kouř)
+  specials.set(k, { type, x, y, z, ry, obj, flames, ...(tm ? { tm, lp: [x + 0.5 + f[0], ry + f[1], z + 0.5 + f[2]] } : {}) });
+}
+/** Jen jeden zvláštní blok dostane nový model (plodina povyrostla, jídlo na stole, otočená židle) – bez přestavby světa. */
+export function rebuildSpecialAt(k) {
+  lightsDirty = true;
+  const type = blocks.get(k), old = specials.get(k);
+  if (type && BLOCKS[type]?.special) placeSpecial(k, type);
+  else if (old) { scene.remove(old.obj); specials.delete(k); }
 }
 
 // Světla pochodní a táboráků: pevný počet světel se přiděluje těm nejbližším.
 // Oheň svítí teplou bílou (asi 3000 K, LK.torch), ne červeně – zelená tráva pod ním zůstane zelená; elektřina chladně bílou.
 const FIRE_COL = new THREE.Color(...LK.torch), ELEC_COL = new THREE.Color(0.78, 0.9, 1.08), GLOWSHROOM_COL = new THREE.Color(0.35, 0.9, 1.0), SPAWNER_COL = new THREE.Color(0.8, 0.35, 1.0), tmpLC = new THREE.Color();
 const lightPool = Array.from({ length: GFX.lights }, () => { const l = new THREE.PointLight(FIRE_COL, 0, 16, 1.7); scene.add(l); return l; });
+// Co svítí a pořadí podle vzdálenosti se přepočítá 4× za sekundu (a hned po změně bloků); mihotání plamenů každý snímek.
+let lightList = [], lightT = -1, lightsDirty = true;
 export function updateLights(time) {
-  // elektrická světla svítí jen napájená
-  // hořící pec svítí jako v Minecraftu (o něco slaběji než pochodeň)
-  const list = [...specials.entries()].filter(([k, s]) => (s.type === 'furnace' ? furnaces.get(k)?.burn > 0 : BLOCKS[s.type].light && (!BLOCKS[s.type].elec || isPowered(k)))).map(([, s]) => s).concat(litBlocks);
-  const p = player.pos;
-  const d2 = (s) => (s.x + 0.5 - p.x) ** 2 + (s.ry - p.y) ** 2 + (s.z + 0.5 - p.z) ** 2;
-  list.sort((a, b) => d2(a) - d2(b));
+  if (lightsDirty || time - lightT > 0.25 || time < lightT) {
+    lightsDirty = false;
+    lightT = time;
+    // elektrická světla svítí jen napájená
+    // hořící pec svítí jako v Minecraftu (o něco slaběji než pochodeň)
+    const list = [...specials.entries()].filter(([k, s]) => (s.type === 'furnace' ? furnaces.get(k)?.burn > 0 : BLOCKS[s.type].light && (!BLOCKS[s.type].elec || isPowered(k)))).map(([, s]) => s).concat(litBlocks);
+    const p = player.pos;
+    const d2 = (s) => (s.x + 0.5 - p.x) ** 2 + (s.ry - p.y) ** 2 + (s.z + 0.5 - p.z) ** 2;
+    for (const s of list) s.d2 = d2(s);
+    lightList = list.sort((a, b) => a.d2 - b.d2);
+  }
+  const list = lightList;
   // Pochodeň v ruce (i ve druhé ruce, player/offhand.js) svítí kolem hráče (v jeskyních k nezaplacení).
   const heldTorch = heldStack()?.id === 'torch' || inv.off?.[0]?.id === 'torch';
   lightPool.forEach((l, i) => {

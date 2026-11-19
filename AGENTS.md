@@ -230,6 +230,7 @@ npm run test:peer               # browser host + browser client over PeerJS (nee
 npm start                       # the server on http://localhost:8787 (serves dist/)
 npm run test:load               # 8 simulated players: server memory, CPU, time per world step
 npm run test:load:worlds        # the same with 2 worlds × 4 players
+npm run perf                    # frame times while flying and building (PERF_GPU=1 real graphics card, PERF_CPU=4 slow laptop); needs the build
 ```
 Console helpers (single player or host): `game.addItem('iron', 5)`, `game.setTime(0.9)` (night),
 `game.spawnMob('boar', x, z)`, `game.setCreative(true)`, `game.teleport(x, z)`, `game.toLake()`,

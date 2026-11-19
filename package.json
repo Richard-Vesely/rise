@@ -13,6 +13,7 @@
     "playtest": "node tests/playtest/playtest.mjs dist && node tests/playtest/inventory.mjs dist && node tests/playtest/vehicles.mjs dist",
     "playtest:veh": "node tests/playtest/vehicles.mjs dist",
     "playtest:inv": "node tests/playtest/inventory.mjs dist",
+    "perf": "node tests/playtest/perf.mjs dist",
     "test:peer": "node tests/playtest/peer.mjs",
     "test:server": "node tests/playtest/server-mp.mjs && node tests/playtest/server-profiles.mjs && node tests/playtest/server-pvp.mjs",
     "test:worlds": "node tests/playtest/server-worlds.mjs",

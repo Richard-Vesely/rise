@@ -1,7 +1,7 @@
 // Vzhled grafiky „Jasná budoucnost“ a co z něj zapne která kvalita (Grafika: nízká / střední / vysoká).
 // Jen čísla a přepínače, žádné vedlejší účinky: čtou je renderer, obloha, den a noc, stíny, voda, les, počasí a post-processing.
 // Parametry jdou ladit za běhu (game.LK v konzoli prohlížeče).
-import { GPU, QUALITY } from '../game/prefs.js';
+import { GPU, QUALITY, WEAK_GPU } from '../game/prefs.js';
 
 /**
  * Pravidla vzhledu: příroda skoro realistická (světlo, materiály), tvary jemně stylizované; syté barevné světlo má jen technika.
@@ -39,22 +39,23 @@ export const LK = {
 
 // Co která kvalita zapne. Nízká zůstává levná (CI kreslí softwarovým WebGL): žádný post-processing ani stíny.
 // Na integrované grafice (Intel, AMD v procesoru) má vysoká menší stíny a bez zastínění koutů, aby držela 60 fps.
-const HIGH = QUALITY === 'high', MID = QUALITY === 'medium', DISCRETE = GPU === 'discrete';
+const HIGH = QUALITY === 'high', MID = QUALITY === 'medium', DISCRETE = GPU === 'discrete', WEAK = WEAK_GPU; // WEAK = Intel UHD/HD
 export const FX = {
   quality: QUALITY, gpu: GPU,
   post: HIGH || MID,                          // EffectComposer: záře, mlha s výškou, tónování, barevné ladění
   shadows: HIGH || MID,                       // stíny od slunce a měsíce
   shadowSize: HIGH && DISCRETE ? 2048 : 1024, // rozlišení mapy stínů
   shadowRange: HIGH ? 56 : 38,                // poloměr oblasti se stíny kolem hráče (m)
-  shadowHz: HIGH ? 30 : 20,                   // jak často se stíny překreslí
+  shadowHz: HIGH ? 30 : DISCRETE ? 20 : 15,   // jak často se stíny překreslí (integrovaná grafika méně často)
   ao: HIGH && DISCRETE,                       // N8AO (polovina rozlišení)
   shafts: HIGH,                               // paprsky v mlze (ze stínové mapy, 16 kroků, jen při pohledu ke slunci)
   clouds: HIGH || MID,                        // vrstva mraků na obloze
   msaa: HIGH ? 2 : 0,                         // vyhlazování hran v composeru (střední: FXAA)
   fxaa: MID,
-  minScale: HIGH ? 0.6 : 0.7,                 // dynamické rozlišení: nejmenší zmenšení
-  leafCards: HIGH ? 70 : MID ? 45 : 0,        // do jaké vzdálenosti mají koruny lístky (m)
-  rain: HIGH ? 9000 : MID ? 6000 : 2500,      // kapek deště kolem hráče
+  minScale: HIGH ? 0.6 : WEAK ? 0.55 : 0.7,    // dynamické rozlišení: nejmenší zmenšení
+  leafCards: HIGH ? 70 : MID ? (WEAK ? 25 : 45) : 0, // do jaké vzdálenosti mají koruny lístky (m)
+  crownLod: HIGH ? 62 : MID ? (WEAK ? 30 : 48) : 0, // do jaké vzdálenosti mají koruny podrobný tvar (m)
+  rain: HIGH ? 9000 : MID ? (WEAK ? 4000 : 6000) : 2500, // kapek deště kolem hráče
   ridge: HIGH || MID,                         // vzdálené pásmo hor na obzoru
 };
 

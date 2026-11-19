@@ -38,17 +38,20 @@ const shardMark = addCompass('✦<small></small>', 'shard', 0);
 const ruinMark = addCompass('▣<small></small>', 'ruin', 0);
 const jailMark = addCompass('⛓<small></small>', 'jail', 0); // vězeň: jeho brána z bludiště (player/prison.js)
 const JAIL_SHORT = { monsters: 'pavouci', runes: 'runy', math: 'příklady', logic: 'hádanky' };
+// Do stránky se zapisuje jen to, co se opravdu změnilo (každý zápis stylu nebo textu stojí prohlížeč přepočet stránky).
+const setStyle = (el, prop, v) => { const k = '_' + prop; if (el[k] !== v) { el[k] = v; el.style[prop] = v; } };
+const setText = (el, t) => { if (el._text !== t) { el._text = t; el.textContent = t; } };
 function placeCompass(item) {
-  const diff = wrapAngle(item.yaw - player.yaw);
-  item.el.style.display = Math.abs(diff) < 1.75 ? '' : 'none';
-  item.el.style.left = `${50 - (diff / (Math.PI / 2)) * 50}%`;
+  const diff = wrapAngle(item.yaw - player.yaw), show = Math.abs(diff) < 1.75;
+  setStyle(item.el, 'display', show ? '' : 'none');
+  if (show) setStyle(item.el, 'left', `${(50 - (diff / (Math.PI / 2)) * 50).toFixed(2)}%`);
 }
 function setMarker(item, x, z) {
-  if (x === null) { item.el.style.display = 'none'; return; }
+  if (x === null) { setStyle(item.el, 'display', 'none'); return; }
   const dx = x - player.pos.x, dz = z - player.pos.z;
   item.yaw = Math.atan2(-dx, -dz);
   placeCompass(item);
-  item.el.querySelector('small').textContent = `${Math.round(Math.hypot(dx, dz))} m`;
+  setText(item.small ??= item.el.querySelector('small'), `${Math.round(Math.hypot(dx, dz))} m`);
 }
 export function feed(id, text) {
   const el = document.createElement('div');
@@ -114,37 +117,46 @@ function updateDragonHealth() {
     : m.hp <= m.def.hp / 2 ? 'Rozzuřený drak! Po třech koulích přistane.' : 'Uhýbej koulím. Po třech výstřelech přistane.';
 }
 export function setVignette(v) { vignette = v; }
+let nearT = 0, st = null, best = null;
 export function updateHUD(dt) {
   updateDragonHealth();
   for (const item of compassItems) if (item !== shrineMark && item !== shardMark && item !== ruinMark) placeCompass(item);
-  // Nejbližší neprozkoumaná stavba (ruiny, pevnost, věž, tábor, kobka)
-  const near = structuresNear(player.pos.x, player.pos.z, 320).filter((r) => !ruinsOpened.has(r.key));
-  near.sort((a, b) => Math.hypot(a.x - player.pos.x, a.z - player.pos.z) - Math.hypot(b.x - player.pos.x, b.z - player.pos.z));
-  const st = near[0];
-  if (st) ruinMark.el.firstChild.textContent = STRUCTS[st.type].icon;
-  setMarker(ruinMark, st ? st.x : null, st ? st.z : null);
-  ruinMark.el.title = st ? STRUCTS[st.type].name : '';
-  let best = null, bd = Infinity;
-  for (const s of shardObjs.values()) {
-    const d = Math.hypot(s.x - player.pos.x, s.z - player.pos.z);
-    if (d < bd) { bd = d; best = s; }
+  // Nejbližší neprozkoumaná stavba (ruiny, pevnost, věž, tábor, kobka) a úlomek světla: stačí 4× za sekundu
+  if ((nearT -= dt) <= 0) {
+    nearT = 0.25;
+    let sd = Infinity;
+    st = null;
+    for (const r of structuresNear(player.pos.x, player.pos.z, 320)) {
+      const d = Math.hypot(r.x - player.pos.x, r.z - player.pos.z);
+      if (d < sd && !ruinsOpened.has(r.key)) { sd = d; st = r; }
+    }
+    if (st) setText(ruinMark.el.firstChild, STRUCTS[st.type].icon);
+    ruinMark.el.title = st ? STRUCTS[st.type].name : '';
+    let bd = Infinity;
+    best = null;
+    for (const s of shardObjs.values()) {
+      const d = Math.hypot(s.x - player.pos.x, s.z - player.pos.z);
+      if (d < bd) { bd = d; best = s; }
+    }
   }
+  setMarker(ruinMark, st ? st.x : null, st ? st.z : null);
   setMarker(shrineMark, shrineOf(player.pos.x).x, 0);
   setMarker(shardMark, best ? best.x : null, best ? best.z : null);
   const jx = NET.jail?.exit;
   setMarker(jailMark, jx ? jx[0] : null, jx ? jx[1] : null);
   const h = Math.floor(dayTime * 24), mi = Math.floor((dayTime * 24 * 60) % 60);
-  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${NET.jail ? ` · Vězení: ${JAIL_SHORT[NET.jail.kind] || 'úkol'} ${NET.jail.done}/${NET.jail.need}` : inPrison(player.pos.x, player.pos.y, player.pos.z) ? ' · Vězení' : isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
-  $('hpfill').style.width = `${Math.max(0, player.hp)}%`;
-  $('foodfill').style.width = `${player.hunger}%`;
-  $('armorfill').style.width = `${(armorPoints() / 23) * 100}%`;
+  setText($('clock'), `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${NET.jail ? ` · Vězení: ${JAIL_SHORT[NET.jail.kind] || 'úkol'} ${NET.jail.done}/${NET.jail.need}` : inPrison(player.pos.x, player.pos.y, player.pos.z) ? ' · Vězení' : isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`);
+  setStyle($('hpfill'), 'width', `${Math.max(0, player.hp).toFixed(1)}%`);
+  setStyle($('foodfill'), 'width', `${(+player.hunger).toFixed(1)}%`);
+  setStyle($('armorfill'), 'width', `${((armorPoints() / 23) * 100).toFixed(1)}%`);
   const set = fullSet(), fx = [];
   if (player.flyT > 0) fx.push(`🍎 Létání ${Math.ceil(player.flyT)} s`);
   if (set) fx.push(`🛡 ${ARMOR_SETS[set].name}á sada: ${ARMOR_SETS[set].bonus}`);
   const fxHtml = fx.map((t) => `<div>${t}</div>`).join('');
-  if ($('effects').innerHTML !== fxHtml) $('effects').innerHTML = fxHtml;
+  const eff = $('effects');
+  if (eff._html !== fxHtml) { eff._html = fxHtml; eff.innerHTML = fxHtml; }
   vignette = Math.max(0, vignette - dt * 1.5);
-  $('vignette').style.opacity = Math.max(vignette, player.alive ? (1 - player.hp / 100) * 0.5 : 0);
+  setStyle($('vignette'), 'opacity', Math.max(vignette, player.alive ? (1 - player.hp / 100) * 0.5 : 0).toFixed(3));
   if (toastTimer > 0 && (toastTimer -= dt) <= 0) $('toast').classList.remove('show');
   if ((tipT -= dt) <= 0) { tipT = 0.5; updateTips(); if (invOpen) renderInventory(); }
 }

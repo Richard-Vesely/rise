@@ -90,18 +90,24 @@ export const stars = (() => {
 })();
 scene.add(stars);
 
+// Odlesky oblohy: obloha se nakreslí do krychle 256 px a z ní PMREM (výška 1024, s tím počítají post.js, voda a terén).
+// Krychle i výsledná textura se používají pořád stejné: dřív vznikal při každé změně nový buffer (~6 MB) a starý se
+// zahazoval, což na slabší grafice dělalo každých pár sekund zásek.
 const pmrem = new THREE.PMREMGenerator(renderer);
 const envScene = new THREE.Scene();
+const cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+const cubeCam = new THREE.CubeCamera(1, 20000, cubeRT);
+envScene.add(cubeCam);
 let envRT = null;
+const skyPos = new THREE.Vector3();
 export function updateEnvironment() {
-  const p = sky.position.clone();
+  skyPos.copy(sky.position);
   sky.position.set(0, 0, 0);
   envScene.add(sky);
-  const rt = pmrem.fromScene(envScene, 0, 1, 20000);
+  cubeCam.update(renderer, envScene);
   scene.add(sky);
-  sky.position.copy(p);
-  if (envRT) envRT.dispose();
-  envRT = rt;
-  scene.environment = rt.texture;
-  U.env.value = rt.texture; U.envOn.value = rt.texture.image?.height === 1024 ? 1 : 0;
+  sky.position.copy(skyPos);
+  envRT = pmrem.fromCubemap(cubeRT.texture, envRT); // poprvé vytvoří cíl, pak ho jen přepisuje
+  scene.environment = envRT.texture;
+  U.env.value = envRT.texture; U.envOn.value = envRT.texture.image?.height === 1024 ? 1 : 0;
 }

@@ -19,7 +19,7 @@ export { lumpy };
 const MAX_TREES = 3000, TREE_RADIUS = GFX.trees; // dohled lesa podle nastavení grafiky
 // Les se kreslí po výsečích kolem hráče (8 výsečí + blízký kruh): co je za zády, kamera vůbec nekreslí (frustum culling).
 // Blízké koruny jsou podrobné, vzdálené levné (LOD); nízká grafika má všude levné. Šetří to většinu práce grafické karty.
-const SECTORS = 8, NEAR_R = 26, LOD_R = FX.post ? (FX.quality === 'high' ? 62 : 48) : 0;
+const SECTORS = 8, NEAR_R = 26, LOD_R = FX.post ? FX.crownLod : 0;
 function makeBatch(geo, mat, cap) {
   const meshes = [];
   for (let i = 0; i <= SECTORS; i++) {
@@ -31,12 +31,20 @@ function makeBatch(geo, mat, cap) {
   return { meshes, n: new Int32Array(SECTORS + 1), geo };
 }
 const sectorOf = (dx, dz) => (dx * dx + dz * dz < NEAR_R * NEAR_R ? 0 : 1 + (Math.floor(((Math.atan2(dz, dx) / (Math.PI * 2)) + 1) * SECTORS) % SECTORS));
+// Do grafické karty se posílá jen použitá část bufferů (dřív celá kapacita, ~12 MB při každém přestavění lesa = zásek
+// každých 24 m, v autě nebo letadle každou vteřinu).
+export function uploadUsed(attr, count) {
+  if (!attr) return;
+  attr.clearUpdateRanges();
+  attr.addUpdateRange(0, Math.max(1, count) * attr.itemSize);
+  attr.needsUpdate = true;
+}
 function finishBatch(b) {
   b.meshes.forEach((m, i) => {
     m.count = b.n[i];
     m.visible = m.count > 0;
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    uploadUsed(m.instanceMatrix, m.count);
+    uploadUsed(m.instanceColor, m.count);
     if (m.count) { m.computeBoundingSphere(); m.boundingSphere.radius += 3; } // + kývání ve větru
   });
 }
@@ -174,7 +182,7 @@ export function rebuildForest(px, pz, force = false) {
     }
   }
   for (const b of [trunks, blobsFar, blobsNear, cones, leaves, needles, rocks]) if (b) finishBatch(b);
-  for (const p of proxies.values()) p.instanceMatrix.needsUpdate = true;
+  for (const p of proxies.values()) uploadUsed(p.instanceMatrix, p.count);
   refreshShards(px, pz);
   refreshPonds(px, pz);
 }

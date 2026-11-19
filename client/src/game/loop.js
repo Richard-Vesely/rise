@@ -26,7 +26,7 @@ import { updateEating } from '../player/eating.js';
 import { updateInteraction } from '../player/interaction.js';
 import { guideOpen, isLocked, player, updatePlayer } from '../player/player.js';
 import { updateShards, updateSurvival } from '../player/survival.js';
-import { rebuildBlocks, updateLights } from '../render/blocks.js';
+import { flushBlocks, rebuildBlocks, updateLights } from '../render/blocks.js';
 import { applyUnderground, underground, updateDay } from '../render/daylight.js';
 import { applyDimension } from '../render/dimension.js';
 import { rebuildForest } from '../render/forest.js';
@@ -137,6 +137,7 @@ export function tick(realDt) {
   if (!NET.client) updateTorches(realDt); // pochodeň bez opory odpadne (rozhoduje ten, kdo drží svět)
   updatePortals(realDt);
   regrowGrass(realDt);
+  flushBlocks(); // změny bloků z pravidel (pochodeň odpadla, zřícenina…) jednou za snímek
   updateLights(gameClock);
   updateAmbientFx(realDt, underground); // jiskry a kouř nad ohněm, prach v jeskyni, světélka v Markově dimenzi
   sparks.update(realDt);
@@ -152,8 +153,8 @@ export function tick(realDt) {
   stars.position.copy(camera.position);
   updateClouds();
   updateRidge(FOG.color, underground);
-  // odlesky oblohy (drahé, ~10 ms) jen když se znatelně posunul čas dne, nejpozději po 12 s
-  if ((envTimer += realDt) > 3 && (Math.abs(dayTime - envDay) > 0.012 || envTimer > 12)) { envTimer = 0; envDay = dayTime; updateEnvironment(); }
+  // odlesky oblohy (drahé, několik ms) jen když se znatelně posunul čas dne (za soumraku a svítání častěji), nejpozději po 20 s
+  if ((envTimer += realDt) > 3 && (Math.abs(dayTime - envDay) > (U.twilight.value > 0.02 ? 0.012 : 0.03) || envTimer > 20)) { envTimer = 0; envDay = dayTime; updateEnvironment(); }
   cullFar(realDt);
 
   frames++;

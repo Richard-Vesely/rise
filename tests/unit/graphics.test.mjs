@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { weatherAt, WEATHER_SLOTS } from '../../shared/sim/weather.js';
-import { autoQuality, gpuClass } from '../../client/src/game/gpu.js';
+import { autoQuality, gpuClass, gpuWeak } from '../../client/src/game/gpu.js';
 
 test('weather is deterministic and in range (every player sees the same sky)', () => {
   for (let day = 1; day < 60; day++) for (let t = 0; t < 1; t += 0.013) {
@@ -51,6 +51,14 @@ test('Grafika Automaticky: software → nízká, integrated → střední, discr
   ];
   for (const [name, cls] of cases) assert.equal(gpuClass(name), cls, name);
   assert.equal(autoQuality(true), 'low');
+});
+
+test('slabá grafika (ztenčená střední): jen obyčejná Intel UHD/HD, ne Iris Xe, Arc, AMD ani Apple', () => {
+  const weak = ['ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0, D3D11)', 'ANGLE (Intel, Intel(R) HD Graphics 520 Direct3D11 vs_5_0 ps_5_0, D3D11)', 'Mesa Intel(R) UHD Graphics 600 (GLK 2)'];
+  const strong = ['ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)', 'ANGLE (Intel, Intel(R) Arc(TM) A370M Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)',
+    'ANGLE (AMD, AMD Radeon(TM) Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)', 'Apple M1', 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3070 (0x00002488) Direct3D11 vs_5_0 ps_5_0, D3D11)', ''];
+  for (const n of weak) assert.equal(gpuWeak(n), true, n);
+  for (const n of strong) assert.equal(gpuWeak(n), false, n);
 });
 
 test('dusk and dawn run at day speed, the whole night still lasts a quarter of DAY_LENGTH', async () => {
