@@ -6,11 +6,13 @@
 // Vlastník serveru a Markova armáda: server/army-owner.js. Vězení (vlastník posílá hráče do vězení): server/prison.js.
 // Hůl vlastníka (server/owner-wand.js): vlastník ji má vždycky, nikdo jiný ji mít nesmí, její kouzla ověřuje server.
 // Bonusy pro dárce (vlastník je dává příkazem /bonus): server/bonus.js, pamatuje si je hlavní vlákno (server/bonuses.js).
-//   z hlavního vlákna: { t: 'join', cid, name, profile, gifts? } · { t: 'data', cid, raw } · { t: 'gone', cid } · { t: 'save' } · { t: 'stop' }
+//   z hlavního vlákna: { t: 'join', cid, name, profile, gifts?, bonus? } · { t: 'data', cid, raw } · { t: 'gone', cid } · { t: 'save' } · { t: 'stop' }
 //                      · { t: 'top', top } nový žebříček dárců · { t: 'gift', profile, gifts } dárky od správce pro hráče
 //                      · { t: 'who', q, profile, name } odpověď: profil podle jména (vězení)
+//                      · { t: 'bonus', q, ok, op, name, list, all } odpověď na dotaz bonusů · { t: 'bonusy', profile, list } vlastník změnil bonusy hráče
 //   do hlavního vlákna: { t: 'ready', loaded } · { t: 'send', cid, raw } · { t: 'close', cid } · { t: 'stats', … } · { t: 'log', text } · { t: 'stopped' }
 //                      · { t: 'donation', by, name, id, n } hráč něco daroval · { t: 'who', q, name } najdi profil podle jména (vězení)
+//                      · { t: 'bonus', q, op, name, kinds } dotaz bonusů (op = list | show | add | del, server/bonus.js)
 import { parentPort, workerData } from 'node:worker_threads';
 import { on } from '../shared/events.js';
 import { NET } from '../shared/net/net.js';
