@@ -1,6 +1,6 @@
 // Ikony bloků, biomů, technologií a elektrických zařízení.
 import './icons.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
-import { BLOCKS, ITEMS, SHAPES, rotBox } from '../../../shared/data/index.js';
+import { BLOCKS, DISCS, ITEMS, SHAPES, rotBox } from '../../../shared/data/index.js';
 import { ICONS, iconCanvas } from './icons.js';
 import { VEH_SHAPES } from './icons-vehicles.js';
 import { acaciaPlanksTex, barkTex, basaltTex, bricksTex, cherryPlanksTex, cobbleTex, concreteTex, copperBlockTex, cutCopperTex, glassTex, goldBlockTex, graniteTex, ironBlockTex, junglePlanksTex, marblePillarTex, marbleTex, markBarkTex, markPlanksTex, markRingsTex, mushroomCapTex, mushroomStemTex, obsidianTex, planksTex, polishedBasaltTex, polishedGraniteTex, polishedMarbleTex, polishedStoneTex, quartzPillarTex, quartzTex, ringsTex, roofTilesTex, sandTex, sandstoneTex, smoothSandstoneTex, snowTex, steelBlockTex, stoneTilesTex, techPanelTex, whitePanelTex, neonTex } from './textures.js';
@@ -150,6 +150,7 @@ function isoBoxes(top, side, boxes) {
     ingot: (x, y) => (y > 6 && y < 12 && x > 2 + (12 - y) * 0.4 && x < 14 - (12 - y) * 0.4 ? (y < 8 ? 'L' : y > 10.5 ? 'D' : 'M') : null),
     lump: (x, y) => (inE(x, y, 8, 9, 5.5, 4) ? ((x * 5 + y * 3) % 6 < 1 ? 'L' : 'M') : null),
     bottle: (x, y) => (inR(x, y, 6.5, 2, 9.5, 5) ? 'W' : inE(x, y, 8, 10.5, 4.5, 4.5) ? (x < 7 ? 'L' : 'M') : inR(x, y, 7, 5, 9, 7) ? 'L' : null),
+    eye: (x, y) => (Math.abs(y - 8) < 5 * (1 - ((x - 8) / 7.5) ** 2) ? (inE(x, y, 6.6, 6.6, 0.9, 0.9) ? 'W' : Math.abs(x - 8) < 0.8 && Math.abs(y - 8) < 2.6 ? 'K' : inE(x, y, 8, 8, 3, 3) ? 'A' : y < 6 ? 'L' : 'M') : null), // oko obřího pavouka
     lens: (x, y) => (inE(x, y, 8, 8, 6, 6) ? (inE(x, y, 6, 6, 1.5, 1.5) ? 'W' : 'M') : null),
     sheet: (x, y) => (inR(x, y, 2, 4, 14, 12) ? (x + y > 22 ? 'D' : inR(x, y, 3, 5, 6, 6) ? 'W' : 'M') : null),
     pile: (x, y) => (inE(x, y, 8, 12, 6.5, 3.5) || inE(x, y, 8, 9.5, 4, 2.5) ? ((x * 7 + y * 5) % 4 < 1 ? 'D' : 'M') : null),
@@ -260,11 +261,35 @@ function isoBoxes(top, side, boxes) {
   const steel = (x, y) => ((x + y) % 7 ? '#8a96a4' : '#7a8694');
   const steelF = face(steel);
   const edge = (x, y) => x === 0 || y === 0 || x === 15 || y === 15;
+  const seg2 = (x, y, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - ax - dx * t, y - ay - dy * t) < 0.75; };
   // Luk (oblouk kolem bodu 12,12, tětiva po úhlopříčce) a šíp
   icon('bow', face((x, y) => {
     const d = Math.hypot(x - 12, y - 12), s = x + y;
     if (d > 10.3 && d < 12.1 && s <= 15) return Math.hypot(x - 4, y - 4) < 1.8 ? '#3a2614' : d < 10.9 || d > 11.6 ? '#5a3a1e' : '#9a6a38';
     return Math.abs(s - 15) < 0.6 && x >= 1 && x <= 14 ? '#e8e2d0' : null;
+  }));
+  icon('wand', face((x, y) => { // hůl po úhlopříčce se svítícím krystalem nahoře
+    const s = x + y;
+    if (Math.hypot(x - 12, y - 3) < 2.6) return Math.hypot(x - 11.4, y - 2.4) < 1 ? '#ffffff' : '#b98cff';
+    if (Math.abs(s - 15) <= 0.6 && x >= 2 && x <= 10) return x === 5 || x === 8 ? '#e0b040' : '#5a3a20';
+    return null;
+  }));
+  icon('owner_wand', face((x, y) => { // hůl vlastníka: černá se zlatými kroužky a zeleným krystalem
+    const s = x + y;
+    if (Math.hypot(x - 12, y - 3) < 2.6) return Math.hypot(x - 11.4, y - 2.4) < 1 ? '#eafff0' : '#2bff5a';
+    if (Math.abs(s - 15) <= 0.6 && x >= 2 && x <= 10) return x === 5 || x === 8 ? '#f0c040' : '#1a1a1a';
+    return null;
+  }));
+  icon('xp_potion', face((x, y) => { // lektvar nekonečných XP: baňka se zeleně a zlatě zářící tekutinou, na ní zlaté ∞
+    if (x >= 6 && x <= 9 && y <= 1) return '#8a5a2a'; // zátka
+    if (x >= 6 && x <= 9 && y <= 5) return x === 6 || x === 9 ? '#a8c8d0' : '#e0f4f8'; // hrdlo
+    const d = Math.hypot(x - 7.5, y - 10);
+    if (d > 5.6) return null;
+    if (d > 4.7) return '#a8c8d0'; // sklo
+    const INF = { 10: [5, 6, 9, 10], 11: [4, 7, 8, 11], 12: [5, 6, 9, 10] }; // ∞
+    if (INF[y]?.includes(x)) return '#ffe46a';
+    if (y < 7) return Math.hypot(x - 5.5, y - 7) < 1.2 ? '#ffffff' : '#d8f0e8'; // vzduch nad hladinou, odlesk
+    return y < 9 ? '#7aff8a' : (x + y) % 5 ? '#2bd85a' : '#c8ff6a';
   }));
   icon('arrow', face((x, y) => {
     const s = x + y;
@@ -272,6 +297,100 @@ function isoBoxes(top, side, boxes) {
     if (x >= 11 && y <= 4) return s >= 14 && s <= 16 ? '#c8ccd4' : null;
     if (x <= 4) return Math.abs(s - 15) <= 0.6 ? '#7a5a36' : '#e8e8e8';
     return Math.abs(s - 15) <= 0.6 ? '#9a7448' : null;
+  }));
+  // Obchod za zlato (shared/data/shop.js): zlaťák, světelné meče, trojzubec, křídla, plamenomet, lékárnička
+  icon('coin', face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d < 6.5 ? (d > 5.3 ? '#a8801a' : Math.abs(x - 7.5) < 1 && y > 4 && y < 11 ? '#fff0a0' : x + y < 13 ? '#ffe46a' : '#f0b82a') : null; }));
+  for (const [id, col, core] of [['saber_blue', '#3aa8ff', '#e0f4ff'], ['saber_green', '#3aff5a', '#e8ffe8'], ['saber_red', '#ff2a2a', '#ffe0e0'], ['saber_purple', '#b05aff', '#f4e8ff'], ['fire_sword', '#ff5a1a', '#ffe070'], ['saber_gold', '#ffc830', '#fff8d0']]) {
+    icon(id, face((x, y) => {
+      const s = x + y, off = Math.abs(s - 15);
+      if (x <= 5 && y >= 10) return off <= 0.8 ? (x === 3 || x === 5 ? '#2a2a30' : '#9aa2ac') : null; // rukojeť
+      if (x >= 5 && x <= 6 && y >= 9 && y <= 10 && off <= 1.6) return '#5a5a62'; // záštita
+      if (x > 5 && y < 10) return off <= 0.5 ? core : off <= 1.5 ? col : null; // čepel
+      return null;
+    }));
+  }
+  icon('trident', face((x, y) => {
+    const s = x + y, off = Math.abs(s - 15);
+    if (x < 9 && off <= 0.6) return x < 4 ? '#5a3a20' : '#c8a040';
+    if (x >= 9 && (seg2(x, y, 9, 6, 14, 1) || seg2(x, y, 9, 6, 9, 1.5) || seg2(x, y, 9, 6, 13.5, 6) || seg2(x, y, 7.5, 7.5, 10.5, 4.5))) return y < 3 || x > 12 ? '#e8fbff' : '#38c8e8';
+    return null;
+  }));
+  icon('wings', face((x, y) => {
+    const dx = Math.abs(x - 7.5), feather = (y + Math.floor(dx)) % 3 === 0;
+    if (dx < 1 && y > 5 && y < 11) return '#8a5a2a';
+    return dx >= 1 && dx < 7.5 && y > 2 + dx * 0.4 && y < 13 - dx * 0.6 ? (feather ? '#c8d4e8' : '#ffffff') : null;
+  }));
+  icon('flamethrower', face((x, y) => {
+    if (y >= 7 && y <= 9 && x >= 2 && x <= 11) return x === 2 || y === 7 ? '#8a96a4' : '#5a646e'; // hlaveň
+    if (x >= 3 && x <= 6 && y >= 10 && y <= 13) return '#c82a2a'; // nádrž
+    if (x >= 7 && x <= 8 && y >= 10 && y <= 12) return '#2a2a30'; // rukojeť
+    if (x >= 12 && Math.abs(y - 8) < (x - 10) * 0.7) return x > 14 ? '#ffe070' : '#ff7a2a'; // plamen
+    return null;
+  }));
+  // hudební disky (štítek v barvě disku) a přehrávač filmové hudby
+  for (const [id, , col] of [...DISCS, ['disc_horror', '', '#5a0a0a']]) icon(id, face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d > 6.8 ? null : d < 1 ? null : d < 3 ? col : (Math.floor(d * 2) % 2 ? '#2a2a30' : '#1a1a1e'); }));
+  icon('jukebox', face((x, y) => {
+    if (x < 1 || x > 14 || y < 2 || y > 14) return null;
+    if (y < 6) return Math.hypot(x - 7.5, y - 4) < 2.5 ? '#1a1a1e' : y === 2 || x === 1 || x === 14 ? '#5a3a20' : '#8a5a2a';
+    if (y > 7 && y < 13 && x > 2 && x < 13) return (x + y) % 3 ? '#3a2a1e' : '#c8a040'; // reproduktor
+    return x === 1 || x === 14 || y === 14 ? '#5a3a20' : '#8a5a2a';
+  }));
+  // peklo: kbelík lávy a ohnivá koule
+  icon('lava_bucket', face((x, y) => {
+    if (y < 4 || y > 14 || x < 3 || x > 12) return null;
+    if (y < 6) return (x + y) % 3 ? '#ff7a1a' : '#ffd040'; // láva nahoře
+    return x === 3 || x === 12 || y === 14 ? '#5a646e' : '#a8b0ba';
+  }));
+  icon('fire_charge', face((x, y) => { const d = Math.hypot(x - 7.5, y - 8); return d < 5.5 ? (d < 2.2 ? '#fff0a0' : d < 4 ? '#ffa020' : '#d8380a') : (y < 6 && Math.abs(x - 7.5 + (y - 3)) < 1 && y > 1 ? '#ff7a1a' : null); }));
+  // další vychytávky z obchodu (shared/data/shop.js)
+  icon('jetpack', face((x, y) => {
+    if (y > 11 && y < 15 && (x === 4 || x === 5 || x === 10 || x === 11)) return y > 12 ? '#ffd040' : '#ff7a1a'; // plameny
+    if ((x >= 3 && x <= 6) || (x >= 9 && x <= 12)) return y >= 2 && y <= 11 ? (y === 2 || x === 3 || x === 12 ? '#5a646e' : '#a8b0ba') : null;
+    if (x >= 7 && x <= 8 && y >= 4 && y <= 8) return '#2a2a30';
+    return null;
+  }));
+  icon('teleport_orb', face((x, y) => { const d = Math.hypot(x - 7.5, y - 7.5); return d < 6 ? (d < 2 ? '#ffffff' : (x + y) % 3 ? '#9a5aff' : '#5a2aa8') : null; }));
+  const gun = (barrel, glow) => face((x, y) => {
+    if (y >= 5 && y <= 8 && x >= 3 && x <= 13) return x >= 12 ? glow : y === 5 ? '#8a96a4' : barrel;
+    if (y >= 9 && y <= 13 && x >= 4 && x <= 6) return '#2a2a30'; // rukojeť
+    if (y === 9 && x >= 7 && x <= 8) return '#2a2a30'; // spoušť
+    return null;
+  });
+  icon('freeze_ray', gun('#5a7a9a', '#8ae8ff'));
+  icon('blaster', gun('#3a3a42', '#ff3a2a'));
+  icon('thunder_hammer', face((x, y) => {
+    if (y >= 2 && y <= 6 && x >= 3 && x <= 12) return y === 2 ? '#d8dce2' : (x + y) % 4 ? '#8a96a4' : '#5a646e'; // hlava
+    if (x >= 7 && x <= 8 && y > 6 && y <= 14) return y % 3 ? '#7a5a36' : '#c8a040'; // násada
+    if (y === 4 && (x === 1 || x === 14)) return '#8ae8ff'; // jiskry
+    return null;
+  }));
+  icon('speed_potion', face((x, y) => {
+    if (y < 3) return x >= 6 && x <= 9 ? '#8a5a2a' : null; // zátka
+    if (y < 6) return x >= 6 && x <= 9 ? '#c8e8f0' : null; // hrdlo
+    const d = Math.hypot(x - 7.5, y - 10);
+    return d < 5 ? (y > 8 ? (d < 2 ? '#b0ffff' : '#2ad8e8') : '#c8e8f0') : null;
+  }));
+  icon('grenade', face((x, y) => {
+    if (y < 4) return x >= 7 && x <= 9 ? '#8a96a4' : x === 10 && y === 2 ? '#c8ccd4' : null;
+    const d = Math.hypot(x - 7.5, y - 9.5);
+    return d < 5 ? ((x + y) % 3 ? '#4a5a2a' : '#2e3a1a') : null;
+  }));
+  icon('firework', face((x, y) => {
+    if (x >= 6 && x <= 9 && y >= 5 && y <= 13) return y % 3 ? '#d83a3a' : '#f4f4f4';
+    if (y < 5 && Math.abs(x - 7.5) < 5 - y) return '#3a5ab0'; // špička
+    if (y === 14 && x === 8) return '#c8a040'; // doutnák
+    return null;
+  }));
+  icon('grapple', face((x, y) => {
+    if (y <= 4 && (Math.abs(x - 7.5 - (4 - y)) < 0.8 || Math.abs(x - 7.5 + (4 - y)) < 0.8 || (x >= 7 && x <= 8))) return '#a8b0ba'; // hák
+    if (x >= 7 && x <= 8 && y > 4) return y % 2 ? '#c8a060' : '#8a6a3a'; // lano
+    return null;
+  }));
+  icon('medkit', face((x, y) => {
+    if (y < 4 && x > 5 && x < 10) return y === 2 ? null : '#5a5a62';
+    if (x < 1 || x > 14 || y < 3 || y > 13) return null;
+    if ((Math.abs(x - 7.5) < 1.5 && y > 4 && y < 12) || (Math.abs(y - 8) < 1.5 && x > 3 && x < 12)) return '#ffffff';
+    return x === 1 || x === 14 || y === 3 || y === 13 ? '#a81a1a' : '#e02a2a';
   }));
   icon('coal_generator', isoBoxes(steelF, face((x, y) => (edge(x, y) ? '#5a646e' : y > 3 && y < 9 && y % 2 ? '#2a2a30' : y > 10 && y < 13 && x > 4 && x < 11 ? '#ff7a2a' : steel(x, y))), FULL));
   icon('battery_block', isoBoxes(face((x, y) => (x > 2 && x < 7 && y > 6 && y < 9 ? '#d8783a' : x > 9 && x < 13 && y > 6 && y < 9 ? '#d0d0d0' : '#2e3a2e')),

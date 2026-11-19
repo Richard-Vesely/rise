@@ -11,7 +11,7 @@ const LIB = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 const TURN = 1.6, LOOK = 0.8; // rad/s při upažení / kývnutí (hrubé ovládání: stálá klidná rychlost)
 
-let mode = null, video = null, stream = null, landmarker = null, box = null, canvas = null, status = null, raf = 0;
+let mode = null, starting = false, runN = 0, video = null, stream = null, landmarker = null, box = null, canvas = null, status = null, raf = 0;
 let base = null, calib = [], calibUntil = 0, st = newState(), last = 0, joy = null, held = new Set();
 const sm = { forward: 0, strafe: 0, turn: 0, look: 0 }; // vyhlazené ovládání (body z kamery se třesou)
 const ease = (k, v, dt, rate) => { sm[k] += (v - sm[k]) * (1 - Math.exp(-dt * rate)); if (Math.abs(sm[k]) < 0.02 && !v) sm[k] = 0; return sm[k]; };
@@ -20,28 +20,36 @@ const ease = (k, v, dt, rate) => { sm[k] += (v - sm[k]) * (1 - Math.exp(-dt * ra
 export async function setBodyMode(m) {
   if (!m) return stop();
   mode = m;
-  if (stream) return;
+  if (stream || starting) return;
+  const run = ++runN; // když hráč ovládání vypne, než se kamera a model načtou, tohle spuštění se zahodí
+  starting = true;
   try {
     ui('Spouštím kameru…');
-    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+    if (run !== runN) { s.getTracks().forEach((t) => t.stop()); return; }
+    stream = s;
     video.srcObject = stream;
     await video.play();
     ui('Načítám rozpoznávání těla…');
     const { FilesetResolver, PoseLandmarker } = await import(/* @vite-ignore */ `${LIB}/vision_bundle.mjs`);
     const files = await FilesetResolver.forVisionTasks(`${LIB}/wasm`);
-    landmarker = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' }, runningMode: 'VIDEO', numPoses: 1 });
+    const lm = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: MODEL, delegate: 'GPU' }, runningMode: 'VIDEO', numPoses: 1 });
+    if (run !== runN) { lm.close?.(); return; }
+    landmarker = lm;
     recalibrate();
     raf = requestAnimationFrame(loop);
   } catch (e) {
     console.warn('ovládání tělem:', e);
+    if (run !== runN) return; // mezitím vypnuto
     toast(e?.name === 'NotAllowedError' ? 'Kamera nepovolena – ovládání tělem je vypnuté' : 'Ovládání tělem se nepodařilo spustit (kamera nebo internet)');
     stop();
-  }
+  } finally { if (run === runN) starting = false; }
 }
 /** Nová kalibrace: 3 s stát v klidu, rukama dolů. */
 export function recalibrate() { base = null; calib = []; calibUntil = performance.now() + 3000; st = newState(); for (const k in sm) sm[k] = 0; }
 
 function stop() {
+  runN++; starting = false; // zahodí rozběhnuté spouštění
   cancelAnimationFrame(raf);
   stream?.getTracks().forEach((t) => t.stop());
   stream = null; landmarker?.close?.(); landmarker = null; mode = null;

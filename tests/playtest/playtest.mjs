@@ -269,6 +269,134 @@ try {
     return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
   });
   check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
+  r = await ev(async () => { // smrt: batoh a brnění vypadnou na zem tam, kde hráč padl
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.give('apple', 5); g.armor[0] = { id: 'iron_helmet', n: 1 };
+    g.mobs.length = 0; T.tpg(-70, 30); T.step(5);
+    const at = g.player.pos.clone(), before = g.groundItems.length;
+    g.player.hp = 5; g.damagePlayer(50, 0, 0);
+    const near = g.groundItems.filter((it) => it.pos.distanceTo(at) < 4).map((it) => it.id).sort();
+    const empty = g.inv.slots.every((x) => !x) && !g.armor[0];
+    await new Promise((ok) => setTimeout(ok, 3000));
+    return { near, empty, added: g.groundItems.length - before, alive: g.player.alive, home: g.player.pos.distanceTo(at) > 20 };
+  });
+  check('death: the backpack and armor fall to the ground where you died, you come back home without them', r.empty && ['apple', 'iron_helmet', 'iron_sword'].every((id) => r.near.includes(id)) && r.alive && r.home, JSON.stringify(r));
+  r = await ev(async () => { // XP a kouzla: nová úroveň nabídne kouzla, Magická střela zraní kance, poražený kanec dá XP
+    const g = window.game; T.clearInv(); T.give('wand', 1); T.hold('wand');
+    g.mobs.length = 0; T.tpg(-60, 30); T.step(5);
+    const xp0 = g.magic.xp;
+    g.addXp(20);
+    await new Promise((ok) => setTimeout(ok, 800));
+    const cards = [...document.querySelectorAll('#spellWin [data-pick]')].map((b) => b.dataset.pick);
+    document.querySelector('#spellWin [data-pick=\"bolt\"]')?.click();
+    const learned = [...g.magic.learned], sel = g.magic.sel;
+    const p = g.player.pos;
+    g.spawnMob('boar', p.x, p.z - 7);
+    const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp, mana0 = g.magic.mana;
+    T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z);
+    g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false;
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const hp1 = m.hp, mana1 = g.magic.mana;
+    const xpBefore = g.magic.xp;
+    g.player.hp = 100;
+    for (let k = 0; k < 4 && !m.dead; k++) { g.magic.cd = {}; g.magic.mana = 100; T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; for (let i = 0; i < 40; i++) T.step(1, 0.016); }
+    T.step(2);
+    return { cards, learned, sel, hp0, hp1, mana0, mana1, dead: m.dead, xpGain: g.magic.xp - xpBefore, levelUp: g.magic.xp - xp0, bar: document.querySelector('#xpBars .spell')?.textContent };
+  });
+  check('magic: a new level offers 3 spells, picking one learns it', r.cards.length === 3 && r.cards.includes('bolt') && r.learned.includes('bolt') && r.sel === 'bolt', JSON.stringify(r));
+  check('magic: the wand casts the magic bolt: the boar takes 6, the mana goes down (8, it refills while the bolt flies)', r.hp0 - r.hp1 === 6 && r.mana0 - r.mana1 >= 4 && /Magická střela/.test(r.bar || ''), JSON.stringify(r));
+  check('magic: a boar knocked out by spells gives XP', r.dead && r.xpGain === 4, JSON.stringify(r));
+  r = await ev(async () => { // obchod za zlato: /sell v chatu prodá zlato, /shop otevře obchod, koupě stojí zlaťáky; vychytávky fungují
+    const g = window.game, chat = (t) => { const c = document.getElementById('chatInput'); c.value = t; c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); };
+    T.clearInv(); T.give('gold_ingot', 20); T.give('gold_block', 2);
+    chat('/sell');
+    const coins = T.count('coin'), gold = T.count('gold_ingot');
+    chat('/shop');
+    await new Promise((ok) => setTimeout(ok, 300));
+    const items = [...document.querySelectorAll('#shopWin [data-buy]')].map((b) => b.dataset.buy);
+    document.querySelector('#shopWin [data-buy="saber_blue"]')?.click();
+    document.querySelector('#shopWin [data-buy="wings"]')?.click();
+    const after = { coins: T.count('coin'), saber: T.count('saber_blue'), wings: T.count('wings') };
+    document.querySelector('#shopWin [data-buy="jet"]')?.click(); // 400: na to už nemá
+    const jet = T.count('jet');
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    const closed = !document.getElementById('shopWin');
+    T.hold('wings'); g.player.flyT = 0; g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016);
+    const fly = g.player.flyT;
+    T.hold('saber_blue'); T.step(2);
+    return { coins, gold, items, after, jet, closed, fly };
+  });
+  check('shop: /sell turns gold into coins (20 ingots × 10 + 2 blocks × 90 = 380)', r.coins === 380 && r.gold === 0, JSON.stringify(r));
+  check('shop: /shop lists sabers, trident, wings, flamethrower, medkit, the jet and 123 more game items; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.items.length >= 138 && ['iron_pick', 'pizza', 'car'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
+  check('shop: wings give 30 s of flying on right click', r.fly > 29, JSON.stringify(r));
+  r = await ev(() => { // speciální vychytávky: lektvar rychlosti, teleportační koule, raketový batoh, granát, hák
+    const g = window.game, use = (id) => { T.clearInv(); T.give(id, 1); T.hold(id); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016); };
+    g.mobs.length = 0; T.tpg(-40, 60); T.step(5);
+    use('speed_potion');
+    const speed = g.player.speedT, potionGone = T.count('speed_potion') === 0;
+    const p0 = g.player.pos.clone(); g.player.pitch = -0.1;
+    use('teleport_orb');
+    const moved = g.player.pos.distanceTo(p0);
+    T.tpg(-40, 60); T.step(5);
+    const y0 = g.player.pos.y; T.clearInv(); T.give('jetpack', 1); T.hold('jetpack'); g.input.rmb = true; T.step(20, 0.016); g.input.rmb = false;
+    const up = g.player.pos.y - y0;
+    T.tpg(-40, 60); T.step(20); g.player.flyT = 0;
+    const p = g.player.pos; g.spawnMob('boar', p.x, p.z - 6); const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp;
+    T.aim(m.pos.x, m.pos.y + 1.5, m.pos.z);
+    use('grenade'); for (let i = 0; i < 80; i++) T.step(1, 0.016);
+    const boom = hp0 - m.hp;
+    T.aim(p.x, p.y - 3, p.z - 12);
+    use('grapple');
+    const pulled = Math.hypot(g.player.vel.x, g.player.vel.z);
+    return { speed, potionGone, moved, up, boom, pulled };
+  });
+  check('gadgets: speed potion, teleport orb, jetpack, grenade and grappling hook work', r.speed > 29 && r.potionGone && r.moved > 5 && r.up > 1 && r.boom > 0 && r.pulled > 3, JSON.stringify(r));
+  r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu
+    const g = window.game, p = g.player.pos, k = `${Math.floor(p.x) + 2},${Math.floor(p.y)},${Math.floor(p.z)}`;
+    g.Sound?.init?.();
+    T.clearInv(); T.give('disc_hero', 1); T.hold('disc_hero');
+    g.blocks.set(k, 'jukebox');
+    g.useJukebox(k);
+    const meta = g.blockMeta?.get(k), left = T.count('disc_hero');
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const playing = g.jukeboxesPlaying();
+    g.useJukebox(k);
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const after = g.jukeboxesPlaying(), back = T.count('disc_hero');
+    g.blocks.delete(k);
+    return { meta, left, playing, after, back, ctx: !!g.Sound?.ctx };
+  });
+  check('jukebox: a disc goes in and plays the film music, right click again gives it back and stops', r.meta === 'disc_hero' && r.left === 0 && r.back === 1 && r.after.length === 0 && (!r.ctx || r.playing.includes('disc_hero')), JSON.stringify(r));
+  r = await ev(async () => { // peklo: portál s varováním, ďáblové, láva pálí, kbelík lávy, oltář: výkupné zmizí a jdeš domů
+    const g = window.game, wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    T.clearInv();
+    for (let i = 0; i < 25 && !g.blocks.has(`${g.HELL.x},${g.HELL.y},${g.HELL.z}`); i++) { T.step(10); await wait(50); } // peklo se staví v updateSpawns
+    g.useHellPortal();
+    const warn = document.querySelector('#hellWin')?.textContent || '';
+    document.querySelector('#hellWin [data-go]')?.click();
+    const p = g.player.pos, inside = g.inHell(p.x, p.y, p.z);
+    let devils = 0;
+    for (let i = 0; i < 30 && !devils; i++) { T.step(20, 0.05); g.player.hp = 100; devils = g.mobs.filter((m) => m.type === 'devil' && !m.dead).length; } // ďáblové by hráče v testu zabili: léčit
+    g.useAltar();
+    const locked = document.querySelector('#hellWin [data-pay]')?.disabled;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    g.mobs.length = 0;
+    // láva: postav se do ní
+    const lava = [...g.blocks.entries()].find(([, t]) => t === 'hell_lava')[0].split(',').map(Number);
+    T.tp(lava[0] + 0.5, lava[2] + 0.5, lava[1]);
+    const hp0 = g.player.hp, alive = g.player.alive;
+    T.step(20, 0.05);
+    const burnt = hp0 - g.player.hp;
+    g.player.hp = 100;
+    T.give('disc_hero', 2); T.give('disc_space', 1); T.give('fire_gem', 24); T.give('lava_bucket', 1); T.give('apple', 3);
+    g.useAltar();
+    const ready = !document.querySelector('#hellWin [data-pay]')?.disabled;
+    document.querySelector('#hellWin [data-pay]')?.click();
+    const q = g.player.pos;
+    return { warn: /oltář/.test(warn), inside, devils, locked, alive, burnt, ready, home: !g.inHell(q.x, q.y, q.z) && Math.hypot(q.x - 1.5, q.z - 15.5) < 2, left: ['disc_hero', 'disc_space', 'fire_gem', 'lava_bucket', 'apple'].map((id) => T.count(id)) };
+  });
+  check('hell: the portal warns first, then you are in hell and devils come', r.warn && r.inside && r.devils > 0, JSON.stringify(r));
+  check('hell: lava burns, the altar stays locked without the ransom', r.burnt > 0 && r.locked === true, JSON.stringify(r));
+  check('hell: 3 discs + 24 fire gems + a lava bucket at the altar = home; only those disappear', r.ready && r.home && r.left.join() === '0,0,0,0,3', JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);
@@ -540,6 +668,43 @@ try {
   });
   check('graphics: weather (rain, wet ground) and dusk/night sky', r.rain > 0.9 && r.rainVisible && r.wet > 0.05 && r.overcast > 0.8 && r.twilight > 0.3 && r.starsNight > 0.9 && r.moon > 0.9, JSON.stringify(r));
   if (!process.env.PLAYTEST_QUALITY) check('graphics: Automaticky picks nízká on software WebGL', r.gpu !== 'software' || r.quality === 'low', JSON.stringify(r));
+  // ------------------------------------------------------------ bonuses for donors (player/bonus.js, player/ghost.js); only on the club server, faked here with NET.client
+  r = await ev(() => {
+    const g = window.game, out = {};
+    T.tp(0, 14); T.step(5);
+    const body = g.player.pos.clone(), bx = Math.floor(body.x), bz = Math.floor(body.z) - 10;
+    for (let y = 0; y < 4; y++) g.blocks.set(`${bx},${y},${bz}`, 'planks'); // a pillar to land in
+    g.NET.client = true;
+    T.press('KeyX'); out.noPerkNoGhost = !g.ghost.on;
+    g.applyBonus(['teleport', 'let', 'obrana', 'syty']);
+    out.perks = [...g.perks].join();
+    g.player.hunger = 50; T.step(10); out.hunger = Math.round(g.player.hunger);
+    g.player.hp = 100; g.damagePlayer(30, 0, 0); out.hp = Math.round(g.player.hp); g.player.hp = 100;
+    g.player.flying = false; T.press('Space'); T.press('Space'); out.flying = g.player.flying;
+    const y0 = g.player.pos.y; g.keys.add('Space'); T.step(20); g.keys.delete('Space'); out.rose = +(g.player.pos.y - y0).toFixed(1);
+    g.player.flying = false; T.tp(body.x, body.z, body.y); T.step(10);
+    g.player.yaw = 0; g.player.pitch = 0;
+    const b0 = g.player.pos.clone();
+    T.press('KeyX'); out.ghostOn = g.ghost.on;
+    g.keys.add('KeyW'); T.step(20); g.keys.delete('KeyW');
+    out.bodyStays = g.player.pos.distanceTo(b0) < 0.01;
+    out.ghostFlew = +(b0.z - g.ghost.pos.z).toFixed(1);
+    out.camAtGhost = g.camera.position.distanceTo(g.ghost.pos) < 0.01;
+    g.ghost.pos.set(bx + 0.5, 1.5 + 1.62, bz + 0.5); // inside the pillar
+    T.press('KeyX'); out.landed = !g.ghost.on; out.at = [+(g.player.pos.x - bx).toFixed(1), +g.player.pos.y.toFixed(2), +(g.player.pos.z - bz).toFixed(1)];
+    T.press('KeyX'); g.damagePlayer(1, 0, 0); out.hurtEndsGhost = !g.ghost.on; g.player.hp = 100;
+    T.press('KeyX'); const g0 = g.player.pos.clone(); g.ghost.pos.x += 50; window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', shiftKey: true })); T.key('KeyX', false);
+    out.shiftXBack = !g.ghost.on && g.player.pos.distanceTo(g0) < 0.01;
+    g.NET.jail = { need: 1, given: 0, item: 'spider_eye', at: null }; T.press('KeyX'); out.noGhostInPrison = !g.ghost.on; g.NET.jail = null;
+    g.applyBonus([]); g.player.hunger = 50; T.step(20); out.hungryAgain = g.player.hunger < 50;
+    g.NET.client = false; g.player.flying = false;
+    for (let y = 0; y < 4; y++) g.blocks.delete(`${bx},${y},${bz}`);
+    T.tp(0, 14); T.step(5);
+    return out;
+  });
+  check('bonuses: no bonus = X does nothing; never hungry; a third of the damage; fly with double Space', r.noPerkNoGhost && r.perks === 'syty,obrana,let,teleport' && r.hunger === 100 && r.hp === 90 && r.flying && r.rose > 5, JSON.stringify(r));
+  check('bonuses: ghost (X) flies fast while the body stays; X again lands on top of the block it is in', r.ghostOn && r.bodyStays && r.ghostFlew > 25 && r.camAtGhost && r.landed && r.at[1] >= 4 && Math.abs(r.at[0] - 0.5) < 0.1 && Math.abs(r.at[2] - 0.5) < 0.1, JSON.stringify(r));
+  check('bonuses: a hit or Shift+X sends the ghost back; no ghost in prison; taken away = hungry again', r.hurtEndsGhost && r.shiftXBack && r.noGhostInPrison && r.hungryAgain, JSON.stringify(r));
   // ------------------------------------------------------------ 3D icons of blocks and machines (drawn in the background after the start)
   const icons3d = await page.waitForFunction(() => ['coal_generator', 'tech_panel', 'bricks', 'planks_stairs'].every((id) => window.game.ICONS[id]?.smooth && window.game.ICONS[id].canvas.width === 64), null, { timeout: 60000 }).then(() => true, () => false);
   check('block and machine icons are 3D renders (64 px, smooth)', icons3d);

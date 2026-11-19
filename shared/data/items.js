@@ -22,6 +22,7 @@ export const ITEMS = {
   iron: { name: 'Železný ingot', icon: '🔩' },
   shard: { name: 'Úlomek světla', icon: '💎' },
   essence: { name: 'Stínová esence', icon: '🟣' },
+  spider_eye: { name: 'Oko obřího pavouka', art: ['eye', '#c0182c', '#ffd84a'] }, // jen z obřích pavouků v bludišti vězení (shared/world/prison.js)
   wool: { name: 'Vlna', icon: '🧶' },
   berries: { name: 'Lesní plody', icon: '🫐', food: 8 },
   raw_meat: { name: 'Syrové maso', icon: '🥩', food: 6 },
@@ -51,6 +52,14 @@ for (const [t, key, mat] of TIERS) {
 // Luk a šípy (client/src/player/bow.js): pravé tlačítko natahuje, puštění vystřelí. bow.dmg = zranění plně nataženým šípem.
 ITEMS.bow = { name: 'Luk', bow: { dmg: 10, draw: 1, speed: 46 }, stack: 1, dur: 250 };
 ITEMS.arrow = { name: 'Šíp' };
+// Čarovná hůl (client/src/player/magic.js): pravé tlačítko sešle vybrané kouzlo; kouzla se učí za XP (shared/data/magic.js)
+ITEMS.wand = { name: 'Čarovná hůl', wand: true, stack: 1 };
+// Hůl vlastníka serveru (jen server kroužku, server/owner-wand.js): má ji vždycky jen vlastník, nejde vyrobit, zahodit ani dát
+// do truhly; umí kouzlo Avada Kedavra. hidden = není v nabídce kreativního režimu, owner = patří jen vlastníkovi.
+ITEMS.owner_wand = { name: 'Hůl vlastníka', wand: true, owner: true, hidden: true, stack: 1 };
+// Lektvar nekonečných XP (jen vlastník serveru, stejná pravidla jako hůl vlastníka): pravé tlačítko = vypít, dá přesně tolik XP,
+// kolik chybí do další úrovně; nikdy se nevypije (client/src/player/owner-wand.js).
+ITEMS.xp_potion = { name: 'Lektvar nekonečných XP', xpPotion: true, owner: true, hidden: true, stack: 1 };
 // Brnění: helma, brnění, kalhoty, boty. Každý bod ochrany ubere 3,5 % zranění (max. 80 %).
 export const ARMOR_SLOTS = ['helmet', 'chestplate', 'leggings', 'boots'];
 export const ARMOR_SLOT_NAMES = ['Helma', 'Brnění', 'Kalhoty', 'Boty'];

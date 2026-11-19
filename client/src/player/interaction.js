@@ -49,6 +49,12 @@ import { wearHeld } from './durability.js';
 import { addItem, addStack, consumeSelected, heldStack, inv } from './inventory.js';
 import { creative, input, isLocked, player, playerIntersects } from './player.js';
 import { pickTarget } from './targeting.js';
+import { updateMagic, updateWand } from './magic.js';
+import { updateGadgets } from './gadgets.js';
+import { updateJukeboxes, useJukebox } from '../audio/film-music.js';
+import { updateHell, useAltar, usePortal as useHellPortal } from '../world/hell.js';
+import { addXp, updateXp } from './xp.js';
+import { XP_ORE } from '../../../shared/data/magic.js';
 
 // ============================================================ těžba, útok, pokládání
 export const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004)), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
@@ -220,7 +226,12 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
+  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); updateHell(dt); // přehrávače hudby hrají (audio/film-music.js), láva v pekle pálí (world/hell.js)
+  // kouzla a XP (magic.js, xp.js)
+  const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
+  if (updateGadgets(dt, special)) { /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */ }
+  else if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
+  else if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
   else {
     if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
     if (input.rmb) pillarPlace();
@@ -243,6 +254,8 @@ const TREE_DROPS = {
   spruce: [['log', 4, 6], ['snowball', 0, 2], ['resin', 0, 1]], dead: [['stick', 3, 6]], deadbush: [['stick', 1, 3]], cactus: [['cactus', 1, 3]], mushroom: [['mushroom_block', 2, 4], ['mushroom', 1, 3]],
 };
 // Co vytěžíš, vyskočí jako předmět (dropper v world/ground-items.js) a magnet ho k tobě přitáhne.
+// Ruda v podzemí → klíč XP_ORE
+const ORE_OF = { [V.COAL]: 'coal', [V.IRON]: 'iron', [V.CRYSTAL]: 'crystal', [V.MARKORITE]: 'markorite', [V.COPPER]: 'copper', [V.GOLD]: 'gold', [V.QUARTZ]: 'quartz' };
 export function breakTarget(t) {
   if (t.kind === 'tree') {
     removed.add(t.key);
@@ -274,7 +287,7 @@ export function breakTarget(t) {
   } else if (t.kind === 'rock') {
     removed.add(t.key);
     const r = t.rock, { drop } = dropper(r.x, r.y + 0.4, r.z);
-    if (r.iron) { drop('iron_ore', randInt(2, 3)); drop('stone', 1); }
+    if (r.iron) { drop('iron_ore', randInt(2, 3)); drop('stone', 1); addXp(XP_ORE.iron); }
     else drop('stone', 2 + Math.floor(r.s * 3));
     if (Math.random() < 0.3) drop('salt', randInt(1, 2)); // solné krystalky v kameni
     breakFx(t, [r.x, r.y + 0.3, r.z]);
@@ -283,9 +296,11 @@ export function breakTarget(t) {
   } else if (t.kind === 'block') {
     const k = bkey(...t.cell);
     if (MP && [...others.values()].some((P) => P.pose?.ui === k)) { toast('Tohle teď používá jiný hráč'); return; } // otevřená truhla nebo stroj
+    const disc = t.type === 'jukebox' ? blockMeta.get(k) : null; // disk v přehrávači vypadne s ním
     blocks.delete(k);
     blockMeta.delete(k);
     const { drop, contents } = dropper(t.cell[0] + 0.5, t.cell[1] + 0.5, t.cell[2] + 0.5);
+    if (typeof disc === 'string' && ITEMS[disc]?.disc) drop(disc, 1);
     if (CROPS[t.type]) harvestCrop(t.type, k, drop);
     if (BLOCKS[t.type].drop) drop(BLOCKS[t.type].drop, 1);
     if (tableItems.has(k)) { const t = tableItems.get(k); if (t.food) contents({ id: t.food, n: 1 }); if (t.cutlery) contents({ id: 'cutlery', n: 1 }); tableItems.delete(k); }
@@ -328,6 +343,7 @@ export function breakTarget(t) {
     setVox(x, y, z, V.AIR);
     const [id, a, b] = def.drop;
     drop(id, randInt(a, b));
+    addXp(XP_ORE[ORE_OF[t.vox]] || 0); // XP za rudu (shared/data/magic.js)
     if (t.vox === V.STONE && Math.random() < 0.08) drop('salt', 1);
     if (t.vox === V.DIRT && nearPond(x + 0.5, z + 0.5, 4) && Math.random() < 0.4) drop('clay', randInt(1, 2)); // jíl u rybníka
     if (t.surface) cutGrass(x + 0.5, z + 0.5, 1.2);
@@ -358,6 +374,7 @@ export function useItem() {
   // Položení vozidla (natočené ve směru pohledu): auto a kolo na zem, letadlo před hráče, loď a hydroplán na vodu
   const vehHeld = heldStack() && ITEMS[heldStack().id].vehicle;
   const placed = (id, y, text) => { vehicles.get(id).y = y; consumeSelected(); Sound.place(); toast(text); };
+  if (vehHeld && NET.jail) { toast('Ve vězení vozidlo nepostavíš'); return; } // vězení serveru kroužku (player/prison.js)
   if (vehHeld && (isBoat(vehHeld) || vehHeld === 'seaplane')) {
     const spot = vehHeld === 'seaplane' ? seaplaneSpot() : boatSpot(vehHeld);
     if (!spot.ok) { toast(`${vehDim(vehHeld).name} se spouští na vodu – ${spot.why}`); return; }
@@ -366,7 +383,7 @@ export function useItem() {
   }
   if (vehHeld && target?.point && ['grass', 'ground', 'vox', 'block'].includes(target.kind) && (target.kind !== 'block' || target.normal?.[1] === 1)) {
     let [x, , z] = target.point, y = floorAt(x, z, target.point[1] + 0.5);
-    if (vehHeld === 'plane') { // letadlo je větší než dosah ruky: postaví se před hráče ocasem k němu
+    if (vehHeld === 'plane' || vehHeld === 'jet') { // letadlo je větší než dosah ruky: postaví se před hráče ocasem k němu
       const spot = planeSpot(target.point);
       if (!spot.ok) { toast(`Tady se letadlo nevejde – ${spot.why} (potřebuje asi 10 × 8 m)`); return; }
       ({ x, y, z } = spot);
@@ -374,7 +391,7 @@ export function useItem() {
       if (solidAt(Math.floor(x), Math.floor(y + 0.5), Math.floor(z)) || Math.hypot(x - player.pos.x, z - player.pos.z) < 0.8) { toast('Tady se kolo nevejde'); return; }
     } else if (carHits({ y }, x, z, player.yaw) || Math.hypot(x - player.pos.x, z - player.pos.z) < 2.2) { toast('Tady se auto nevejde'); return; }
     const K = vehDim(vehHeld);
-    placed(spawnVehicle(vehHeld, x, z, player.yaw), y, vehHeld === 'plane' ? 'Dvouplošník stojí. F = nastoupit, pravé tl. = palivo a zavazadla'
+    placed(spawnVehicle(vehHeld, x, z, player.yaw), y, vehHeld === 'jet' ? 'Stíhačka stojí. F = nastoupit, pravé tl. = palivo' : vehHeld === 'plane' ? 'Dvouplošník stojí. F = nastoupit, pravé tl. = palivo a zavazadla'
       : vehHeld === 'bike' ? 'Kolo stojí. F = nasednout, pravé tl. = košík' : `${K.name} stojí. F = nastoupit, pravé tl. = kufr (palivo a autobaterie)`);
     return;
   }
@@ -382,7 +399,19 @@ export function useItem() {
   const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
   const held0 = heldStack();
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && (target.type === 'prison_gate' || target.type === 'prison_rune')) { // bludiště vězení (player/prison.js)
+    if (NET.jail) NET.req(['vez', target.type === 'prison_gate' ? 'gate' : 'rune', ...target.cell]); else toast(target.type === 'prison_gate' ? 'Brána z vězení: otevře se jen vězňovi s hotovým úkolem' : 'Runa tiše září');
+    return;
+  }
+  if (target?.kind === 'block' && target.type === 'donation_box') { openInventory('dar'); NET.req(['dary']); return; } // pokladnička darů u sochy (ui/donation-ui.js)
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && target.type === 'hell_portal') { useHellPortal(); return; } // portál do pekla (world/hell.js)
+  if (target?.kind === 'block' && target.type === 'hell_altar') { useAltar(); return; } // oltář Marka boha všemohoucího: cesta z pekla
+  if (target?.kind === 'block' && target.type === 'hell_lava') { // láva: prázdný kbelík = kbelík lávy (láva neubývá)
+    if (held0?.id === 'bucket') { swapHeld('lava_bucket'); Sound.pour?.(); toast('Nabral jsi lávu'); } else toast('Na lávu potřebuješ prázdný kbelík');
+    return;
+  }
+  if (target?.kind === 'block' && target.type === 'jukebox') { useJukebox(bkey(...target.cell), target.cell); return; } // přehrávač filmové hudby
   if (held0?.id === 'fishing_rod') { useRod(); return; }
   // Studna: prázdný kbelík naplníš vodou
   if (target?.kind === 'block' && target.type === 'well') {
@@ -436,6 +465,7 @@ export function useItem() {
     return;
   }
   // Půlblok na stejný půlblok = celý blok (dvojitý půlblok)
+  if (d.block && NET.jail) { toast('Ve vězení se nedá stavět'); return; }
   if (d.block && BLOCKS[d.block].shape === 'slab' && target?.kind === 'block' && target.type === d.block) {
     const k = bkey(...target.cell), up = (blockMeta.get(k) || 0) & 4;
     if ((target.normal[1] === 1 && !up) || (target.normal[1] === -1 && up)) {
@@ -488,6 +518,7 @@ function placeMeta(shape) {
   return up ? 4 : 0;
 }
 export function placeBlock(d, [x, y, z]) {
+  if (NET.jail) { toast('Ve vězení se nedá stavět'); return false; } // vězení serveru kroužku (player/prison.js)
   if (BLOCKS[d.block].solid && playerIntersects(x, y, z)) return false;
   // Pochodeň jako v Minecraftu: na zem nebo na zeď, nikdy na strop (shared/world/torch.js)
   const tm = d.block === 'torch' ? torchPlacement(x, y, z, target?.normal, camera.getWorldDirection(new THREE.Vector3()).toArray()) : 0;

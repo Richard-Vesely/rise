@@ -87,7 +87,7 @@ test('player state: shape, size and known items are checked', () => {
 test('world.json keeps the players; a file from before profiles still loads', () => {
   const dir = tmp('louka-wf-');
   fs.writeFileSync(path.join(dir, 'world.json'), JSON.stringify({ version: 2, world: { blocks: [] } })); // before profiles
-  assert.deepEqual(loadWorldFile(dir), { world: { blocks: [] }, players: {} });
+  assert.deepEqual(loadWorldFile(dir), { world: { blocks: [] }, players: {}, donations: null, army: null, prison: null });
   saveWorldFile(dir, { blocks: [['1,1,1', 'stone']] }, { p1: meState() });
   const back = loadWorldFile(dir);
   assert.equal(back.players.p1.hp, 80);

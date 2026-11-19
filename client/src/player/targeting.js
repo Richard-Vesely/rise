@@ -14,6 +14,7 @@ import { isCut } from '../render/grass.js';
 import { camera } from '../render/renderer.js';
 import { myDriverId, rayVehicle, vehDim } from '../vehicles/car.js';
 import { portals, shrineActive } from '../world/shrine.js';
+import { donorsLine } from '../ui/donation-ui.js';
 import { countItem } from './inventory.js';
 import { rayPlayer } from './pvp.js';
 
@@ -37,7 +38,7 @@ function rayBoxes(o, d, cx, cy, cz, boxes) {
   }
   return best;
 }
-function raycastBlocks(o, d, max) {
+export function raycastBlocks(o, d, max) {
   let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
   const sx = Math.sign(d.x), sy = Math.sign(d.y), sz = Math.sign(d.z);
   const tdx = Math.abs(1 / d.x), tdy = Math.abs(1 / d.y), tdz = Math.abs(1 / d.z);
@@ -66,12 +67,12 @@ function raycastBlocks(o, d, max) {
   }
   return null;
 }
-export function pickTarget() {
+export function pickTarget(reach = REACH) { // reach: kouzla (těžba na dálku, blesk) míří dál
   camera.getWorldPosition(rayO);
   camera.getWorldDirection(rayD);
   const o = rayO, d = rayD;
-  let best = null, bt = REACH;
-  const bh = raycastBlocks(o, d, REACH);
+  let best = null, bt = reach;
+  const bh = raycastBlocks(o, d, reach);
   if (bh?.vox) {
     bt = bh.t;
     best = voxTarget(bh.vox, [bh.x, bh.y, bh.z], bh.normal, [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t], false);
@@ -79,7 +80,7 @@ export function pickTarget() {
     const b = BLOCKS[bh.type];
     bt = bh.t;
     best = { kind: 'block', key: 'b' + bkey(bh.x, bh.y, bh.z), cell: [bh.x, bh.y, bh.z], normal: bh.normal, type: bh.type, name: b.name, point: [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t],
-      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', furnace: 'pravé tlačítko = tavení (surovina nahoru, palivo dolů)', stove: 'pravé tlačítko = vaření', adv_bench: 'pravé tlačítko = dílna', computer: 'pravé tlačítko = sednout k počítači' }[bh.type] || '', hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
+      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', furnace: 'pravé tlačítko = tavení (surovina nahoru, palivo dolů)', stove: 'pravé tlačítko = vaření', adv_bench: 'pravé tlačítko = dílna', computer: 'pravé tlačítko = sednout k počítači', donation_box: `pravé tlačítko = darovat · ${donorsLine()}`, prison_block: 'vězení: tohle nerozbiješ', prison_gate: 'pravé tlačítko = brána ven', prison_rune: 'pravé tlačítko = dotknout se runy', hell_rock: 'peklo: tohle nerozbiješ', hell_lava: 'láva pálí · prázdný kbelík = kbelík lávy', hell_statue: 'MAREK – BŮH VŠEMOHOUCÍ', hell_altar: 'pravé tlačítko = oltář: cesta z pekla domů', hell_portal: 'pravé tlačítko = vstoupit do pekla', fire_gem_ore: 'ohnivá ruda: potřebuje železný krumpáč' }[bh.type] || (b.fixed ? donorsLine() : ''), breakable: !b.fixed, hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
   }
   const a = d.x * d.x + d.z * d.z;
   for (const t of forestTrees) {
@@ -113,7 +114,7 @@ export function pickTarget() {
     if (tt >= bt) continue;
     bt = tt;
     const hint = m.type === 'chicken' ? `vejce: ${m.eggs || 0} · pravé tl. = sebrat` : m.type === 'cow' ? (m.milkT > 0 ? 'podojená' : 'pravé tl. s kbelíkem = podojit')
-      : ['dragon', 'crawler', 'markoman', 'golem', 'wolf'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
+      : ['dragon', 'crawler', 'markoman', 'golem', 'wolf', 'spider'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
     best = { kind: 'mob', mob: m, name: m.def.name, hint };
   }
   // Ostatní hráči (jen ve světě se souboji, pvp.js)

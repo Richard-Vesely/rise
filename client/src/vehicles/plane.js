@@ -16,7 +16,7 @@ import { camera } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { levelAt } from './boat.js';
 import { carCam, carWarn, floorAt, nitroOn } from './car.js';
-import { powerMul } from './kinds.js';
+import { powerMul, thrustOf } from './kinds.js';
 
 // ============================================================ dvouplošník: model a letová fyzika
 // Zjednodušená, ale fyzikální: tah motoru, odpor vzduchu ~ v², vztlak ~ v² × součinitel podle úhlu náběhu,
@@ -125,7 +125,7 @@ export function flyPlane(v, dt) {
   const stalled = !v.ground && (air < PLANE.stall || aoa > 0.38);
   const cl = stalled ? 0.2 : clamp(0.55 + aoa * 2.2, 0, 1.45);
   const lift = 9.8 * cl * (air / PLANE.vTake) ** 2;
-  const thrust = v.engine ? v.thr * PLANE.maxThrust * powerMul(v, nitroOn()) : 0;
+  const thrust = v.engine ? v.thr * PLANE.maxThrust * thrustOf(v.type) * powerMul(v, nitroOn()) : 0;
   const drag = PLANE.drag * speed * speed + (stalled ? 0.4 * speed : 0);
   const inv = speed > 0.01 ? 1 / speed : 0;
   v.vx += (fwd[0] * thrust + upv[0] * lift - v.vx * inv * drag) * dt;

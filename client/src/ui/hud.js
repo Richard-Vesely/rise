@@ -7,7 +7,9 @@ import { portalActive, ruinsOpened } from '../../../shared/world/state.js';
 import { STRUCTS, structuresNear } from '../../../shared/world/structures.js';
 import { BIOME_NAMES, biomeAt, isMark, shrineOf } from '../../../shared/world/terrain.js';
 import { isDragon } from '../../../shared/world/dragon-land.js';
+import { inPrison } from '../../../shared/world/prison.js';
 import { mobs } from '../../../shared/sim/mobs.js';
+import { NET } from '../../../shared/net/net.js';
 import { Sound } from '../audio/sound.js';
 import { countItem } from '../player/inventory.js';
 import { creative, player } from '../player/player.js';
@@ -34,6 +36,8 @@ for (let i = 0; i < 24; i++) addCompass('<div class="tick"></div>', '', (i / 24)
 const shrineMark = addCompass('◆<small></small>', 'shrine', 0);
 const shardMark = addCompass('✦<small></small>', 'shard', 0);
 const ruinMark = addCompass('▣<small></small>', 'ruin', 0);
+const jailMark = addCompass('⛓<small></small>', 'jail', 0); // vězeň: jeho brána z bludiště (player/prison.js)
+const JAIL_SHORT = { monsters: 'pavouci', runes: 'runy', math: 'příklady', logic: 'hádanky' };
 function placeCompass(item) {
   const diff = wrapAngle(item.yaw - player.yaw);
   item.el.style.display = Math.abs(diff) < 1.75 ? '' : 'none';
@@ -93,14 +97,21 @@ function updateDragonHealth() {
   if (!dragonHealth && !m) return;
   if (!dragonHealth) {
     dragonHealth = document.createElement('div'); dragonHealth.id = 'dragonHealth';
-    dragonHealth.innerHTML = '<b></b><progress max="300"></progress><small></small>';
+    dragonHealth.innerHTML = '<b></b><progress></progress><small></small>';
     document.body.append(dragonHealth);
   }
   dragonHealth.hidden = !m;
   if (!m) return;
   dragonHealth.querySelector('b').textContent = `Drak Země draka · ${Math.ceil(m.hp)} / ${m.def.hp}`;
+  dragonHealth.querySelector('progress').max = m.def.hp;
   dragonHealth.querySelector('progress').value = m.hp;
-  dragonHealth.querySelector('small').textContent = m.windup > 0 ? 'Chystá útok — uskoč!' : 'Strážce dračí jeskyně';
+  const c = m.dragonCast, s = m.dragonStomp;
+  const danger = c && [c, ...(c.extra || [])].some((shot) => !shot.burst && Math.hypot(player.pos.x - shot.to.x, player.pos.z - shot.to.z) < shot.radius + 0.5);
+  dragonHealth.querySelector('small').textContent = s && !s.burst ? 'Drak dupne — běž z červeného kruhu!'
+    : m.dragonRest > 0 ? `Drak odpočívá ${Math.ceil(m.dragonRest)} s — teď zaútoč!`
+    : danger ? c.extra?.length ? 'Ohnivý vějíř — uhni dopředu nebo dozadu!' : 'Drak tě zaměřuje — nezastavuj se!'
+    : c && !c.burst ? 'Koule míří do kruhu — drž se mimo něj!'
+    : m.hp <= m.def.hp / 2 ? 'Rozzuřený drak! Po třech koulích přistane.' : 'Uhýbej koulím. Po třech výstřelech přistane.';
 }
 export function setVignette(v) { vignette = v; }
 export function updateHUD(dt) {
@@ -120,8 +131,10 @@ export function updateHUD(dt) {
   }
   setMarker(shrineMark, shrineOf(player.pos.x).x, 0);
   setMarker(shardMark, best ? best.x : null, best ? best.z : null);
+  const jx = NET.jail?.exit;
+  setMarker(jailMark, jx ? jx[0] : null, jx ? jx[1] : null);
   const h = Math.floor(dayTime * 24), mi = Math.floor((dayTime * 24 * 60) % 60);
-  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
+  $('clock').textContent = `Den ${dayCount} · ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}${NET.jail ? ` · Vězení: ${JAIL_SHORT[NET.jail.kind] || 'úkol'} ${NET.jail.done}/${NET.jail.need}` : inPrison(player.pos.x, player.pos.y, player.pos.z) ? ' · Vězení' : isDragon(player.pos.x) ? ' · Země draka' : isMark(player.pos.x) ? ' · Markova dimenze' : ' · ' + BIOME_NAMES[biomeAt(player.pos.x, player.pos.z)]}${creative ? (player.flying ? ' · Kreativní ✈' : ' · Kreativní') : ''}`;
   $('hpfill').style.width = `${Math.max(0, player.hp)}%`;
   $('foodfill').style.width = `${player.hunger}%`;
   $('armorfill').style.width = `${(armorPoints() / 23) * 100}%`;

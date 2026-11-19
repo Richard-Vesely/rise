@@ -3,12 +3,16 @@
 // Pořadí je důležité: blocks.js a tech.js doplňují ITEMS a RECIPES z items.js (pořadí receptů je vidět v knize receptů).
 import './blocks.js';
 import './tech.js';
+import './shop.js';
+import './hell.js';
 import { ITEMS, RECIPES } from './items.js';
 
 export * from './items.js';
 export * from './blocks.js';
 export * from './tech.js';
 export * from './costumes.js';
+export * from './shop.js';
+export * from './hell.js';
 
 // Dokončení receptů (jednou, až jsou všechny přidané):
 // - kategorie starších receptů: bloky = stavební, nástroje a zbroj zvlášť, ostatní základní,
