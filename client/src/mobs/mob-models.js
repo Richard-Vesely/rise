@@ -4,6 +4,7 @@
 // Bez vedlejších účinků při načtení (textury se vyrobí až při prvním tvorovi).
 import * as THREE from 'three';
 import { buildDragonModel } from './dragon-model.js';
+import { buildSpiderModel } from './spider-model.js';
 import { RIM, addRim, animateCharacter, armorMat, blobShadow, buildCharacter, crackTex, mergeStatic, rbox, setCharacterArmor, skinRig } from '../render/character.js';
 
 export { RIM };
@@ -98,6 +99,7 @@ const IRIS = { sheep: 0x9a7a3a, cow: 0x5a3420, chicken: 0xe08a20, deer: 0x3a2412
 export function buildMobModel(type) {
   const g = new THREE.Group(), K = kit(g, IRIS[type]), legs = [], ears = [], wings = [];
   if (type === 'dragon') return buildDragonModel(g, K);
+  if (type === 'spider') return buildSpiderModel(g, K); // obří pavouk z vězení
   const { mat, box, pivot, eye, leg } = K;
   let body, head = null, tail = null, kind = 'quad', extra = {};
   if (type === 'sheep') {
@@ -221,6 +223,38 @@ export function buildMobModel(type) {
     extra.rig = R;
     body = R.hips;
     K.flash.push(...R.M.flashable);
+  } else if (type === 'devil') {
+    // Ďábel z pekla: postava v rudém obleku a ohnivém brnění, rohy, ocas s hrotem, trojzubec, oči svítí oranžově.
+    kind = 'biped';
+    const R = buildCharacter({ s: 'knight', c: 0, l: 0, v: 0, e: 0 }, { shadow: false });
+    setCharacterArmor(R, [null, 'fire_chestplate', 'fire_leggings', 'fire_boots']);
+    const horn = new THREE.MeshStandardMaterial({ color: 0x1a1214, roughness: 0.4 });
+    for (const sx of [-1, 1]) {
+      const h = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.32, 8), horn);
+      h.position.set(sx * 0.14, 0.42, -0.02); h.rotation.z = -sx * 0.45;
+      R.head.add(h);
+    }
+    const red = new THREE.MeshStandardMaterial({ color: 0xa81a14, roughness: 0.5 });
+    const tl = new THREE.Group();
+    tl.position.set(0, -0.05, 0.16);
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.7, 6), red);
+    rope.position.set(0, -0.25, 0.25); rope.rotation.x = 1.0;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 4), red);
+    tip.position.set(0, -0.5, 0.55); tip.rotation.x = 2.2;
+    tl.add(rope, tip);
+    R.hips.add(tl);
+    const fork = new THREE.Group(), gold = new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.8, roughness: 0.35 });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold);
+    shaft.position.y = 0.3;
+    fork.add(shaft);
+    for (const x of [-0.08, 0, 0.08]) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.18, 6), gold); t.position.set(x, 0.95, 0); fork.add(t); }
+    fork.rotation.x = -Math.PI / 2;
+    R.hand.add(fork);
+    for (const e of R.eyes) { e.material = glowMat(0xff6a1a, 2.4); e.scale.set(1.3, 1.2, 1); }
+    g.add(R.group);
+    extra.rig = R;
+    body = R.hips;
+    K.flash.push(...R.M.flashable);
   } else if (type === 'golem') {
     kind = 'biped';
     const stone = mat({ color: 0x8a86a8, emissive: 0x38e8ff, emissiveMap: crackTex(), emissiveIntensity: 0.6 }, 'stone');
@@ -262,7 +296,7 @@ export function buildMobModel(type) {
     g.add(body);
     head = body;
     const eyeM = glowMat(0xd04bff, 1.7);
-    for (const sx of [-0.2, 0.2]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), eyeM); e.position.set(sx, 0.12, -0.58); e.rotation.z = sx * -1.5; e.scale.set(1.2, 0.5, 0.6); body.add(e); } // zlé šikmé oči (nemrkají)
+    for (const sx of [-0.2, 0.2]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), eyeM); e.position.set(sx, 0.12, -0.58); e.rotation.z = sx * -1.5; e.userData.eye = 1; e.scale.set(1.2, 0.5, 0.6); body.add(e); } // zlé šikmé oči (nemrkají)
     const spikeMat = mat({ color: 0x1a1022, roughness: 0.45 });
     for (let i = 0; i < 5; i++) {
       const sp = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.5, 6), spikeMat);

@@ -25,6 +25,7 @@ import { toast } from '../ui/hud.js';
 import { armor, fullSet, invOpen, ui } from '../ui/inventory-ui.js';
 import { carCam, hornN, seatWorld, vehMeshes, vehPose } from '../vehicles/car.js';
 import { kindOf } from '../vehicles/kinds.js';
+import { ghost } from '../player/ghost.js';
 
 // ---------- můj oblek: z prohlížeče (podle jména), na serveru kroužku novější verze z profilu
 let myCostume = loadCostume(NET.name);
@@ -161,7 +162,8 @@ export function updateAvatars(dt) {
     const hp = typeof q.hp === 'number' ? q.hp : 100, hurt = hp < (A.lastHp ?? hp) - 0.5;
     A.lastHp = hp;
     const T = A.tag.userData.tag, hpStep = Math.ceil(hp / 5) * 5;
-    if (T.hp !== hpStep) { T.hp = hpStep; drawTag(T); }
+    const tagName = (q.pv && !NET.pvp ? '⚔ ' : '') + P.name; // ⚔ = má zapnuté souboje
+    if (T.hp !== hpStep || T.name !== tagName) { T.hp = hpStep; T.name = tagName; drawTag(T); }
     const d = Math.hypot(pos.x - camera.position.x, pos.z - camera.position.z);
     A.tag.material.opacity = clamp((48 - d) / 16, 0, 1);
     const s = { speed: inVeh ? 0 : Math.min(q.mv || 0, 12), yaw: inVeh ? A.anim.bodyYaw : q.yaw, pitch: q.pitch || 0, run: !inVeh && (q.mv || 0) > 6, sneak: !!q.sn, fly: !inVeh && (!!q.fly || !!q.flyT), sit: !!q.sit || inVeh,
@@ -190,7 +192,7 @@ function blocked(x, y, z) {
   return y < terrainH(x, z) + 0.15 && y > topY(fx, fz) - 0.5 && !columnDug(fx, fz);
 }
 function thirdPersonCamera() {
-  if (!(viewMode > 0 && me?.group.visible) || player.vehicle) { camDist = 0; return; } // ve vozidle má kameru vozidlo
+  if (!(viewMode > 0 && me?.group.visible) || player.vehicle || ghost.on) { camDist = 0; return; } // ve vozidle má kameru vozidlo
   if (camera.position.distanceToSquared(applied) < 1e-8) return; // v tomhle snímku už posunutá (scéna se kreslí víckrát)
   eye.copy(camera.position); // hra kameru každý snímek vrací do očí
   dir.set(0, 0, viewMode === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
@@ -218,7 +220,7 @@ export function updateLocalBody(dt, moving) {
   myArmorKey = key;
   // na kole, v lodi a v kokpitu je vidět i vlastní postava, když je kamera vozidla zezadu (V)
   const veh = vehicles.get(player.vehicle), onSeat = !!veh && carCam === 1 && kindOf(veh.type).open && player.alive;
-  const show = (viewMode > 0 && player.alive && !player.vehicle && !player.riding) || onSeat;
+  const show = ((viewMode > 0 || ghost.on) && player.alive && !player.vehicle && !player.riding) || onSeat; // duch vidí svoje tělo (player/ghost.js)
   holder.visible = !show && !player.vehicle && !player.riding && !dining; // ve vozidle a u jídla u stolu ruka není vidět
   if (!show) { if (me) me.group.visible = false; return; }
   if (!me) { me = buildCharacter(myCostume); scene.add(me.group); me.anim.bodyYaw = player.yaw; myHeld = undefined; me.armorKey = null; }
@@ -242,6 +244,6 @@ export function myPose() {
     mv: r2(Math.hypot(player.vel.x, player.vel.z)), sw: swingT >= 0 || (input.lmb && isLocked()) ? 1 : 0, eat: player.eating || dining ? 1 : 0,
     veh: vehPose(), hn: hornN, ...(player.riding ? { rd: { id: player.riding.id, s: player.riding.s } } : {}),
     ar: armor.map((a) => a?.id || null), sit: player.sitting ? 1 : 0, fly: player.flying ? 1 : 0, flyT: player.flyT > 0 ? 1 : 0, alive: player.alive, cr: creative ? 1 : 0, set: fullSet(), hp: Math.round(player.hp),
-    lk: myLk, ...(player.sneaking ? { sn: 1 } : {}),
+    lk: myLk, ...(player.sneaking ? { sn: 1 } : {}), ...(NET.pvpOn ? { pv: 1 } : {}), // pv = zapnuté souboje (klávesa N)
   };
 }

@@ -12,17 +12,26 @@ import { scene } from '../render/renderer.js';
 import { shardObjs } from '../render/shards.js';
 import { $ } from '../ui/dom.js';
 import { setVignette, toast, vignette } from '../ui/hud.js';
-import { armorPoints, fullSet } from '../ui/inventory-ui.js';
+import { armor, armorPoints, fullSet, refreshUI } from '../ui/inventory-ui.js';
 import { exitVehicle } from '../vehicles/car.js';
 import { hurtPulse } from './camera-feel.js';
 import { wearArmor } from './durability.js';
 import { arenaReset } from './arena.js';
-import { addItem } from './inventory.js';
+import { addItem, inv } from './inventory.js';
 import { creative, player } from './player.js';
+import { magic } from './xp.js';
+import { popGroundItem } from '../../../shared/sim/ground-items.js';
+import { ownerItem } from '../../../shared/data/magic.js';
+import { BONUS_DEFENSE } from '../../../shared/data/bonus.js';
+import { hasPerk } from './bonus.js';
+import { endGhost } from './ghost.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
   if (!player.alive || creative) return;
+  if (magic.wardT > 0) amount *= 0.5; // kouzlo Ochranný štít (xp.js)
+  if (hasPerk('obrana')) amount *= BONUS_DEFENSE; // bonus pro dárce Velká obrana (bonus.js)
+  endGhost('Něco tě zranilo: duch je zpátky v těle'); // teleport duchem (ghost.js)
   if (dx || dz) { // brnění tlumí útoky a přitom se opotřebuje
     const raw = amount;
     amount *= 1 - Math.min(0.8, armorPoints() * 0.035);
@@ -47,14 +56,17 @@ function flashHearts() {
   w.classList.add('hit');
 }
 function die() {
+  endGhost();
   if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
+  const lost = NET.pvp ? 0 : dropEverything(); // batoh a brnění vypadnou na zem (v aréně je nová výbava)
   $('fade').style.opacity = 1;
   setTimeout(() => {
-    if (NET.pvp) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
+    const jail = NET.jail?.at; // vězeň se probudí zase ve vězení (player/prison.js)
+    if (NET.pvp && !jail) { player.alive = true; arenaReset(); $('fade').style.opacity = 0; toast('Zpátky v aréně s novou výbavou'); return; } // aréna: nová výbava a místo (arena.js)
     const home = shrineOf(player.pos.x);
-    player.pos.set(home.x, 0.45, home.z + 14);
+    if (jail) player.pos.set(jail[0], jail[1], jail[2]); else player.pos.set(home.x, 0.45, home.z + 14);
     player.vel.set(0, 0, 0);
     player.yaw = 0;
     player.hp = 100;
@@ -62,8 +74,21 @@ function die() {
     player.alive = true;
     if (!MP) for (const m of [...mobs]) if (m.type === 'crawler') removeMob(m);
     $('fade').style.opacity = 0;
-    toast('Svatyně tě přivedla zpět');
+    toast(jail ? (lost ? 'Jsi zase ve vězení. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Jsi zase ve vězení.') : lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
   }, 2600);
+}
+// Smrt: všechno z batohu, kurzoru a brnění vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
+// (shared/sim/ground-items.js DESPAWN). Vrací, kolik políček vypadlo.
+function dropEverything() {
+  const { x, y, z } = player.pos;
+  let n = 0;
+  const drop = (s) => { if (s) { popGroundItem(s.id, s.n, x, y + 0.8, z, s.w || 0); n++; } };
+  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // předměty vlastníka (hůl, lektvar) zůstávají v batohu
+  if (ownerItem(inv.cursor?.id)) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = inv.cursor; } else drop(inv.cursor);
+  inv.cursor = null;
+  armor.forEach((s, i) => { drop(s); armor[i] = null; });
+  refreshUI();
+  return n;
 }
 let starveT = 0, hungerWarned = false;
 let lavaWarned = 0;
@@ -82,7 +107,7 @@ export function updateSurvival(dt) {
     player.hp -= 3 * dt; setVignette(Math.max(vignette, 0.5));
     if (player.hp <= 0) die();
   }
-  player.hunger = Math.max(0, player.hunger - dt * (player.sprinting ? 0.3 : 0.11));
+  player.hunger = hasPerk('syty') ? 100 : Math.max(0, player.hunger - dt * (player.sprinting ? 0.3 : 0.11)); // bonus Bez hladu (bonus.js)
   if (player.hunger < 25 && !hungerWarned) { hungerWarned = true; toast('Máš hlad – sněz něco (pravé tlačítko)'); }
   if (player.hunger > 40) hungerWarned = false;
   if (player.hunger <= 0 && (starveT += dt) > 3) { starveT = 0; damagePlayer(4, 0, 0); }

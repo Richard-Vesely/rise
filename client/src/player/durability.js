@@ -14,7 +14,7 @@ import { armor, refreshUI, renderHotbar } from '../ui/inventory-ui.js';
 import { heldStack, inv } from './inventory.js';
 import { creative } from './player.js';
 
-const TIER_RGB = { 1: [0.6, 0.45, 0.28], 2: [0.55, 0.55, 0.55], 3: [0.88, 0.9, 0.93], 4: [0.5, 0.95, 1], 5: [0.88, 0.45, 1], shadow: [0.45, 0.3, 0.6], sky: [1, 0.92, 0.6] };
+const TIER_RGB = { 1: [0.6, 0.45, 0.28], 2: [0.55, 0.55, 0.55], 3: [0.88, 0.9, 0.93], 4: [0.5, 0.95, 1], 5: [0.88, 0.45, 1], shadow: [0.45, 0.3, 0.6], sky: [1, 0.92, 0.6], fire: [1, 0.4, 0.1] };
 const v3 = new THREE.Vector3(), dir = new THREE.Vector3();
 // Úlomky rozbitého předmětu v barvách jeho ikony
 function shatter(id, at, dir) {

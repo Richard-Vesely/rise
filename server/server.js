@@ -8,6 +8,8 @@ import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { WebSocketServer } from 'ws';
 import { adminPage, startAdminListener } from './admin-http.js';
+import { bonusQuery, bonusesFile, createBonuses } from './bonuses.js';
+import { createDonations, donationsFile } from './donations.js';
 import { createProfiles, profilesFile } from './profiles.js';
 import { staticHandler } from './static.js';
 import { migrateOldLayout } from './worlds.js';
@@ -28,11 +30,20 @@ const WORKER = new URL('./world-worker.js', import.meta.url);
  * @param {number} [o.saveEveryMs] jak často ukládat (výchozí 30 s)
  * @param {string} [o.adminPassword] heslo stránky /admin (prázdné = stránka vypnutá)
  * @param {number} [o.silentMs] po jak dlouhém tichu se spojení zavře (výchozí 30 s)
+ * @param {string} [o.ownerId] id profilu vlastníka serveru (jen on bere z pokladničky darů; '' = nikdo, server/owner.js)
+ * @param {string} [o.armyPhrase] věta vlastníka pro armádu, už upravená (server/army-owner.js; '' = vypnuto)
+ * @param {string} [o.armyReturnPhrase] věta, která armádu vrátí Markovi, už upravená ('' = vrací ji armyPhrase)
  */
-export async function startServer({ port = 8787, password = '', dataDir = null, staticDir = null, maxPlayers = 8, worlds, allowCreative = false, tickHz = 20, saveEveryMs = 30_000, adminPassword = '', silentMs = 30_000, log = console.log } = {}) {
+export async function startServer({ port = 8787, password = '', dataDir = null, staticDir = null, maxPlayers = 8, worlds, allowCreative = false, tickHz = 20, saveEveryMs = 30_000, adminPassword = '', silentMs = 30_000, ownerId = '', armyPhrase = '', armyReturnPhrase = '', log = console.log } = {}) {
   worlds ||= [{ id: 'svet', name: 'Hlavní svět', creative: allowCreative, pvp: false, pvpMark: false }];
   if (dataDir) migrateOldLayout(dataDir, worlds[0].id, log);
   const profiles = createProfiles(profilesFile(dataDir), { log });
+  // Kniha darů (pokladnička u sochy) a dárky od správce: server/donations.js
+  const donations = createDonations(donationsFile(dataDir), { log });
+  // Bonusy pro dárce (dává je vlastník serveru příkazem /bonus): server/bonuses.js
+  const bonuses = createBonuses(bonusesFile(dataDir), { log });
+  const nameOf = (id) => profiles.get(id)?.name;
+  if (ownerId) log(nameOf(ownerId) ? `Vlastník serveru (bere z pokladničky darů): ${nameOf(ownerId)}.` : `Pozor: OWNER_ID ${ownerId} není žádný profil hráče.`);
   const started = Date.now();
   let closing = false;
   const W = worlds.map((def, i) => ({ ...def, first: i === 0, sockets: new Map(), players: 0, stats: null, worker: null }));
@@ -41,7 +52,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   // ---------- vlákna světů
   function startWorld(w) {
     return new Promise((ok, fail) => {
-      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs } });
+      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs, ownerId, ownerName: nameOf(ownerId) || '', armyPhrase, armyReturnPhrase, top: donations.top(undefined, nameOf) } });
       w.worker = worker;
       worker.on('message', (m) => {
         switch (m.t) {
@@ -51,6 +62,21 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
           case 'log': log(`[${w.id}] ${m.text}`); break;
           case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : w.pvpMark ? ' (souboje hráčů v Markově dimenzi)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
           case 'stopped': w.onStopped?.(); break;
+          case 'bonus': { // bonusy pro dárce: příkaz vlastníka ze světa (server/bonus.js, server/bonuses.js)
+            const r = bonusQuery(bonuses, profiles, m);
+            worker.postMessage({ t: 'bonus', q: m.q, ...r.reply });
+            if (r.push) { log(`[${w.id}] Bonusy: ${nameOf(r.push.profile)} má teď ${r.push.list.join(', ') || 'nic'}.`); for (const x of W) x.worker?.postMessage({ t: 'bonusy', ...r.push }); }
+            break;
+          }
+          case 'who': { const p = profiles.find(m.name); worker.postMessage({ t: 'who', q: m.q, profile: p?.id ?? null, name: p?.name ?? '' }); break; } // vězení: profil podle jména (server/prison.js)
+          case 'donation': { // dar do pokladničky: zápis do knihy darů a nový žebříček do všech světů
+            const e = donations.add({ by: m.by, name: nameOf(m.by) || m.name, id: m.id, n: m.n, world: w.id });
+            if (!e) break;
+            log(`[${w.id}] Dar: ${e.name} daroval ${e.n}× ${e.id}.`);
+            const top = donations.top(undefined, nameOf);
+            for (const x of W) x.worker?.postMessage({ t: 'top', top });
+            break;
+          }
         }
       });
       worker.on('error', (e) => { log(`[${w.id}] Svět spadl: ${e.stack || e}`); fail(e); });
@@ -86,7 +112,14 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   // kdo právě hraje: id profilu -> jméno světa
   const online = () => { const m = new Map(); for (const w of W) for (const ws of w.sockets.values()) if (ws.profile) m.set(ws.profile, w.name); return m; };
   const worldName = (id) => byId.get(id)?.name || id;
-  const admin = adminPage({ password: adminPassword, profiles, online, worldName, log });
+  // Dárek od správce (stránka /admin/dary): čeká v knize darů; kdo právě hraje, dostane ho hned do batohu.
+  const give = (to, id, n) => {
+    const g = donations.queueGift(to, nameOf(to), id, n);
+    if (!g) return null;
+    for (const w of W) for (const ws of w.sockets.values()) if (ws.profile === to) { w.worker.postMessage({ t: 'gift', profile: to, gifts: donations.takeGifts(to) }); return g; }
+    return g;
+  };
+  const admin = adminPage({ password: adminPassword, profiles, online, worldName, log, donations, give });
   const files = staticHandler(staticDir, { '/health': health, '/worlds': list }, () => ({ password: !!password }));
   const server = http.createServer((req, res) => (/^\/admin(\/|$|\?)/.test(req.url || '') ? admin(req, res) : files(req, res)));
   const closeAdmin = dataDir ? await startAdminListener({ dataDir, profiles, online, log }) : async () => {};
@@ -149,7 +182,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
       ws.profile = P.id;
       w.sockets.set(cid, ws);
       log(`[${w.id}] Přihlášen ${P.name}${r.created ? ' (nový hráč)' : r.newPin ? ' (nový PIN)' : ''}.`);
-      w.worker.postMessage({ t: 'join', cid, name: P.name, profile: P.id });
+      w.worker.postMessage({ t: 'join', cid, name: P.name, profile: P.id, gifts: donations.takeGifts(P.id), bonus: bonuses.get(P.id) });
     });
     const gone = () => {
       clearTimeout(hello);
@@ -175,8 +208,15 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
     worlds: W.map((w) => w.id),
     /** Hned uloží všechny světy. */
     save() { for (const w of W) w.worker.postMessage({ t: 'save' }); },
-    /** Uloží světy, odpojí hráče a vypne server. */
-    async close() {
+    /**
+     * Uloží světy, odpojí hráče a vypne server.
+     * Hráči nejdřív dostanou ['restart'] a `graceMs` na poslání svého batohu (['me']); prohlížeč pak počká,
+     * až server zase poběží, a připojí se zpátky do stejného světa (nová verze hry při automatické aktualizaci).
+     */
+    async close({ graceMs = 1500 } = {}) {
+      const playing = W.flatMap((w) => [...w.sockets.values()]).filter((ws) => ws.readyState === ws.OPEN);
+      for (const ws of playing) ws.send(JSON.stringify(['restart']));
+      if (playing.length && graceMs > 0) await new Promise((ok) => setTimeout(ok, graceMs));
       closing = true;
       clearInterval(heartbeat);
       await closeAdmin();

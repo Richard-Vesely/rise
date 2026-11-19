@@ -30,7 +30,7 @@ function voxMaterial() {
   if (QUALITY !== 'low') mat.defines = { VOX_NRM: '' };
   mat.customProgramCacheKey = () => 'vox' + QUALITY;
   mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, voxUniforms, { uTime: U.time, uFire });
+    Object.assign(sh.uniforms, voxUniforms, { uTime: U.time, uFire, uOceans: U.oceans });
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
 attribute float aTile;

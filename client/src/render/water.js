@@ -7,13 +7,14 @@
 // S nízkou grafikou zůstává jednoduchý materiál hladiny jako dřív.
 import * as THREE from 'three';
 import { hash2 } from '../../../shared/util.js';
-import { terrainH } from '../../../shared/world/terrain.js';
+import { WORLD_GEN, terrainH } from '../../../shared/world/terrain.js';
 import { lumpy } from './foliage.js';
 import { NOISE_GLSL, TERRAIN_GLSL } from './glsl.js';
 import { FX, LK } from './look.js';
 import { post } from './post.js';
 import { U, camera, renderer, scene } from './renderer.js';
 import { rockTex } from './textures.js';
+import { updateOcean } from './ocean.js';
 
 const mats = [];
 // Zrcadlení hladiny (jen vysoká grafika): textura zrcadlového pohledu, matice svět → textura, zapnuto, výška hladiny
@@ -32,7 +33,7 @@ export function makeWaterMaterial(mark = false) {
   const shallow = mark ? lin([0.45, 0.25, 0.85]) : lin(W.shallow), deep = mark ? lin([0.12, 0.04, 0.3]) : lin(W.deep);
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.14, metalness: 0, transparent: true, depthWrite: true, side: THREE.DoubleSide, forceSinglePass: true }); // jeden průchod: shora líc, zespodu rub (strop)
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, { uTime: U.time, uShallow: { value: shallow }, uDeep: { value: deep }, uFoam: { value: W.foam }, uSunDirW: U.sunDir, uSunColW: U.sunColor, uWetW: U.rain, uWindW: U.wind, uRefl: REFL.tex, uReflMat: REFL.mat, uReflOn: REFL.on, uReflLevel: REFL.level });
+    Object.assign(sh.uniforms, { uOceans: U.oceans, uTime: U.time, uShallow: { value: shallow }, uDeep: { value: deep }, uFoam: { value: W.foam }, uSunDirW: U.sunDir, uSunColW: U.sunColor, uWetW: U.rain, uWindW: U.wind, uRefl: REFL.tex, uReflMat: REFL.mat, uReflOn: REFL.on, uReflLevel: REFL.level });
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -291,6 +292,8 @@ function makeMotes() {
 
 /** Voda odráží aktuální oblohu (prostředí se přepočítává jednou za pár sekund); terén dostane nejbližší rybníky. */
 export function updateWater() {
+  U.oceans.value = WORLD_GEN.oceans ? 1 : 0;
+  updateOcean(U.cam.value); // hladina moří (ocean.js)
   for (const m of mats) {
     if (m.envMap !== scene.environment) { m.envMap = scene.environment; m.needsUpdate = !m.userData.hadEnv; m.userData.hadEnv = true; }
     m.envMapIntensity = 0.3 + 0.6 * (1 - U.night.value * 0.85);

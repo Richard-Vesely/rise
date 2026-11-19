@@ -16,6 +16,10 @@ export const KINDS = {
     name: 'Hydroplán', item: 'seaplane', wid: 9.2, len: 7, h: 2.6, push: 1.1, fuelMax: 60, eye: 0.72, open: true, exit: 5.2,
     seats: [[0, 1.4, 0.6], [0, 1.3, -0.55]], mods: ['nitro', 'engine'], trunk: 'Zavazadlový prostor',
   },
+  jet: { // stíhačka z obchodu za zlato (shared/data/shop.js): létá jako dvouplošník, jen má mnohem silnější motor
+    name: 'Stíhačka', item: 'jet', wid: 8.2, len: 8, h: 2.4, push: 1.4, fuelMax: 80, eye: 0.72, open: true, exit: 4.6,
+    seats: [[0, 1.4, 0.6]], mods: ['nitro', 'engine'], trunk: 'Zavazadlový prostor', slots: 4,
+  },
   bike: {
     name: 'Jízdní kolo', item: 'bike', wid: 0.6, len: 1.8, h: 1.15, push: 0.6, fuelMax: 0, eye: 0.98, open: true, exit: 0.9,
     seats: [[0, 0.62, 0.2]], mods: ['offroad'], trunk: 'Košík', slots: 4,
@@ -30,7 +34,9 @@ export const KINDS = {
   },
 };
 export const kindOf = (t) => KINDS[t] || KINDS.car;
-export const isPlane = (t) => t === 'plane' || t === 'seaplane';
+export const isPlane = (t) => t === 'plane' || t === 'seaplane' || t === 'jet';
+/** Kolikrát silnější motor než dvouplošník (stíhačka). */
+export const thrustOf = (t) => (t === 'jet' ? 3.4 : 1);
 export const isBoat = (t) => t === 'motorboat' || t === 'sailboat';
 /** Kolik políček kufru (bez místa na autobaterii) má vozidlo. */
 export const trunkSize = (t) => kindOf(t).slots ?? 18;

@@ -28,8 +28,12 @@ import { closeInventory, fullSet, invOpen, openInventory, renderHotbar, renderIn
 import { enterVehicle, exitVehicle, honk, setGear, toggleCarCam, toggleLights, useNitro, vehiclePush } from '../vehicles/car.js';
 import { dropHeld } from '../world/ground-items.js';
 import { shrineColliders } from '../world/shrine.js';
+import { hasPerk } from './bonus.js';
+import { ghost, toggleGhost } from './ghost.js';
 import { resetUseCd, target } from './interaction.js';
 import { inv } from './inventory.js';
+import { togglePvp } from './pvp.js';
+import { holdingWand, nextSpell, toggleBook } from './xp.js';
 
 // ============================================================ hráč a ovládání
 const canvas = renderer.domElement;
@@ -78,6 +82,7 @@ $('inventory').addEventListener('click', (e) => { if (e.target.closest('#costume
 $('modeBtn').textContent = `Režim: ${creative ? 'Kreativní' : 'Přežití'}`;
 export function setCreative(on) {
   if (on && !NET.perm) { toast('Kreativní režim zakázal hostitel'); return; }
+  if (on && NET.jail) { toast('Ve vězení kreativní režim nejde'); return; } // vězení serveru kroužku (player/prison.js)
   creative = on;
   if (!on) player.flying = false;
   toast(on ? 'Kreativní režim · 2× Mezerník = létání' : 'Režim přežití');
@@ -88,11 +93,16 @@ export function setCreative(on) {
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return; // psaní do chatu nebo do pole
-  if (MP && e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
+  if (e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
   if (e.code === 'KeyE' && !e.repeat) { invOpen ? closeInventory() : (isLocked() || game.testMode) && openInventory(); return; }
   if (e.code === 'Escape' && invOpen) { closeInventory(); return; }
   if (e.code === 'KeyH' && !e.repeat) { toggleGuide(); return; }
+  if (e.code === 'KeyK' && !e.repeat && !invOpen && !guideOpen) { toggleBook(); return; } // kniha kouzel (xp.js)
+  if (e.code === 'KeyR' && !e.repeat && !invOpen && holdingWand()) { nextSpell(); return; } // další kouzlo hole
+  if (e.code === 'KeyN' && !e.repeat && MP && !guideOpen && (isLocked() || game.testMode)) { togglePvp(); return; } // ve hře pro víc hráčů N = souboje (pvp.js)
   if (guideOpen) return;
+  if (e.code === 'KeyX' && !e.repeat && !invOpen && (isLocked() || game.testMode) && toggleGhost(e.shiftKey)) return; // duch (bonus teleport, ghost.js)
+  if (ghost.on) { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); return; } // duch jen létá
   if (e.code === 'KeyC' && !e.repeat && !invOpen) { setCreative(!creative); return; }
   if (e.code === 'KeyG' && !e.repeat && !invOpen && (isLocked() || game.testMode)) { dropHeld(e.shiftKey); return; }
   // Vozidla: F nastoupit / vystoupit (i jako spolujezdec), L světla, B klakson (kolo zvonek, loď houkačka), N nitro,
@@ -117,7 +127,7 @@ addEventListener('keydown', (e) => {
   if (e.code === 'Space' && !e.repeat && !creative && fullSet() === 'sky' && !player.onGround && !player.doubleUsed && !(player.flyT > 0)) {
     player.vel.y = JUMP; player.doubleUsed = true; sparks.emit(player.pos.x, player.pos.y, player.pos.z, [1, 0.9, 0.6], 20, 2, 0);
   }
-  if (e.code === 'Space' && !e.repeat && creative && !player.vehicle && !player.riding) {
+  if (e.code === 'Space' && !e.repeat && (creative || hasPerk('let')) && !player.vehicle && !player.riding) { // kreativní režim nebo bonus Létání (bonus.js)
     const now = performance.now();
     if (now - lastSpace < 300) { player.flying = !player.flying; player.vel.y = 0; toast(player.flying ? 'Létání zapnuto' : 'Létání vypnuto'); }
     lastSpace = now;
@@ -214,12 +224,13 @@ export function updatePlayer(dt) {
   const len = Math.max(1, Math.hypot(f, s));
   if (player.flyT > 0) player.flyT = Math.max(0, player.flyT - dt);
   const set = fullSet();
-  const flying = (creative && player.flying) || player.flyT > 0;
+  const flying = ((creative || hasPerk('let')) && player.flying) || player.flyT > 0;
   const shift = keys.has('ShiftLeft') || keys.has('ShiftRight');
   const sprint = flying ? keys.has('ControlLeft') : shift && player.hunger > 5;
   // plavání: hruď pod hladinou (hluboký rybník, jezero)
   const swim = flying ? null : waterAt(player.pos.x, player.pos.y + 1.1, player.pos.z);
-  const speed = (flying ? (sprint ? 24 : 12) : sprint ? RUN : WALK) * (set === 'shadow' && !flying ? 1.25 : 1) * (swim !== null ? 0.55 : 1);
+  if (player.speedT > 0) player.speedT -= dt; // lektvar rychlosti (player/gadgets.js)
+  const speed = (flying ? (sprint ? 24 : 12) : sprint ? RUN : WALK) * (set === 'shadow' && !flying ? 1.25 : 1) * (player.speedT > 0 ? 1.6 : 1) * (swim !== null ? 0.55 : 1);
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   const tx = ((s * cos - f * sin) / len) * speed, tz = ((-s * sin - f * cos) / len) * speed;
   const v = player.vel, p = player.pos;
