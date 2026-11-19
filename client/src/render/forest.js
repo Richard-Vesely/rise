@@ -19,7 +19,7 @@ export { lumpy };
 const MAX_TREES = 3000, TREE_RADIUS = GFX.trees; // dohled lesa podle nastavení grafiky
 // Les se kreslí po výsečích kolem hráče (8 výsečí + blízký kruh): co je za zády, kamera vůbec nekreslí (frustum culling).
 // Blízké koruny jsou podrobné, vzdálené levné (LOD); nízká grafika má všude levné. Šetří to většinu práce grafické karty.
-const SECTORS = 8, NEAR_R = 26, LOD_R = FX.post ? (FX.quality === 'high' ? 62 : 48) : 0;
+const SECTORS = 8, NEAR_R = 26, LOD_R = FX.post ? FX.crownLod : 0;
 function makeBatch(geo, mat, cap) {
   const meshes = [];
   for (let i = 0; i <= SECTORS; i++) {

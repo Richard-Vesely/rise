@@ -31,6 +31,15 @@ export function gpuClass(name = gpuName()) {
   return 'integrated'; // Intel (U)HD/Iris, AMD Radeon Graphics / Vega v procesoru, Apple, Adreno, Mali…
 }
 
+/**
+ * Slabá integrovaná grafika: obyčejná Intel (U)HD Graphics (starší a levné školní notebooky). Iris, Xe a Arc mezi ně nepatří.
+ * Střední grafika na ní má méně trávy, levnější koruny stromů, řidší překreslování stínů a víc zmenšuje rozlišení (render/look.js).
+ */
+export function gpuWeak(name = gpuName()) {
+  const n = name.toLowerCase();
+  return /intel/.test(n) && /\b(u?hd) graphics/.test(n) && !/iris|\bxe\b|\barc\b/.test(n);
+}
+
 /** Doporučená Grafika pro tento počítač: software → nízká, integrovaná → střední, samostatná karta → vysoká. */
 export function autoQuality(touch = false) {
   if (touch) return 'low';
