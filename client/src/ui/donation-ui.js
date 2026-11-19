@@ -8,10 +8,10 @@ import { NET } from '../../../shared/net/net.js';
 import { addItem } from '../player/inventory.js';
 import { toast } from './hud.js';
 import { slotHTML, slotInner } from './slots.js';
+import { esc } from '../../../shared/util.js';
 
 /** Stav od serveru: žebříček, jestli jsem vlastník, obsah pokladničky (jen vlastník) a políčko na dar. */
 export const DON = { got: false, top: [], owner: false, ownerName: '', box: null, slot: [null] };
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** Zpráva ['dary', stav] od serveru. */
 export function applyDary(d) {

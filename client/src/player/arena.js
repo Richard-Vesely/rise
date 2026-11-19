@@ -8,6 +8,7 @@ import { toast } from '../ui/hud.js';
 import { armor, refreshUI } from '../ui/inventory-ui.js';
 import { inv } from './inventory.js';
 import { player } from './player.js';
+import { esc } from '../../../shared/util.js';
 
 // Výbava do arény: železný meč, luk, šípy, prkna na stavění krytů, jídlo a celé železné brnění.
 export const KIT = [['iron_sword', 1], ['bow', 1], ['arrow', 32], ['planks', 32], ['meat', 8]];
@@ -49,7 +50,6 @@ export function renderScore(list = last) {
   const row = ([name, k, d], i) => `<tr class="${name === NET.name ? 'me' : ''}"><td>${i + 1}.</td><td>${esc(name)}</td><td>${k}</td><td>${d}</td></tr>`;
   board.innerHTML = `<div class="t">⚔ Aréna</div>${list.length ? `<table><tr><th></th><th>hráč</th><th>body</th><th>pády</th></tr>${list.slice(0, 8).map(row).join('')}</table>` : '<small>Zatím nikdo nemá body.</small>'}`;
 }
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /**
  * Někdo vypadl ze hry. Vrací řádek do kanálu zpráv.

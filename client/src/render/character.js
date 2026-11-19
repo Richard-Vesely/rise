@@ -8,6 +8,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { EMBLEMS, HAIR_COLORS, LIGHT_COLORS, SKIN_TONES, SUIT_COLORS, VISOR_COLORS, cleanCostume, isHero } from '../../../shared/data/costumes.js';
 import { ITEMS } from '../../../shared/data/index.js';
+import { clamp, lerp, rng } from '../../../shared/util.js';
 
 // ============================================================ sdílené tvary a textury
 const geoCache = new Map();
@@ -29,11 +30,10 @@ function canvasTex(size, draw, srgb = true) {
   t.anisotropy = 4;
   return t;
 }
-const rnd = (s) => () => ((s = (s * 16807) % 2147483647) / 2147483647);
 let _fabric, _plate, _blob, _crack;
 // Látka: jemná tkanina se švy (šedobílá, barvu dává materiál).
 const fabricTex = () => (_fabric ||= canvasTex(64, (g, n) => {
-  const r = rnd(11);
+  const r = rng(11);
   g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, n, n);
   for (let i = 0; i < 900; i++) { const v = 215 + r() * 40; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(r() * n, r() * n, 1, 1); }
   g.fillStyle = 'rgba(0,0,0,0.06)';
@@ -43,7 +43,7 @@ const fabricTex = () => (_fabric ||= canvasTex(64, (g, n) => {
 }));
 // Pláty: panely s drážkami a nýty.
 const plateTex = () => (_plate ||= canvasTex(64, (g, n) => {
-  const r = rnd(5);
+  const r = rng(5);
   g.fillStyle = '#ececec'; g.fillRect(0, 0, n, n);
   for (let i = 0; i < 400; i++) { const v = 220 + r() * 35; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(r() * n, r() * n, 2, 1); }
   g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 2;
@@ -60,7 +60,7 @@ export const blobTex = () => (_blob ||= canvasTex(64, (g, n) => {
 }, false));
 // Praskliny (svítící žilky) pro krystalové a stínové brnění a golema.
 export const crackTex = () => (_crack ||= canvasTex(64, (g, n) => {
-  const r = rnd(29);
+  const r = rng(29);
   g.fillStyle = '#000'; g.fillRect(0, 0, n, n);
   g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.lineCap = 'round';
   for (let k = 0; k < 7; k++) {
@@ -291,7 +291,7 @@ function heroMats(c, M, st) {
 let _hair;
 // pruhy ve vlasech (prameny)
 const hairTex = () => (_hair ||= canvasTex(32, (g, n) => {
-  const r = rnd(5);
+  const r = rng(5);
   for (let x = 0; x < n; x++) { const v = 200 + r() * 55; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, 0, 1, n); }
   for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(0,0,0,${0.08 + r() * 0.12})`; g.fillRect(Math.floor(r() * n), Math.floor(r() * n), 1, 3 + Math.floor(r() * 6)); }
 }));
@@ -689,8 +689,6 @@ export function setCharacterArmor(R, ids) {
 }
 
 // ============================================================ animace
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const lerp = (a, b, k) => a + (b - a) * k;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const ease = (k) => k * k * (3 - 2 * k);
 /** Druh máchnutí podle předmětu v ruce. */

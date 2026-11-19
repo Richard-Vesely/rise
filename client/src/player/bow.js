@@ -5,6 +5,7 @@
 import { BLOCKS, ITEMS } from '../../../shared/data/index.js';
 import { mobs } from '../../../shared/sim/mobs.js';
 import { spawnGroundItem } from '../../../shared/sim/ground-items.js';
+import { segHitsSphere } from '../../../shared/util.js';
 import { solidAt } from '../../../shared/world/collision.js';
 import { solidVox } from '../../../shared/world/voxels.js';
 import { toolSound } from '../audio/tool-sounds.js';
@@ -71,14 +72,7 @@ function shoot(B, k) {
 export const solid = (x, y, z) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z); return solidAt(X, Y, Z) || solidVox(X, Y, Z); };
 /** Tvor, kterého úsečka a→b protne (koule kolem těla tvora). */
 export function mobOn(a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
-  for (const m of mobs) {
-    if (m.dead) continue;
-    const cx = m.pos.x, cy = m.pos.y + m.def.cy, cz = m.pos.z;
-    const t = Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - a.y) * dy + (cz - a.z) * dz) / L2));
-    const ex = a.x + dx * t - cx, ey = a.y + dy * t - cy, ez = a.z + dz * t - cz;
-    if (ex * ex + ey * ey + ez * ez < (m.def.radius + 0.1) ** 2) return m;
-  }
+  for (const m of mobs) if (!m.dead && segHitsSphere(a, b, m.pos.x, m.pos.y + m.def.cy, m.pos.z, m.def.radius + 0.1)) return m;
   return null;
 }
 
@@ -119,5 +113,3 @@ export function updateArrows(dt) {
   }
 }
 function remove(i) { scene.remove(arrows[i].mesh); arrows.splice(i, 1); }
-/** Pro testy (window.game): kolik šípů letí nebo je zabodnutých. */
-export const arrowCount = () => arrows.length;

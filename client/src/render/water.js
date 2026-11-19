@@ -6,7 +6,7 @@
 // rybník blízko a v záběru). Zespodu je hladina jasný zvlněný strop (Snellovo okno), pod vodou se vznáší drobné částečky.
 // S nízkou grafikou zůstává jednoduchý materiál hladiny jako dřív.
 import * as THREE from 'three';
-import { hash2 } from '../../../shared/util.js';
+import { hash2, rng } from '../../../shared/util.js';
 import { WORLD_GEN, terrainH } from '../../../shared/world/terrain.js';
 import { lumpy } from './foliage.js';
 import { NOISE_GLSL, TERRAIN_GLSL } from './glsl.js';
@@ -129,8 +129,7 @@ function reedTexture() {
   const c = document.createElement('canvas');
   c.width = 64; c.height = 128;
   const g = c.getContext('2d');
-  let s = 7;
-  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const r = rng(7);
   for (let i = 0; i < 14; i++) {
     const x = 6 + r() * 52, h = 60 + r() * 64, lean = (r() - 0.5) * 18;
     g.strokeStyle = `hsl(${85 + r() * 25}, ${45 + r() * 20}%, ${24 + r() * 16}%)`;

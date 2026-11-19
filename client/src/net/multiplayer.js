@@ -35,7 +35,6 @@ import { pvLock } from '../player/pvp.js';
 // Hostitel drží svět: klienti mu posílají změny (bloky, stromy, podzemí…), on je provede a rozešle ostatním
 // (shared/net/room.js, změny světa: shared/net/ops.js). Tady je strana připojeného hráče a obrázky ke změnám.
 const puppets = new Map(); // klient: tvorové podle hostitele (nid -> tvor)
-export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp, pvpMark: !!BOOT.welcome?.worldInfo?.pvpMark, onPvLock: pvLock, onTp: pulledTo });
 
 // ---------- zprávy

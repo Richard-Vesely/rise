@@ -27,7 +27,6 @@ export const dragonNet = (m) => ({ cast: m.dragonCast ?? null, stomp: m.dragonSt
 
 function impact(m, c, at) {
   c.burst = at; c.t = c.charge + c.flight;
-  emit('dragonBlast', at);
   for (const T of NET.targets()) {
     if (!T.alive || T.creative || !isDragon(T.pos.x)) continue;
     const chest = point(T.pos.x, T.pos.y + 1, T.pos.z);

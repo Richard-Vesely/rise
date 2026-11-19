@@ -2,6 +2,7 @@
 // Jen funkce, žádné vedlejší účinky při načtení (používá je render/forest.js).
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { rng } from '../../../shared/util.js';
 import { FX, LK } from './look.js';
 import { U } from './renderer.js';
 
@@ -122,8 +123,7 @@ function alphaTexture(draw, fill) {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d');
-  let s = 3;
-  draw(g, () => (s = (s * 16807) % 2147483647) / 2147483647);
+  draw(g, rng(3));
   const img = g.getImageData(0, 0, 128, 128).data;
   for (let i = 0; i < img.length; i += 4) if (img[i + 3] < 128) { img[i] = fill[0]; img[i + 1] = fill[1]; img[i + 2] = fill[2]; img[i + 3] = 0; } else img[i + 3] = 255;
   const t = new THREE.DataTexture(img, 128, 128, THREE.RGBAFormat);
@@ -176,8 +176,7 @@ function crownTexture() {
   c.width = c.height = 128;
   const g = c.getContext('2d');
   g.fillStyle = 'rgb(40,40,40)'; g.fillRect(0, 0, 128, 128);
-  let s = 11;
-  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const r = rng(11);
   for (let i = 0; i < 260; i++) {
     const x = r() * 128, y = r() * 128, a = r() * Math.PI * 2, l = 4 + r() * 5, v = 120 + r() * 135 | 0;
     g.fillStyle = `rgb(${v},${v},${v})`;

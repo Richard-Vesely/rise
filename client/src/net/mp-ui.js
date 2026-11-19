@@ -7,7 +7,8 @@ import { saveGame } from '../game/save.js';
 import { lockPointer, unlockPointer } from '../player/player.js';
 import { $ } from '../ui/dom.js';
 import { shopCommand } from '../ui/shop.js';
-import { esc, toHost } from './multiplayer.js';
+import { toHost } from './multiplayer.js';
+import { esc } from '../../../shared/util.js';
 
 // ---------- chat, oznámení, Esc menu, informační okénko
 export function chatLine(name, text) {

@@ -53,11 +53,10 @@ changed. Pick one, open an issue, fix it in a small PR (core files: see rule 4 i
 - **Grass cut mask repeats every 128 m** and the **dug-hole mask every 512 m** (shader textures wrap): cut grass or a hole can
   also show up 128/512 m away.
 - Terrain height exists twice (JavaScript `shared/world/terrain.js`, GLSL `client/src/render/glsl.js`); they must be changed together.
-- `ITEMS[x].icon` (emoji) and `TIER_COLOR` are unused leftovers.
+- `ITEMS[x].icon` (emoji) is an unused leftover.
 
 ## Project
-- The VPS setup (`deploy/`) is written but not yet run on a real VPS; the Cloudflare tunnel for a laptop is not tested.
-- GitHub Pages deploy needs v2 merged into `main` and Settings → Pages → Source = GitHub Actions.
+- The Cloudflare tunnel for a laptop (`docs/HOSTING.md`) is not tested; the club VPS (`deploy/`) and GitHub Pages run.
 - `playwright` 1.55.0 (dev only) has an advisory about browser downloads; update it when convenient (`npx playwright install` after).
 - The PeerJS mode depends on the public broker `0.peerjs.com`; its CI test is allowed to fail.
 

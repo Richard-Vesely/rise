@@ -11,6 +11,7 @@ import { ITEMS } from '../../../shared/data/index.js';
 import { AVADA, ownerItem, xpToLevelUp } from '../../../shared/data/magic.js';
 import { NET } from '../../../shared/net/net.js';
 import { others } from '../../../shared/net/room.js';
+import { segHitsSphere } from '../../../shared/util.js';
 import { isMark } from '../../../shared/world/terrain.js';
 import { Sound } from '../audio/sound.js';
 import { toolSound } from '../audio/tool-sounds.js';
@@ -24,23 +25,18 @@ import { container, invOpen, refreshUI, ui } from '../ui/inventory-ui.js';
 import { mobOn, solid } from './bow.js';
 import { addItem, inv } from './inventory.js';
 import { player } from './player.js';
+import { BODY } from './pvp.js';
 import { addXp, magic } from './xp.js';
 
 const LOOK = { avada: { color: 0x2bff5a, rgb: [0.2, 1, 0.35] }, hunt: { color: 0xff2a1a, rgb: [1, 0.15, 0.1] } };
-const BODY = [[0.55, 0.42], [1.3, 0.42]]; // tělo hráče = dvě koule nad místem, kde stojí (jako player/pvp.js)
 const fx = [];
 
 /** Hráč, kterého protne úsečka a→b; ok(pose) = jestli na něj kouzlo může (Avada jen se souboji). */
 function playerOn(a, b, ok) {
-  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
   for (const P of others.values()) {
     const q = P.pose;
     if (!q || q.alive === false || !ok(q)) continue;
-    for (const [h, r] of BODY) {
-      const cy = q.y + h, t = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (cy - a.y) * dy + (q.z - a.z) * dz) / L2));
-      const ex = a.x + dx * t - q.x, ey = a.y + dy * t - cy, ez = a.z + dz * t - q.z;
-      if (ex * ex + ey * ey + ez * ez < r * r) return P;
-    }
+    for (const [h, r] of BODY) if (segHitsSphere(a, b, q.x, q.y + h, q.z, r)) return P; // tělo hráče = dvě koule (player/pvp.js)
   }
   return null;
 }

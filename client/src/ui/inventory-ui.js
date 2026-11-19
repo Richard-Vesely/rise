@@ -26,7 +26,7 @@ import { countBucket, track } from './analytics.js';
 import { $ } from './dom.js';
 import { feed, toast } from './hud.js';
 import { btnOf, fitInventory, shiftOf } from './touch.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { tooltipHTML } from './item-tooltip.js';
 import { iconImg, paintHotbar, slotHTML, slotInner } from './slots.js';
 import { clearBookSearch, filterBook, installBookSearch } from './book-search.js';

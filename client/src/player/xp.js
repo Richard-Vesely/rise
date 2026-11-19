@@ -4,7 +4,7 @@
 // (v prohlížeči i na serveru). Bez vedlejších účinků při načtení (okna a pruhy se vytvoří až při prvním použití).
 import { ITEMS } from '../../../shared/data/index.js';
 import { OWNER_SPELLS, SPELLS, XP_MOB, cleanMagic, levelOf, manaMax, MANA_REGEN, offerSpells } from '../../../shared/data/magic.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { save } from '../game/save-load.js';
 import { toast } from '../ui/hud.js';
 import { heldStack } from './inventory.js';
@@ -127,4 +127,3 @@ export function nextSpell() {
   toast(`✦ ${SPELLS[activeSpell()].name}`);
   renderBars();
 }
-export const bookOpen = () => !!win;
