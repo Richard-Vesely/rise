@@ -72,7 +72,6 @@ export function updateCrops(dt) {
   if ((cropT += dt) < 1) return;
   const step = cropT;
   cropT = 0;
-  let changed = false;
   for (const [k, c] of crops) {
     const type = blocks.get(k);
     if (!type || !CROPS[type]) { crops.delete(k); continue; }
@@ -83,8 +82,6 @@ export function updateCrops(dt) {
     c.stage++;
     c.t = 0;
     c.next = 25 + Math.random() * 30;
-    emit('cropGrew', k);
-    changed = true;
+    emit('cropGrew', k); // prohlížeč postaví nový model jen téhle plodiny (bez přestavby všech bloků)
   }
-  if (changed) emit('blocksChanged');
 }

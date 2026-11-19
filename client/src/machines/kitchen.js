@@ -7,10 +7,9 @@ import { hash2, randInt } from '../../../shared/util.js';
 import { blocks, crops, stoveOf, stoves } from '../../../shared/world/state.js';
 import { Sound } from '../audio/sound.js';
 import { addItem, countItem, removeItem } from '../player/inventory.js';
-import { specials } from '../render/blocks.js';
+import { rebuildSpecialAt, specials } from '../render/blocks.js';
 import { lumpy } from '../render/forest.js';
 import { debris, sparks } from '../render/particles.js';
-import { scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { iconImg, invOpen, refreshUI, renderCraftArea, slotHTML, ui } from '../ui/inventory-ui.js';
 
@@ -87,7 +86,7 @@ export function renderKitchen(area) {
 
 // Pole: motykou zoráš zem, zasadíš semínka, plodina projde 4 fázemi růstu.
 // Plodina povyrostla (shared/sim/machines.js): nový model.
-on('cropGrew', (k) => { const s = specials.get(k); if (s) { scene.remove(s.obj); specials.delete(k); } });
+on('cropGrew', (k) => rebuildSpecialAt(k));
 // give(id, n) = kam úroda padá (při těžbě vyskočí jako předměty, client/src/world/ground-items.js dropper)
 export function harvestCrop(type, k, give = addItem) {
   const c = crops.get(k), def = CROPS[type];

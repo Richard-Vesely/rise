@@ -6,9 +6,9 @@ import { chairRot, tableItems } from '../../../shared/world/state.js';
 import { Sound } from '../audio/sound.js';
 import { DINE_STYLE } from '../dining/dine-view.js';
 import { canDine, dining, startDining } from '../dining/dining.js';
-import { rebuildBlocks, specials } from '../render/blocks.js';
+import { rebuildSpecialAt, specials } from '../render/blocks.js';
 import { debris } from '../render/particles.js';
-import { camera, scene } from '../render/renderer.js';
+import { camera } from '../render/renderer.js';
 import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
 import { renderHotbar } from '../ui/inventory-ui.js';
@@ -17,9 +17,7 @@ import { input, player } from './player.js';
 
 // ============================================================ stolování: stůl, židle, příbor
 export function refreshSpecial(k) {
-  const s = specials.get(k);
-  if (s) { scene.remove(s.obj); specials.delete(k); }
-  rebuildBlocks();
+  rebuildSpecialAt(k); // jen tenhle model, ne celý svět
 }
 // Pravé tlačítko na stůl: položit jídlo / příbor, prázdnou rukou vzít zpět, vsedě u stolu jíst.
 export function useTable(k) {

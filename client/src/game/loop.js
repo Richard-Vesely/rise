@@ -26,7 +26,7 @@ import { updateEating } from '../player/eating.js';
 import { updateInteraction } from '../player/interaction.js';
 import { guideOpen, isLocked, player, updatePlayer } from '../player/player.js';
 import { updateShards, updateSurvival } from '../player/survival.js';
-import { rebuildBlocks, updateLights } from '../render/blocks.js';
+import { flushBlocks, rebuildBlocks, updateLights } from '../render/blocks.js';
 import { applyUnderground, underground, updateDay } from '../render/daylight.js';
 import { applyDimension } from '../render/dimension.js';
 import { rebuildForest } from '../render/forest.js';
@@ -137,6 +137,7 @@ export function tick(realDt) {
   if (!NET.client) updateTorches(realDt); // pochodeň bez opory odpadne (rozhoduje ten, kdo drží svět)
   updatePortals(realDt);
   regrowGrass(realDt);
+  flushBlocks(); // změny bloků z pravidel (pochodeň odpadla, zřícenina…) jednou za snímek
   updateLights(gameClock);
   updateAmbientFx(realDt, underground); // jiskry a kouř nad ohněm, prach v jeskyni, světélka v Markově dimenzi
   sparks.update(realDt);
