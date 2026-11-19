@@ -261,6 +261,8 @@ function isoBoxes(top, side, boxes) {
   const steel = (x, y) => ((x + y) % 7 ? '#8a96a4' : '#7a8694');
   const steelF = face(steel);
   const edge = (x, y) => x === 0 || y === 0 || x === 15 || y === 15;
+  icon('safe', isoBoxes(face((x, y) => (edge(x, y) ? '#3a424c' : '#4a525c')), face((x, y) => (edge(x, y) ? '#3a424c' : Math.hypot(x - 6.5, y - 7.5) < 2.2 ? '#d8dce4'
+    : x === 11 && y > 5 && y < 11 ? '#d8dce4' : x > 1 && x < 14 && y > 1 && y < 14 ? '#5e6874' : '#4a525c')), FULL)); // trezor (pak ho přemaluje 3D ikona)
   const seg2 = (x, y, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - ax - dx * t, y - ay - dy * t) < 0.75; };
   // Luk (oblouk kolem bodu 12,12, tětiva po úhlopříčce) a šíp
   icon('bow', face((x, y) => {
