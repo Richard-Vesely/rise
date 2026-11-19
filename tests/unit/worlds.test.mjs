@@ -381,6 +381,12 @@ test('fishing rod: pulls a hooked player right in front of the one pulling, neve
     const bPid = b.msgs.find((m) => m[0] === 'welcome')[1].pid;
     a.send(['pose', pose(5000, 10)]); b.send(['pose', pose(20, 10)]); // Adam daleko (třeba v jiné dimenzi)
     await sleep(400);
+    const c = player(srv.port, 'Cyril', '', { v: 2, world: 'svet' }); // ještě neposlal polohu
+    assert.ok(await c.waitFor((m) => m[0] === 'welcome'));
+    c.send(['pull', 'p', bPid, 300, 0.5, 10]);
+    await sleep(400);
+    assert.ok(!b.msgs.some((m) => m[0] === 'tp'), 'a player without a position pulls nobody');
+    await c.close();
     a.send(['pull', 'p', bPid, 300, 0.5, 10]); // ne před sebou: nic
     await sleep(500);
     assert.ok(!b.msgs.some((m) => m[0] === 'tp'), 'a pull far from the one pulling does nothing');

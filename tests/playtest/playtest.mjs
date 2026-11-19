@@ -139,6 +139,47 @@ try {
   }, placed);
   check('break the placed block and get it back', r.gone && r.planks === 10, JSON.stringify(r));
 
+  // ------------------------------------------------------------ safe (Trezor): a chest with a code that can't be mined
+  r = await ev(() => {
+    const g = window.game, $ = (id) => document.getElementById(id), res = {};
+    T.clearInv(); T.give('safe', 1); T.give('iron_pick', 1); T.hold('safe');
+    T.tpg(10, 30); T.step(5); g.mobs.length = 0;
+    const x = 10.5, z = 27.5;
+    T.aim(x, g.groundHeight(x, z), z);
+    const old = new Set(g.blocks.keys());
+    g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(1, 0.0001);
+    const k = [...g.blocks.keys()].find((q) => !old.has(q) && g.blocks.get(q) === 'safe');
+    if (!k) return { placed: false };
+    const [bx, by, bz] = k.split(',').map(Number), aim = () => T.aim(bx + 0.5, by + 0.5, bz + 0.5);
+    T.hold('iron_pick'); aim();
+    res.breakable = g.target?.breakable;
+    T.mineUntil(() => !g.blocks.has(k), 200);
+    res.stays = g.blocks.get(k) === 'safe';
+    T.holdNothing(); aim(); g.useItem(); // nový trezor: vymyslet kód dvakrát
+    res.ask = g.ui.mode === 'safe' && !!$('safeCode2');
+    $('safeCode').value = '4711'; $('safeCode2').value = '4712'; $('safeGo').click();
+    res.mismatch = g.ui.mode === 'safe' && /neshodují/.test(T.text('safeMsg'));
+    $('safeCode2').value = '4711'; $('safeGo').click();
+    res.opened = g.ui.mode === 'chest' && !!$('safeTake');
+    g.chests.get(k)[0] = { id: 'stone', n: 3 };
+    $('safeTake').click(); T.step(1, 0.0001);
+    res.full = g.blocks.get(k) === 'safe';
+    g.closeInventory();
+    g.openInventory('safe', k); // zamčený: špatný kód neotevře
+    $('safeCode').value = '1234'; $('safeGo').click();
+    res.wrong = g.ui.mode === 'safe' && /Špatný/.test(T.text('safeMsg'));
+    $('safeCode').value = '4711'; $('safeGo').click();
+    res.right = g.ui.mode === 'chest';
+    g.chests.get(k)[0] = null; g.closeInventory(); g.openInventory('safe', k);
+    $('safeCode').value = '4711'; $('safeGo').click();
+    $('safeTake').click(); T.step(1, 0.0001);
+    res.taken = !g.blocks.has(k) && T.count('safe') === 1;
+    g.closeInventory();
+    return res;
+  });
+  check('safe: can not be mined, asks for a new code twice, opens only with the right code, taken back only when empty',
+    r.breakable === false && r.stays && r.ask && r.mismatch && r.opened && r.full && r.wrong && r.right && r.taken, JSON.stringify(r));
+
   // ------------------------------------------------------------ digging
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('stone_shovel', 1); T.hold('stone_shovel');
@@ -223,6 +264,7 @@ try {
   check('tools: a mined block wears the pickaxe by 1 and shows a durability bar', r.w === 1 && r.bar && r.stone === 1, JSON.stringify(r));
   r = await ev((k) => {
     const g = window.game; g.inv.slots[0].w = 58;
+    g.mobs.length = 0; // jinak může poslední ránu schytat tvor: krumpáč se rozbije o něj a kámen holou rukou nepadne
     g.blocks.set(k, 'cobble'); g.rebuildBlocks(); T.step(8);
     const [x, y, z] = k.split(',').map(Number);
     T.aim(x + 0.5, y + 0.5, z + 0.5);
@@ -269,17 +311,59 @@ try {
     return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
   });
   check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
+  r = await ev(() => { // druhá ruka: F prohodí, štít kryje zepředu (zezadu ne), štít se opotřebuje
+    const g = window.game; T.clearInv(); T.give('shield', 1); T.hold('shield'); T.give('iron_sword', 1);
+    T.press('KeyF');
+    const swapped = g.inv.off[0]?.id === 'shield' && !g.inv.slots[0];
+    T.hold('iron_sword'); g.mobs.length = 0; T.tpg(-50, 30); T.step(3);
+    g.player.yaw = 0; g.player.pitch = 0; g.player.hp = 100;
+    g.input.rmb = true; T.step(2);
+    const blocking = g.player.blocking, pose = g.myPose?.();
+    g.damagePlayer(10, 0, 1); const hpFront = g.player.hp; // útočník před hráčem (hráč kouká k −z, rána letí k +z)
+    g.damagePlayer(10, 0, -1); const hpBack = g.player.hp; // útočník za zády
+    g.input.rmb = false; T.step(2);
+    const shieldW = g.inv.off[0]?.w, after = g.player.blocking, main = g.inv.slots[0]?.id;
+    g.player.hp = 100;
+    return { swapped, blocking, oh: pose?.oh, bl: pose?.bl, hpFront, hpBack, shieldW, after, main };
+  });
+  check('offhand: F moves the shield to the second hand, right button guards: a hit from the front is stopped (the shield wears), from behind not', r.swapped && r.blocking === 'off' && r.hpFront === 100 && r.hpBack < 100 && r.shieldW === 1 && r.after === null && r.main === 'iron_sword', JSON.stringify(r));
+  check('offhand: other players see the second hand and the guard (pose oh, bl)', r.oh === 'shield' && r.bl === 2, JSON.stringify(r));
+  r = await ev(() => { // blok ze druhé ruky: v ruce meč, ve druhé ruce prkna (rovné místo vedle stavění výš)
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword'); g.inv.off[0] = { id: 'planks', n: 5 };
+    // let po markjablku z testu pochodní (flyT) vypnout: ve vzduchu by pravé tlačítko stavělo i pod sebe (stavění pod sebe)
+    const flyT = g.player.flyT; g.player.flyT = 0;
+    g.mobs.length = 0; T.tpg(12, 30); T.step(5);
+    const x = 12.5, z = 27.5, y = g.groundHeight(x, z);
+    T.aim(x, y, z);
+    const old = new Set(g.blocks.keys());
+    g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(1, 0.0001);
+    const added = [...g.blocks.keys()].filter((k) => !old.has(k));
+    const res = { added, onGround: g.player.onGround, planksLeft: g.inv.off[0]?.n, main: g.inv.slots[0]?.id, mainN: g.inv.slots[0]?.n };
+    for (const k of added) g.blocks.delete(k);
+    g.rebuildBlocks();
+    // šípy ze druhé ruky: luk bere nejdřív odtud
+    T.clearInv(); T.give('bow', 1); T.give('arrow', 2); T.hold('bow'); g.inv.off[0] = { id: 'arrow', n: 3 }; g.player.pitch = 0.2;
+    g.input.rmb = true; T.step(25); g.input.rmb = false; T.step(2);
+    res.arrowsOff = g.inv.off[0]?.n; res.arrowsBag = T.count('arrow');
+    // pochodeň ve druhé ruce: F ji vrátí do ruky
+    g.inv.off[0] = { id: 'torch', n: 4 }; T.holdNothing(); T.press('KeyF');
+    res.torchBack = g.inv.slots[g.inv.sel]?.id === 'torch' && !g.inv.off[0];
+    T.clearInv(); g.player.flyT = flyT;
+    return res;
+  });
+  check('offhand: a block in the second hand is placed while the sword stays in the hand', r.added.join() === '12,1,27' && r.onGround && r.planksLeft === 4 && r.main === 'iron_sword' && r.mainN === 1, JSON.stringify(r));
+  check('offhand: the bow takes arrows from the second hand first, F swaps back', r.arrowsOff === 2 && r.arrowsBag === 2 && r.torchBack, JSON.stringify(r));
   r = await ev(async () => { // smrt: batoh a brnění vypadnou na zem tam, kde hráč padl
-    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.give('apple', 5); g.armor[0] = { id: 'iron_helmet', n: 1 };
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.give('apple', 5); g.armor[0] = { id: 'iron_helmet', n: 1 }; g.inv.off[0] = { id: 'torch', n: 3 };
     g.mobs.length = 0; T.tpg(-70, 30); T.step(5);
     const at = g.player.pos.clone(), before = g.groundItems.length;
     g.player.hp = 5; g.damagePlayer(50, 0, 0);
     const near = g.groundItems.filter((it) => it.pos.distanceTo(at) < 4).map((it) => it.id).sort();
-    const empty = g.inv.slots.every((x) => !x) && !g.armor[0];
+    const empty = g.inv.slots.every((x) => !x) && !g.armor[0] && !g.inv.off[0];
     await new Promise((ok) => setTimeout(ok, 3000));
     return { near, empty, added: g.groundItems.length - before, alive: g.player.alive, home: g.player.pos.distanceTo(at) > 20 };
   });
-  check('death: the backpack and armor fall to the ground where you died, you come back home without them', r.empty && ['apple', 'iron_helmet', 'iron_sword'].every((id) => r.near.includes(id)) && r.alive && r.home, JSON.stringify(r));
+  check('death: the backpack, armor and second hand fall to the ground where you died, you come back home without them', r.empty && ['apple', 'iron_helmet', 'iron_sword', 'torch'].every((id) => r.near.includes(id)) && r.alive && r.home, JSON.stringify(r));
   r = await ev(async () => { // XP a kouzla: nová úroveň nabídne kouzla, Magická střela zraní kance, poražený kanec dá XP
     const g = window.game; T.clearInv(); T.give('wand', 1); T.hold('wand');
     g.mobs.length = 0; T.tpg(-60, 30); T.step(5);
@@ -639,6 +723,7 @@ try {
   // ------------------------------------------------------------ save and load
   const before = await ev(() => {
     const g = window.game; T.clearInv(); T.give('stone', 7); T.give('apple', 3); g.addItem('iron_pick', 1, true, 33);
+    g.inv.off[0] = { id: 'shield', n: 1, w: 12 }; // druhá ruka se ukládá taky
     g.blocks.set('3,1,40', 'bricks'); g.rebuildBlocks(); g.setTime(0.3);
     g.saveGame();
     return { blocks: g.blocks.size, stone: T.count('stone'), apple: T.count('apple'), portal: g.portalActive, built: g.ruinsBuilt.size, vox: g.worldState().vox.length };
@@ -646,9 +731,10 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.click('#mSolo');
   await waitGame(page);
-  const after = await ev(() => { const g = window.game; return { blocks: g.blocks.size, stone: T.count('stone'), apple: T.count('apple'), portal: g.portalActive, built: g.ruinsBuilt.size, vox: g.worldState().vox.length, brick: g.blocks.get('3,1,40'), pickW: g.inv.slots.find((s) => s?.id === 'iron_pick')?.w }; });
+  const after = await ev(() => { const g = window.game; return { blocks: g.blocks.size, stone: T.count('stone'), apple: T.count('apple'), portal: g.portalActive, built: g.ruinsBuilt.size, vox: g.worldState().vox.length, brick: g.blocks.get('3,1,40'), pickW: g.inv.slots.find((s) => s?.id === 'iron_pick')?.w, off: g.inv.off[0] }; });
   check('save + reload keeps world and backpack', after.blocks === before.blocks && after.stone === 7 && after.apple === 3 && after.portal && after.built === before.built && after.vox === before.vox && after.brick === 'bricks', JSON.stringify({ before, after }));
   check('save + reload keeps tool wear', after.pickW === 33, JSON.stringify(after));
+  check('save + reload keeps the second hand (with wear)', after.off?.id === 'shield' && after.off?.w === 12, JSON.stringify(after));
   check('intro not shown after reload', await ev(() => document.getElementById('intro').style.display !== 'grid'));
 
   // ------------------------------------------------------------ graphics pipeline (render/look.js, post.js, shadows.js)

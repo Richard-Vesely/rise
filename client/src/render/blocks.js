@@ -16,8 +16,9 @@ import { buildFoodInto } from '../dining/food-models.js';
 import { GFX } from '../game/prefs.js';
 import { buildCropModel } from '../machines/kitchen.js';
 import { buildGarageModel } from '../machines/garage-model.js';
+import { buildSafeModel } from '../machines/safe-model.js';
 import { buildElecModel, rebuildCables } from '../machines/power.js';
-import { heldStack } from '../player/inventory.js';
+import { heldStack, inv } from '../player/inventory.js';
 import { player } from '../player/player.js';
 import { lumpy, uploadUsed } from './forest.js';
 import { U, camera, scene } from './renderer.js';
@@ -364,6 +365,7 @@ export function buildSpecial(type, key) {
   }
   if (BLOCKS[type].elec) buildElecModel(type, g); // elektrická zařízení (14c)
   else if (type === 'garage') buildGarageModel(g); // garáž: přelakování a vylepšení vozidel
+  else if (type === 'safe') buildSafeModel(g); // trezor: truhla na kód (machines/safe.js)
   return { obj: g, flames };
 }
 
@@ -489,8 +491,8 @@ export function updateLights(time) {
     lightList = list.sort((a, b) => a.d2 - b.d2);
   }
   const list = lightList;
-  // Pochodeň v ruce svítí kolem hráče (v jeskyních k nezaplacení).
-  const heldTorch = heldStack()?.id === 'torch';
+  // Pochodeň v ruce (i ve druhé ruce, player/offhand.js) svítí kolem hráče (v jeskyních k nezaplacení).
+  const heldTorch = heldStack()?.id === 'torch' || inv.off?.[0]?.id === 'torch';
   lightPool.forEach((l, i) => {
     // plamen mihotá 2–3× za sekundu o ±15 %
     const flick = 0.92 + 0.09 * Math.sin(time * 14.5 + i * 1.7) + 0.045 * Math.sin(time * 33 + i * 3) + 0.025 * Math.sin(time * 71 + i);
@@ -518,7 +520,7 @@ export function updateLights(time) {
 }
 
 // 3D ikony bloků a strojů (render/icon-render.js) – až po načtení všech modulů (modely strojů jsou v pozdějších souborech).
-const ICON_3D = ['workbench', 'chest', 'stove', 'furnace', 'adv_bench', 'table', 'chair', 'well', 'spikes', 'spawner', 'coal_generator', 'solar_panel',
+const ICON_3D = ['workbench', 'chest', 'safe', 'stove', 'furnace', 'adv_bench', 'table', 'chair', 'well', 'spikes', 'spawner', 'coal_generator', 'solar_panel',
   'battery_block', 'power_switch', 'electric_lamp', 'bulb_lamp', 'motor_block', 'electric_furnace', 'charger', 'computer', 'printer', 'garage'];
 export function blockIconList() {
   const items = [];

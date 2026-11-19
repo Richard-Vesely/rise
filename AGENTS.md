@@ -60,7 +60,7 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 | `client/src/menu/` | main menu (world buttons first from `GET /worlds`, then *Hrát sám*, then *Nastavení · Další možnosti*; club password asked once; player name + PIN asked once per device, then "Hraješ jako X · Změnit hráče"; *Další možnosti*: host in the browser / join by code) and settings |
 | `client/src/game/` | boot (`NET` setup), prefs, save/load in the browser, the frame loop `loop.js` (`tick`), `debug.js` (`window.game`) |
 | `client/src/render/` | renderer, sky, textures, icons, ground, grass, forest, blocks, underground meshes, particles, held item + first-person suit hand, day/night colours; `character.js` = the suit model, armor plates and animation (no side effects, the menu uses it too); the graphics look and what each Grafika tier turns on (`look.js`), post-processing (`post.js`), shadows, clouds, water, weather, embers/smoke (`ambient-fx.js`). Grafika Automaticky: `client/src/game/gpu.js` |
-| `client/src/player/` | player movement and collisions, aiming, mining/placing/using, backpack, survival, eating |
+| `client/src/player/` | player movement and collisions, aiming, mining/placing/using, backpack, second hand and shield (`offhand.js`; the left hand is drawn by `render/offhand-view.js`), survival, eating |
 | `client/src/mobs/` | `mob-models.js` creature 3D models; `mobs.js` animation and life (`poseMob`), sounds, sparks (behaviour is in `shared/sim/mobs.js`) |
 | `client/src/audio/` | all sound (WebAudio synthesis): `sound.js` mix + `Sound.at(x, y, z, fn)` positional sound, recipes in `sfx.js` / `voices.js`, materials, ambience, machine hums, music; `soundscape.js` runs it each frame |
 | `client/src/ui/` | HUD, inventory window, touch controls |
@@ -101,7 +101,7 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/net/room.js`, client = `client/src/net/multiplayer.js`.
 
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
-  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on by the key N; the host passes the pose on unchanged), `['pk', gid]` pick up,
+  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on by the key N, `oh` = item id in the second hand, `bl: 1|2` while guarding with a shield in the main / second hand; the host passes the pose on unchanged), `['pk', gid]` pick up,
   `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (only in a
   `pvp` or `pvp-mark` world: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
   `['dmg', dmg × 2.5, dx, dz]`; in a `pvp-mark` world the host also needs attacker and target in Markova dimenze, `isMark(x)`; `hitPlayer` in `shared/net/room.js`), `['pull', 'p'|'m', pid|nid, x, y, z]` fishing rod pulls a hooked player / mob to x, y, z (must be within 5 m of the one pulling; the player gets `['tp', x, y, z, byName]`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
@@ -139,9 +139,9 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   connection then closes; the client asks again. The same profile already in that world: the old connection gets
   `['kick', 'Přihlásil ses jinde.']` and is closed. The welcome also has `me`: that player's saved state in this world
   (`null` = first time; added by `server/world-worker.js`). The client sends `['me', { inv, armor, pos, yaw, hp, hunger,
-  crafted, placedAny, creative, flying, flyT, look, magic }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
-  `cleanCostume`; `magic` = `{ xp, learned, sel, picks }`, optional, cleaned by `cleanMagic` in `shared/data/magic.js`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
-  ≤ 64 KB, 36 + 4 slots, known item ids; a slot is `{ id, n, w? }`, `w` = tool wear) and saves it in `world.json` → `players[profile id]`. The browser host ignores `me`.
+  crafted, placedAny, creative, flying, flyT, look, magic, off }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
+  `cleanCostume`; `off` = the second-hand slot, optional, checked like the other slots, owner items removed; `magic` = `{ xp, learned, sel, picks }`, optional, cleaned by `cleanMagic` in `shared/data/magic.js`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
+  ≤ 64 KB, 36 + 4 + 1 slots, known item ids; a slot is `{ id, n, w? }`, `w` = tool wear) and saves it in `world.json` → `players[profile id]`. The browser host ignores `me`.
 - **Donation box** (Node server only; the statue `shared/world/statue.js` is built by `server/sim.js`): client → `['dary']` (state),
   `['donate', id, n, w?]` (one slot, already removed from the backpack; the server gives it back with `give` if it refuses),
   `['take', index, id]` (owner only: the server checks the profile against `OWNER_ID` and refuses everyone else with a `toast`

@@ -19,7 +19,7 @@ const TOOL_DESC = {
 const DESC = {
   log: 'Z kmene uděláš prkna (4 kusy).', planks: 'Základ skoro všeho ze dřeva.', stick: 'Rukojeť nástrojů a pochodní.',
   fiber: 'Z trávy. Na pochodně, provázky a luky.', coal: 'Palivo a pochodně. Najdeš ho v kameni.', torch: 'Svítí ve tmě a odhání stínožrouty. Postav ji na blok nebo pověs na stěnu (na strop ne).',
-  campfire: 'Peče maso a taví rudu. Světlo odhání stínožrouty.', workbench: 'Výroba v mřížce 3×3.', chest: 'Uschová 27 hromádek předmětů.',
+  campfire: 'Peče maso a taví rudu. Světlo odhání stínožrouty.', workbench: 'Výroba v mřížce 3×3.', chest: 'Uschová 27 hromádek předmětů.', safe: 'Truhla na kód: poprvé si kód vymyslíš, pak se otevře jen s ním. Nedá se vytěžit.',
   shard: 'Tři úlomky probudí portál ve svatyni.', essence: 'Z ní se vyrábí stínové brnění.', iron_ore: 'Přetav ji v táboráku nebo v peci.',
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',
@@ -37,7 +37,8 @@ const DESC = {
   jet: 'Stíhačka: létá jako dvouplošník, ale s 3× silnějším motorem. Postav ji na zem a nastup (F).',
   xp_potion: 'Jen pro vlastníka serveru. Pravé tl. = vypiješ: dá přesně tolik XP, kolik chybí do další úrovně (a vybereš si kouzlo). Nikdy nedojde.',
   owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora kdekoli, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
-  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
+  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku (nejdřív bere šípy ze druhé ruky). Zabodnutý šíp můžeš zase sebrat.',
+  shield: 'Dej ho do druhé ruky (F). Drž pravé tlačítko a zastaví útok zepředu.',
 };
 // V kolika receptech je předmět surovinou
 const USED_IN = new Map();

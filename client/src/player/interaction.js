@@ -43,6 +43,7 @@ import { usePortal } from '../world/shrine.js';
 import { placedAny } from '../world/world-state.js';
 import { cancelDraw, updateArrows, updateBow } from './bow.js';
 import { hitPlayer } from './pvp.js';
+import { placesFromOff, stopGuard, updateShield, withOffInHand } from './offhand.js';
 import { sitOn, startEating, useTable } from './eating.js';
 import { hitKick, hitStop } from './camera-feel.js';
 import { wearHeld } from './durability.js';
@@ -170,7 +171,7 @@ export function updateInteraction(dt) {
     groundRing.position.set(target.point[0], target.point[1] + 0.04, target.point[2]);
     groundRing.material.color.set(target.breakable === false ? 0x999999 : target.kind === 'grass' ? 0xffffff : 0xffd27a);
   }
-  const cell = held && ITEMS[held.id].block ? placementCell(target) : null;
+  const cell = (held && ITEMS[held.id].block) || placesFromOff() ? placementCell(target) : null; // i blok ze druhé ruky (offhand.js)
   preview.visible = !!cell && cellFree(...cell);
   if (preview.visible) preview.position.set(cell[0] + 0.5, cell[1] + 0.5, cell[2] + 0.5);
 
@@ -229,12 +230,15 @@ export function updateInteraction(dt) {
   updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); updateHell(dt); // přehrávače hudby hrají (audio/film-music.js), láva v pekle pálí (world/hell.js)
   // kouzla a XP (magic.js, xp.js)
   const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
-  if (updateGadgets(dt, special)) { /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */ }
-  else if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
-  else if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
+  const busy = special || target?.kind === 'mob'; // pravé tlačítko tu něco otevře nebo použije (štít ani blok z druhé ruky ne)
+  if (updateGadgets(dt, special)) stopGuard(); /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */
+  else if (updateWand(target, breakTarget, special)) stopGuard(); /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */
+  else if (updateBow(dt, target)) stopGuard(); /* luk v ruce: pravé tlačítko natahuje (bow.js) */
+  else if (updateShield(busy)) { /* štít v kterékoli ruce: pravé tlačítko kryje (offhand.js) */ }
   else {
-    if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
-    if (input.rmb) pillarPlace();
+    const off = !busy && placesFromOff(); // blok ve druhé ruce se položí, když hlavní ruka nemá co dělat (offhand.js)
+    if (input.rmb && useCd <= 0) { useCd = off || ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; if (off) withOffInHand(useItem); else useItem(); }
+    if (input.rmb) { if (off) withOffInHand(pillarPlace); else pillarPlace(); }
   }
 
   const label = $('targetLabel');
@@ -396,7 +400,7 @@ export function useItem() {
     return;
   }
   // Pravé tlačítko na pracovní stůl nebo táborák otevře jeho okno.
-  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
+  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', safe: 'safe', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
   const held0 = heldStack();
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
   if (target?.kind === 'block' && (target.type === 'prison_gate' || target.type === 'prison_rune')) { // bludiště vězení (player/prison.js)

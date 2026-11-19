@@ -261,6 +261,8 @@ function isoBoxes(top, side, boxes) {
   const steel = (x, y) => ((x + y) % 7 ? '#8a96a4' : '#7a8694');
   const steelF = face(steel);
   const edge = (x, y) => x === 0 || y === 0 || x === 15 || y === 15;
+  icon('safe', isoBoxes(face((x, y) => (edge(x, y) ? '#3a424c' : '#4a525c')), face((x, y) => (edge(x, y) ? '#3a424c' : Math.hypot(x - 6.5, y - 7.5) < 2.2 ? '#d8dce4'
+    : x === 11 && y > 5 && y < 11 ? '#d8dce4' : x > 1 && x < 14 && y > 1 && y < 14 ? '#5e6874' : '#4a525c')), FULL)); // trezor (pak ho přemaluje 3D ikona)
   const seg2 = (x, y, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(x - ax - dx * t, y - ay - dy * t) < 0.75; };
   // Luk (oblouk kolem bodu 12,12, tětiva po úhlopříčce) a šíp
   icon('bow', face((x, y) => {
@@ -290,6 +292,14 @@ function isoBoxes(top, side, boxes) {
     if (INF[y]?.includes(x)) return '#ffe46a';
     if (y < 7) return Math.hypot(x - 5.5, y - 7) < 1.2 ? '#ffffff' : '#d8f0e8'; // vzduch nad hladinou, odlesk
     return y < 9 ? '#7aff8a' : (x + y) % 5 ? '#2bd85a' : '#c8ff6a';
+  }));
+  icon('shield', face((x, y) => { // dřevěný štít s železným lemem a puklicí
+    const inShape = x >= 2 && x <= 13 && y >= 1 && (y <= 9 || Math.abs(x - 7.5) < 6.5 - (y - 9) * 0.95);
+    if (!inShape) return null;
+    const rim = x === 2 || x === 13 || y === 1 || (y > 9 && Math.abs(Math.abs(x - 7.5) - (6.5 - (y - 9) * 0.95)) < 1);
+    if (rim) return '#9aa0a8';
+    if (Math.hypot(x - 7.5, y - 6.5) < 1.8) return '#c8ccd4';
+    return x % 4 === 1 ? '#6a4a2a' : (x + y) % 5 ? '#9a6a38' : '#8a5e30';
   }));
   icon('arrow', face((x, y) => {
     const s = x + y;

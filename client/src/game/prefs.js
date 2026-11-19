@@ -25,6 +25,7 @@ export const GFX = {
 }[QUALITY];
 GFX.pr = Math.min(GFX.pr, PR_CAP);
 if (WEAK_GPU && QUALITY === 'medium') Object.assign(GFX, { grass: [45000, 26000], particles: 0.55 }); // slabá grafika: méně stébel
+export const prefStr = (k) => (typeof PREFS[k] === 'string' ? PREFS[k] : ''); // textová volba nastavení ('' = výchozí)
 export const prefNum = (k, d) => (Number.isFinite(+PREFS[k]) && +PREFS[k] > 0 ? +PREFS[k] : d);
 export let lookSens = prefNum('sens', 1); // citlivost otáčení (myš i dotyk)
 // Hra pro jednoho má svoje uložení; svět serveru i hráč na cizím serveru se ukládají zvlášť.

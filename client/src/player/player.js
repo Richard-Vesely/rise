@@ -13,9 +13,10 @@ import { materialAt } from '../audio/materials.js';
 import { Sound } from '../audio/sound.js';
 import { MP } from '../game/boot.js';
 import { game } from '../game/debug.js';
-import { TOUCH, lookSens } from '../game/prefs.js';
+import { TOUCH, lookSens, prefStr } from '../game/prefs.js';
 import { save } from '../game/save-load.js';
 import { toggleView } from '../net/avatars.js';
+import { setBodyMode } from './body-control.js';
 import { openChat } from '../net/mp-ui.js';
 import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
@@ -32,6 +33,7 @@ import { hasPerk } from './bonus.js';
 import { ghost, toggleGhost } from './ghost.js';
 import { resetUseCd, target } from './interaction.js';
 import { inv } from './inventory.js';
+import { swapHands } from './offhand.js'; // (po interaction.js: offhand.js bere opotřebení z durability.js)
 import { togglePvp } from './pvp.js';
 import { holdingWand, nextSpell, toggleBook } from './xp.js';
 
@@ -106,9 +108,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyC' && !e.repeat && !invOpen) { setCreative(!creative); return; }
   if (e.code === 'KeyG' && !e.repeat && !invOpen && (isLocked() || game.testMode)) { dropHeld(e.shiftKey); return; }
   // Vozidla: F nastoupit / vystoupit (i jako spolujezdec), L světla, B klakson (kolo zvonek, loď houkačka), N nitro,
-  // 1/2/3 převod na kole, V kamera (první / třetí osoba)
+  // 1/2/3 převod na kole, V kamera (první / třetí osoba). Jinak F prohodí předmět v ruce s druhou rukou (offhand.js).
   if (e.code === 'KeyF' && !e.repeat && !invOpen && (isLocked() || game.testMode)) {
-    if (player.vehicle || player.riding) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id);
+    if (player.vehicle || player.riding) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id); else swapHands();
     return;
   }
   if (player.riding && !e.repeat && ['KeyL', 'KeyB', 'KeyN', 'KeyV'].includes(e.code)) return; // spolujezdec neřídí
@@ -313,3 +315,15 @@ export function updatePlayer(dt) {
   camera.rotation.set(player.pitch, player.yaw, 0);
   return moving;
 }
+
+// Ovládání tělem přes webkameru (Nastavení → Ovládání tělem): MediaPipe se stáhne, až když ho hráč zapne.
+// (Obyčejný import: import() na požádání rozdělil balíček hry a hra se spouštěla už v menu.)
+let bodyMode = '';
+function applyBodyMode() {
+  const m = ['knees', 'lean', 'hands'].includes(prefStr('body')) ? prefStr('body') : '';
+  if (m === bodyMode) return;
+  bodyMode = m;
+  setBodyMode(m || null);
+}
+applyBodyMode();
+addEventListener('rise-prefs', applyBodyMode);

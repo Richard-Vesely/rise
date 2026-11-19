@@ -309,7 +309,25 @@ When you add or change a feature, update this file in the same pull request.
   **workshop** (*Dílna*). ~260 recipes in 12 categories with a recipe book and "only what I can make".
   A **search box** (🔍 *Hledat…*) above the book filters it by item name (accents optional, so *zelezo* finds *Železo*);
   it works for recipes, the creative item list, the campfire, the furnace and the stove cookbook, and is cleared when the window closes.
+- **Second hand** (like Minecraft): one more slot under the armor in the backpack (a shield outline when empty); **F** swaps the
+  item in the hand with the second hand (aiming at a vehicle, F still gets in). Any item can be held there (not the owner's
+  wand or potion) and is shown in the left hand, in first person and to other players (pose `oh`). A **shield** (*Štít*:
+  planks + iron, `PIP / PPP / _P_`) guards while the right button is held, in either hand (in the second hand only while the
+  main hand is empty or holds a sword, axe, pickaxe, shovel or armor): a hit from the front (about ±70°: mobs, the dragon,
+  swords and arrows of other players) is stopped and only pushes a little, the shield wears by 1 (336 blocks); from behind
+  it doesn't help, and the owner's Avada Kedavra goes through. Other players see the raised arm (pose `bl`). Shift + click
+  puts a shield from the backpack into the second hand. A **torch** in either hand lights the area around you. A **block**
+  in the second hand is placed with the right button (with the white outline) while the main hand is empty or holds a tool,
+  weapon or armor. The **bow** takes arrows from the second hand first. On death the second hand drops too; the arena
+  empties it. Saved in the browser and on the server (`off`). Code: `client/src/player/offhand.js`, the left hand in
+  `client/src/render/offhand-view.js`, the shield model `client/src/render/shield-model.js`.
 - **Chest** (*Truhla*, 27 slots).
+- **Safe** (*Trezor*, 27 slots, recipe in the backpack: a chest + 3 stones). The first time it is opened the player
+  makes up a code (4–8 digits, typed twice); after that it opens only with that code (3 wrong tries → a short wait
+  that doubles each time, at most 5 minutes). It can't be mined (also not by magic or in creative); whoever knows the code can take an
+  empty safe back (*Sebrat trezor*). The code is kept only as a fingerprint in the safe's `blockMeta` (bits 0–2
+  rotation, above that the fingerprint), so the save format is unchanged. It is a lock for friends, not a bank (see
+  [KNOWN-ISSUES.md](KNOWN-ISSUES.md)).
 - **Farm traps**: spikes (*Bodce*) hurt mobs; loot of mobs killed on spikes goes to a chest nearby.
 - **Mob spawner** blocks in dungeons and fortresses.
 - **Graphic update (Hytale style)**: every hit while mining makes the block jolt (the crack shell swells for 130 ms), knocks out
@@ -320,7 +338,7 @@ When you add or change a feature, update this file in the same pull request.
 
 *Kód:* torches `shared/world/torch.js` (rules), `client/src/render/torch-model.js` (model), `client/src/render/torch-light.js` (baked light), block textures `client/src/render/textures.js` (helpers `texgen.js`), materials `client/src/render/materials.js`, 3D icons `client/src/render/icon-render.js`, tool rules (durability, mining speed, attack charge, repair) `shared/tools.js`, wear on this screen `client/src/player/durability.js`,
 cracks `client/src/render/crack.js`, chips and crit stars `client/src/render/chips.js`, tool and combat sounds `client/src/audio/tool-sounds.js`,
-mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
+mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (safe code `client/src/machines/safe.js` + rules `shared/world/safe.js` + model `safe-model.js`, search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
 
 - **Gold shop**: in the chat (T, now also in single player, where it is only for commands) `/sell` (or `/prodat`) sells
   all gold from the backpack for coins (*Zlaťák*, a normal item: gold ingot 10, gold ore 6, gold block 90, gold wire 1, gold
@@ -730,6 +748,18 @@ under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hum
 `volume.js` (slider values). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
 
 ## 12. Controls (summary)
+- **Body control with a webcam** (Settings → *Ovládání tělem*: *Chůze na místě*, *Náklon* or *Jen rukama (vsedě)*): MediaPipe Pose (Google; the library
+  and the model are downloaded from the internet only when switched on) finds the body in the camera picture; the video stays in
+  the computer. Walk: march on the spot (speed by the pace, fast = run) or lean forward / back; lean to the side = step aside; arm
+  out to the left / right = turn (you keep facing the screen); a small nod = look up / down; right hand above the head = attack /
+  mine, left hand above the head = right button; a jump = jump. First 3 s standing still = calibration (button *Kalibrovat*).
+  Coarse on purpose: only clear gestures count (arm fully out, hand well above the head for 0.2 s, a clear nod or lean) and then
+  move at one steady speed; everything is smoothed, so a shaky camera or small sways do nothing. Without visible knees (a laptop
+  camera) marching is recognised by the shoulders bobbing. Turning speed follows *Citlivost otáčení*; the calm pose adapts slowly.
+  *Jen rukama (vsedě)*: pumping the arms up and down alternately = walk (fast = run), arm out = turn, right / left hand above
+  the head = attack / right button, both hands above the head = jump, a nod = look; no side steps.
+  A small window bottom left shows the camera, the skeleton and what it understood. Gestures: `client/src/player/body-gestures.js`
+  (unit test `tests/unit/body.test.mjs`), camera: `client/src/player/body-control.js`.
 WASD move · Shift run · Space jump · mouse look · left button mine/attack · right button place/use/eat ·
 E inventory · Q / G drop (Ctrl+Q / Shift+G stack) · middle button pick block · C creative · H help · T chat · 1–9 / wheel hotbar · F vehicle (or passenger seat) · L lights · B horn / bell · N nitro · 1/2/3 bike gears · V view (first person / behind / front; vehicle camera in a vehicle) · O suit (*Můj oblek*) · Esc menu.
 In vehicles the touch screen adds *Brzda, Převod, Nitro, Klakson/Zvonek/Houkačka, Světla, Kamera, Vystoupit*; a passenger only gets *Kamera* and *Vystoupit*.
