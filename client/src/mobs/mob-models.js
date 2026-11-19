@@ -3,6 +3,7 @@
 // hlava na kloubu (sleduje hráče, pase se), uši, ocas, křídla. Nepřátelé mají svítící oči.
 // Bez vedlejších účinků při načtení (textury se vyrobí až při prvním tvorovi).
 import * as THREE from 'three';
+import { rng } from '../../../shared/util.js';
 import { buildDragonModel } from './dragon-model.js';
 import { buildSpiderModel } from './spider-model.js';
 import { RIM, addRim, animateCharacter, armorMat, blobShadow, buildCharacter, crackTex, mergeStatic, rbox, setCharacterArmor, skinRig } from '../render/character.js';
@@ -17,8 +18,7 @@ const BUMP = { wool: 1, fur: 0.7, hide: 0.3, feather: 0.45, skin: 0.6, stone: 1 
 function furTextures(kind) {
   if (texCache[kind]) return texCache[kind];
   const N = 64, h = new Float32Array(N * N);
-  let s = { wool: 3, fur: 7, hide: 11, feather: 13, skin: 17, stone: 19 }[kind] || 1;
-  const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  const r = rng({ wool: 3, fur: 7, hide: 11, feather: 13, skin: 17, stone: 19 }[kind] || 1);
   const add = (x, y, v) => { x = ((x % N) + N) % N; y = ((y % N) + N) % N; h[y * N + x] = Math.max(h[y * N + x], v); };
   if (kind === 'wool') { // kudrlinky
     for (let k = 0; k < 140; k++) { const cx = r() * N, cy = r() * N, rad = 3 + r() * 4; for (let y = -8; y <= 8; y++) for (let x = -8; x <= 8; x++) { const d = Math.hypot(x, y) / rad; if (d < 1) add(Math.round(cx + x), Math.round(cy + y), Math.sqrt(1 - d * d) * (0.6 + r() * 0.1)); } }

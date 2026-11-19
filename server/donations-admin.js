@@ -3,8 +3,8 @@
 // Dárek se doručí do batohu hned, když hráč hraje, jinak při jeho dalším přihlášení (server/donations.js).
 import { ITEMS } from '../shared/data/index.js';
 import { GIFT_MAX } from './donations.js';
+import { esc } from '../shared/util.js';
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const date = (s) => (s ? new Date(s).toLocaleString('cs-CZ', { timeZone: 'Europe/Prague', day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–');
 const itemName = (id) => (Object.hasOwn(ITEMS, id) ? ITEMS[id].name : id);
 

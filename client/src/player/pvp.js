@@ -3,6 +3,7 @@
 // Bez vedlejších účinků při načtení.
 import { NET } from '../../../shared/net/net.js';
 import { hitPlayer as hostHit, others } from '../../../shared/net/room.js';
+import { segHitsSphere } from '../../../shared/util.js';
 import { isMark } from '../../../shared/world/terrain.js';
 import { toolSound } from '../audio/tool-sounds.js';
 import { emitChips } from '../render/chips.js';
@@ -11,7 +12,7 @@ import { toast } from '../ui/hud.js';
 import { player } from './player.js';
 
 // Tělo hráče = dvě koule (nohy a trup s hlavou) nad místem, kde stojí.
-const BODY = [[0.55, 0.42], [1.3, 0.42]];
+export const BODY = [[0.55, 0.42], [1.3, 0.42]];
 const hurtAt = new Map(); // pid -> kdy jsme ho naposledy zasáhli (ať se neposílá zásah za zásahem)
 
 /** Ostatní hráči, do kterých se dá v tomhle světě bojovat: { pid, name, x, y, z }. */
@@ -71,12 +72,7 @@ function showBadge() {
 
 /** Hráč, kterého protne úsečka a→b (šíp za jeden krok letu). */
 export function playerOn(a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
-  for (const p of pvpPlayers()) for (const [h, r] of BODY) {
-    const cy = p.y + h, t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (cy - a.y) * dy + (p.z - a.z) * dz) / L2));
-    const ex = a.x + dx * t - p.x, ey = a.y + dy * t - cy, ez = a.z + dz * t - p.z;
-    if (ex * ex + ey * ey + ez * ez < r * r) return p;
-  }
+  for (const p of pvpPlayers()) for (const [h, r] of BODY) if (segHitsSphere(a, b, p.x, p.y + h, p.z, r)) return p;
   return null;
 }
 

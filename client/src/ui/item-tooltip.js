@@ -3,6 +3,7 @@
 import { ARMOR_SETS, ARMOR_SLOT_NAMES, COOKING, FUEL, FURNACE_ONLY, ITEMS, KITCHEN, RECIPES, RECIPE_CATS, TOOL_SPEED } from '../../../shared/data/index.js';
 import { RARITY_NAMES, itemKind, rarityOf } from '../../../shared/inventory.js';
 import { attackSpeed, repairMatName } from '../../../shared/tools.js';
+import { esc } from '../../../shared/util.js';
 
 const PICK_REACH = { 1: 'kámen a uhlí', 2: 'kámen, uhlí, železo, měď a křemen', 3: '…a navíc krystal a zlato', 4: '…a navíc obsidián a markorit', 5: 'všechno' };
 
@@ -56,7 +57,6 @@ export function durOf(s) {
 export const durColor = (f) => `hsl(${Math.round(Math.max(0, Math.min(1, f)) * 120)}, 95%, 52%)`;
 
 const fmt = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
-const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 
 /**
  * HTML tooltipu. stack = konkrétní hromádka (kvůli počtu a odolnosti) nebo null; el = políčko (recept, kuchařka…).

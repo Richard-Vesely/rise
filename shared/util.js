@@ -10,7 +10,21 @@ export function hash2(x, z) {
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
+/** Pevná náhoda: stejné seed = stejná řada čísel 0–1 (textury a modely vypadají pokaždé stejně). */
 export const rng = (seed) => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+/** Text do HTML: & < > " ' jako číselné entity (jméno hráče, název dokumentu… nic nerozbije ani v atributu). */
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+/**
+ * Protne úsečka a→b kouli se středem (cx, cy, cz) a poloměrem r? (šíp za jeden krok letu, paprsek kouzla.)
+ * @param {{ x: number, y: number, z: number }} a
+ * @param {{ x: number, y: number, z: number }} b
+ */
+export function segHitsSphere(a, b, cx, cy, cz, r) {
+  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
+  const t = Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - a.y) * dy + (cz - a.z) * dz) / L2));
+  const ex = a.x + dx * t - cx, ey = a.y + dy * t - cy, ez = a.z + dz * t - cz;
+  return ex * ex + ey * ey + ez * ez < r * r;
+}
 
 export function hash3(x, y, z) {
   let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 1103515245) ^ Math.imul(z | 0, 668265263);
