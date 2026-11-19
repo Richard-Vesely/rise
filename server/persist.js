@@ -65,7 +65,7 @@ function dailyBackup(file, prefix) {
   const today = path.join(backups, `${prefix}-${new Date().toISOString().slice(0, 10)}.json`);
   if (fs.existsSync(today)) return;
   fs.copyFileSync(file, today);
-  const re = new RegExp(`^${prefix}-\d{4}-\d\d-\d\d\.json$`);
+  const re = new RegExp(String.raw`^${prefix}-\d{4}-\d\d-\d\d\.json$`); // String.raw: v obyčejné `…` by z \d bylo jen d a staré zálohy by se nikdy nemazaly
   const old = fs.readdirSync(backups).filter((f) => re.test(f)).sort();
   for (const f of old.slice(0, Math.max(0, old.length - KEEP_BACKUPS))) fs.unlinkSync(path.join(backups, f));
 }
