@@ -53,6 +53,8 @@ for (const [t, key, mat] of TIERS) {
 // Luk a šípy (client/src/player/bow.js): pravé tlačítko natahuje, puštění vystřelí. bow.dmg = zranění plně nataženým šípem.
 ITEMS.bow = { name: 'Luk', bow: { dmg: 10, draw: 1, speed: 46 }, stack: 1, dur: 250 };
 ITEMS.arrow = { name: 'Šíp' };
+// Štít (nejlépe do druhé ruky, klávesa F): pravé tlačítko = krytí, zastaví útok zepředu (client/src/player/offhand.js)
+ITEMS.shield = { name: 'Štít', shield: true, stack: 1, dur: 336 };
 // Čarovná hůl (client/src/player/magic.js): pravé tlačítko sešle vybrané kouzlo; kouzla se učí za XP (shared/data/magic.js)
 ITEMS.wand = { name: 'Čarovná hůl', wand: true, stack: 1 };
 // Hůl vlastníka serveru (jen server kroužku, server/owner-wand.js): má ji vždycky jen vlastník, nejde vyrobit, zahodit ani dát

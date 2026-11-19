@@ -15,6 +15,8 @@ import { blockMat } from './blocks.js';
 import { bowModel } from './bow-model.js';
 import { buildFPArm, disposeCharacter, suitPalette } from './character.js';
 import { ICONS } from './icons.js';
+import { updateOffhand } from './offhand-view.js';
+import { shieldModel } from './shield-model.js';
 import { camera } from './renderer.js';
 import { glowTex } from './sky.js';
 
@@ -136,6 +138,8 @@ export function buildHeld(id) { // používají ho i postavičky ostatních hrá
     glow.scale.setScalar(0.3);
     glow.position.y = 0.5;
     g.add(glow);
+  } else if (d.shield) {
+    shieldModel(mesh);
   } else if (d.bow) {
     const b = bowModel();
     g.add(b);
@@ -264,6 +268,7 @@ export function updateSwing(dt, moving) {
     r[0] = lerp(r[0], 0, e); r[1] = lerp(r[1], 0.08, e); r[2] = lerp(r[2], -0.2, e);
     p[0] += Math.sin(performance.now() / 40) * 0.0025 * k; // plně natažený se trochu chvěje
   }
+  if (player.blocking === 'main') { p[0] = 0.12; p[1] = -0.2; p[2] = -0.46; r[0] = 0.05; r[1] = -0.35; r[2] = 0; } // krytí štítem v hlavní ruce: štít před tělem (player/offhand.js)
   // vytažení předmětu: ruka vyjede zespodu
   if (equipT < 1) {
     equipT = Math.min(1, equipT + dt / 0.2);
@@ -290,4 +295,5 @@ export function updateSwing(dt, moving) {
   p[1] -= hurtT * 0.05; r[2] += hurtT * 0.15;
   holder.position.set(p[0], p[1], p[2]);
   holder.rotation.set(r[0], r[1], r[2]);
+  updateOffhand(dt, sway, d, holder.visible, buildHeld); // druhá ruka vlevo (render/offhand-view.js)
 }

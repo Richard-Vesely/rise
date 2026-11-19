@@ -26,15 +26,16 @@ const isOwnerSlot = (s) => !!s && typeof s === 'object' && ownerItem(s.id);
 
 /**
  * Uložený stav hráče (výsledek cleanMe): ostatním hráčům se předměty vlastníka vyhodí; vlastník si nechá od každého
- * jeden (v batohu, ne v brnění) a chybějící se mu vloží do prvních volných políček. Mění `me` na místě a vrací id
+ * jeden (v batohu, ne v brnění ani ve druhé ruce) a chybějící se mu vloží do prvních volných políček. Mění `me` na místě a vrací id
  * předmětů, které vlastníkovi chyběly (prázdné pole = nic nechybělo; bez uloženého stavu chybí všechny).
- * @param {{ inv: ({id: string, n: number}|null)[], armor?: ({id: string, n: number}|null)[] } | null} me
+ * @param {{ inv: ({id: string, n: number}|null)[], armor?: ({id: string, n: number}|null)[], off?: {id: string, n: number}|null } | null} me
  * @param {boolean} owner
  * @returns {string[]}
  */
 export function fixOwnerItems(me, owner) {
   if (!me || !Array.isArray(me.inv)) return owner ? [...OWNER_ITEMS] : [];
   const found = new Set();
+  if (isOwnerSlot(me.off)) me.off = null; // druhá ruka (prohlížeč je tam nepustí, tohle je pojistka)
   for (const arr of [me.inv, me.armor || []]) {
     for (let i = 0; i < arr.length; i++) {
       if (!isOwnerSlot(arr[i])) continue;

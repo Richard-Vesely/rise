@@ -114,6 +114,24 @@ try {
   s = await inv();
   check('Seřadit merges and sorts the backpack (tools, weapons, food, blocks), hotbar stays', s[9] === 'iron_pick:1' && s[10] === 'stone_sword:1' && s[11] === 'meat:2' && s[12] === 'dirt:64' && s[13] === 'dirt:16' && s[0] === 'log:3', JSON.stringify(s.slice(9, 15)));
 
+  // ------------------------------------------------------------ druhá ruka: políčko pod brněním, Shift + klik se štítem, předmět vlastníka ne
+  await ev(() => { window.game.inv.off[0] = null; });
+  await setInv({ 9: S('shield', 1), 10: S('torch', 5) });
+  const ghostOff = await ev(() => !!document.querySelector('#craftArea .slot.ghost[data-c="off"] img'));
+  a = await box(slot(9));
+  await page.keyboard.down('Shift'); await page.mouse.click(a.x, a.y); await page.keyboard.up('Shift');
+  const shiftOff = await ev(() => window.game.inv.off[0]?.id);
+  await setInv({ 10: S('torch', 5) }, S('owner_wand', 1));
+  await page.click('#craftArea .slot[data-c="off"]');
+  const ownerRefused = await ev(() => window.game.inv.off[0]?.id === 'shield' && window.game.inv.cursor?.id === 'owner_wand');
+  await setInv({ 10: S('torch', 5) });
+  a = await box(slot(10));
+  await page.mouse.click(a.x, a.y);
+  await page.click('#craftArea .slot[data-c="off"]');
+  const swapped = await ev(() => ({ off: window.game.inv.off[0]?.id, cur: window.game.inv.cursor?.id }));
+  await ev(() => { const g = window.game; g.inv.off[0] = null; g.inv.cursor = null; g.invTricks.refresh(); });
+  check('second hand: an empty slot under the armor (shield outline), Shift-click puts a shield there, clicking swaps, owner items are refused', ghostOff && shiftOff === 'shield' && ownerRefused && swapped.off === 'torch' && swapped.cur === 'shield', JSON.stringify({ ghostOff, shiftOff, ownerRefused, swapped }));
+
   // ------------------------------------------------------------ crafting: preview, Shift-click craft-all, Space = again
   await setInv({ 9: S('log', 3), 10: S('planks', 4) });
   await page.hover('#recipes .slot[data-r]:not(.no)');
