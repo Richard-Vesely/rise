@@ -8,7 +8,7 @@ import { ownerItem } from '../../../shared/data/magic.js';
 import { applySpread, gatherInto, maxOf, pickItem, sortSlots, spreadPlan } from '../../../shared/inventory.js';
 import { blocks, chestOf, vehicles } from '../../../shared/world/state.js';
 import { VOX } from '../../../shared/world/voxels.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { chatOpen } from '../net/mp-ui.js';
 import { pcOpen } from '../pc/computer.js';
 import { QUALITY } from '../game/prefs.js';

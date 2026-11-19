@@ -119,5 +119,3 @@ export function updateArrows(dt) {
   }
 }
 function remove(i) { scene.remove(arrows[i].mesh); arrows.splice(i, 1); }
-/** Pro testy (window.game): kolik šípů letí nebo je zabodnutých. */
-export const arrowCount = () => arrows.length;

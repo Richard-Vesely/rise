@@ -3,8 +3,6 @@
 const R = (a, b) => a + Math.random() * (b - a);
 const P0 = { prio: 0 }; // zvuky okolí ustoupí důležitějším
 
-export const BIRDS = ['warbler', 'tit', 'cuckoo', 'dove', 'woodpecker', 'jungle', 'parrot'];
-
 export const VOICES = {
   // ---------- tvorové (stejné zvuky u hostitele i u připojených hráčů)
   mobVoice(type) {

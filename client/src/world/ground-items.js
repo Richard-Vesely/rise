@@ -9,7 +9,7 @@ import { NET } from '../../../shared/net/net.js';
 import { THROW_DELAY, groundItems, popGroundItem, spawnGroundItem, updateGroundItems } from '../../../shared/sim/ground-items.js';
 import { PH } from '../../../shared/world/constants.js';
 import { Sound } from '../audio/sound.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { iconVoxels } from '../dining/food-models.js';
 import { addItem, heldStack, inv } from '../player/inventory.js';
 import { creative, player } from '../player/player.js';

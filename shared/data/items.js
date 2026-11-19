@@ -2,7 +2,6 @@
 // Data se doplňují v blocks.js a tech.js; ostatní kód je bere ze shared/data/index.js.
 // ============================================================ předměty a recepty
 // Úrovně materiálu: 1 dřevo, 2 kámen, 3 železo, 4 krystal, 5 markorit (nejlepší).
-const TIER_COLOR = { 1: '#a0784a', 2: '#a8a8a8', 3: '#eef0f6', 4: '#7ff3ff', 5: '#e070ff' };
 export const TOOL_SPEED = { 1: 2, 2: 4, 3: 6, 4: 8, 5: 10 };
 // Odolnost (kolik použití vydrží) podle materiálu: dřevo, kámen, železo, krystal, markorit (shared/tools.js).
 export const TOOL_DUR = { 1: 59, 2: 131, 3: 250, 4: 900, 5: 2000 };
