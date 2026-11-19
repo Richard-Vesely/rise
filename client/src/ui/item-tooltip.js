@@ -37,7 +37,8 @@ const DESC = {
   jet: 'Stíhačka: létá jako dvouplošník, ale s 3× silnějším motorem. Postav ji na zem a nastup (F).',
   xp_potion: 'Jen pro vlastníka serveru. Pravé tl. = vypiješ: dá přesně tolik XP, kolik chybí do další úrovně (a vybereš si kouzlo). Nikdy nedojde.',
   owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora kdekoli, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
-  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
+  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku (nejdřív bere šípy ze druhé ruky). Zabodnutý šíp můžeš zase sebrat.',
+  shield: 'Dej ho do druhé ruky (F). Drž pravé tlačítko a zastaví útok zepředu.',
 };
 // V kolika receptech je předmět surovinou
 const USED_IN = new Map();

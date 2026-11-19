@@ -303,6 +303,18 @@ When you add or change a feature, update this file in the same pull request.
   **workshop** (*Dílna*). ~260 recipes in 12 categories with a recipe book and "only what I can make".
   A **search box** (🔍 *Hledat…*) above the book filters it by item name (accents optional, so *zelezo* finds *Železo*);
   it works for recipes, the creative item list, the campfire, the furnace and the stove cookbook, and is cleared when the window closes.
+- **Second hand** (like Minecraft): one more slot under the armor in the backpack (a shield outline when empty); **F** swaps the
+  item in the hand with the second hand (aiming at a vehicle, F still gets in). Any item can be held there (not the owner's
+  wand or potion) and is shown in the left hand, in first person and to other players (pose `oh`). A **shield** (*Štít*:
+  planks + iron, `PIP / PPP / _P_`) guards while the right button is held, in either hand (in the second hand only while the
+  main hand is empty or holds a sword, axe, pickaxe, shovel or armor): a hit from the front (about ±70°: mobs, the dragon,
+  swords and arrows of other players) is stopped and only pushes a little, the shield wears by 1 (336 blocks); from behind
+  it doesn't help, and the owner's Avada Kedavra goes through. Other players see the raised arm (pose `bl`). Shift + click
+  puts a shield from the backpack into the second hand. A **torch** in either hand lights the area around you. A **block**
+  in the second hand is placed with the right button (with the white outline) while the main hand is empty or holds a tool,
+  weapon or armor. The **bow** takes arrows from the second hand first. On death the second hand drops too; the arena
+  empties it. Saved in the browser and on the server (`off`). Code: `client/src/player/offhand.js`, the left hand in
+  `client/src/render/offhand-view.js`, the shield model `client/src/render/shield-model.js`.
 - **Chest** (*Truhla*, 27 slots).
 - **Safe** (*Trezor*, 27 slots, recipe in the backpack: a chest + 3 stones). The first time it is opened the player
   makes up a code (4–8 digits, typed twice); after that it opens only with that code (3 wrong tries → a short wait

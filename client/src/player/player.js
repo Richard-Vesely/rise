@@ -33,6 +33,7 @@ import { hasPerk } from './bonus.js';
 import { ghost, toggleGhost } from './ghost.js';
 import { resetUseCd, target } from './interaction.js';
 import { inv } from './inventory.js';
+import { swapHands } from './offhand.js'; // (po interaction.js: offhand.js bere opotřebení z durability.js)
 import { togglePvp } from './pvp.js';
 import { holdingWand, nextSpell, toggleBook } from './xp.js';
 
@@ -107,9 +108,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyC' && !e.repeat && !invOpen) { setCreative(!creative); return; }
   if (e.code === 'KeyG' && !e.repeat && !invOpen && (isLocked() || game.testMode)) { dropHeld(e.shiftKey); return; }
   // Vozidla: F nastoupit / vystoupit (i jako spolujezdec), L světla, B klakson (kolo zvonek, loď houkačka), N nitro,
-  // 1/2/3 převod na kole, V kamera (první / třetí osoba)
+  // 1/2/3 převod na kole, V kamera (první / třetí osoba). Jinak F prohodí předmět v ruce s druhou rukou (offhand.js).
   if (e.code === 'KeyF' && !e.repeat && !invOpen && (isLocked() || game.testMode)) {
-    if (player.vehicle || player.riding) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id);
+    if (player.vehicle || player.riding) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id); else swapHands();
     return;
   }
   if (player.riding && !e.repeat && ['KeyL', 'KeyB', 'KeyN', 'KeyV'].includes(e.code)) return; // spolujezdec neřídí

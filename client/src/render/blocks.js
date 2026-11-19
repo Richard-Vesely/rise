@@ -18,7 +18,7 @@ import { buildCropModel } from '../machines/kitchen.js';
 import { buildGarageModel } from '../machines/garage-model.js';
 import { buildSafeModel } from '../machines/safe-model.js';
 import { buildElecModel, rebuildCables } from '../machines/power.js';
-import { heldStack } from '../player/inventory.js';
+import { heldStack, inv } from '../player/inventory.js';
 import { player } from '../player/player.js';
 import { dummy, lumpy } from './forest.js';
 import { U, camera, scene } from './renderer.js';
@@ -437,8 +437,8 @@ export function updateLights(time) {
   const p = player.pos;
   const d2 = (s) => (s.x + 0.5 - p.x) ** 2 + (s.ry - p.y) ** 2 + (s.z + 0.5 - p.z) ** 2;
   list.sort((a, b) => d2(a) - d2(b));
-  // Pochodeň v ruce svítí kolem hráče (v jeskyních k nezaplacení).
-  const heldTorch = heldStack()?.id === 'torch';
+  // Pochodeň v ruce (i ve druhé ruce, player/offhand.js) svítí kolem hráče (v jeskyních k nezaplacení).
+  const heldTorch = heldStack()?.id === 'torch' || inv.off?.[0]?.id === 'torch';
   lightPool.forEach((l, i) => {
     // plamen mihotá 2–3× za sekundu o ±15 %
     const flick = 0.92 + 0.09 * Math.sin(time * 14.5 + i * 1.7) + 0.045 * Math.sin(time * 33 + i * 3) + 0.025 * Math.sin(time * 71 + i);

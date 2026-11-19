@@ -56,6 +56,17 @@ export function wearHeld(cost) {
   return false;
 }
 /**
+ * Opotřebuje předmět mimo hlavní ruku (štít při krytí, player/offhand.js). Vrací true, když se rozbil;
+ * políčko pak vyprázdní volající. at = kde vyletí úlomky.
+ */
+export function wearOther(s, cost, at) {
+  if (creative || !s || !cost) return false;
+  const was = isLow(s);
+  if (wear(s, cost)) { broke(s, at); return true; }
+  if (!was && isLow(s)) warnLow(s);
+  return false;
+}
+/**
  * Zásah do hráče opotřebuje každý nošený kus brnění (1 za každých 20 zranění, nejméně 1).
  * @param {number} dmg zranění před ztlumením brněním
  * @param {number[]} at kde jsou úlomky (hráč)
