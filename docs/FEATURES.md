@@ -121,7 +121,10 @@ When you add or change a feature, update this file in the same pull request.
   black (nights and caves are dark but readable). All look numbers can be tuned live in the console (`game.LK`).
   - **Grafika Automaticky** picks the tier from the graphics card (`client/src/game/gpu.js`): separate card → *vysoká*,
     integrated (Intel, AMD Radeon Graphics, Apple) → *střední*, software WebGL (CI) or touch device → *nízká*.
-    The Settings window shows what Automaticky chose.
+    The Settings window shows what Automaticky chose. On a **weak integrated GPU** (plain Intel UHD/HD Graphics, not
+    Iris Xe or Arc; `gpuWeak`) *střední* is trimmed so it stays smooth: about 45 % fewer grass blades with 3 segments,
+    leaf clusters only up to 25 m and detailed crowns up to 30 m, fewer rain drops and particles, and dynamic
+    resolution may go down to 55 %.
   - **Day and night**: golden hour with long warm shadows, a **sunset** with an orange-to-pink horizon and violet sky
     (about 17:00–19:30), stars only after dusk, a moon that lights the land in cool blue and casts shadows, fireflies
     that pulse gently. Sky light fills shadows (about a third of the sun) so shadows are never black.
@@ -152,8 +155,9 @@ When you add or change a feature, update this file in the same pull request.
     beyond ~250 m (no wall of lines on the horizon; the compass still shows shards), at night all of them shine.
   - **Powered cables** show their metal (copper, gold) and carry **cyan pulses**; faster pulses = more power used.
   - **Grafika: střední / vysoká** draw through a post-processing chain (`client/src/render/post.js`, `postprocessing`
-    + `n8ao`): HDR; sun/moon **shadows** (`shadows.js`: one map that follows the player, 20–30 updates per second; near
-    trees cast shadows through invisible copies); **height fog coloured by the sky** in the view direction (bluer away
+    + `n8ao`): HDR; sun/moon **shadows** (`shadows.js`: one map that follows the player, 15–30 updates per second
+    (15 on integrated graphics with *střední*); near trees cast shadows through invisible copies; caves without a hole
+    from the surface are left out of the shadow map); **height fog coloured by the sky** in the view direction (bluer away
     from the sun, warmer toward it) plus a distant lighter mountain ridge; **bloom** on lights, lava, crystals and neon;
     AgX tone mapping with hue protection (no orange-to-red shift), cool shadows and warm highlights, moonlit blue
     nights; **eye adaptation** (up to +0.8 EV at night, +1.2 EV in caves, over ~1.5 s); **clouds** lit by the sun with
@@ -161,10 +165,16 @@ When you add or change a feature, update this file in the same pull request.
     - *vysoká*: MSAA 2×, sun **shafts** (16 steps, only when looking toward the sun), 2048 px shadows and **ambient
       occlusion** (N8AO, half resolution) on a separate graphics card; 1024 px shadows and no AO on integrated graphics.
     - *střední* (the club laptops): 1024 px shadows, no AO or shafts, FXAA instead of MSAA.
-    - **Dynamic resolution** drops to 60–70 % when a frame takes over ~18 ms and comes back when there is headroom.
+    - **Dynamic resolution** drops to 60–70 % (55 % on a weak integrated GPU) when a frame takes over ~18 ms and comes back when there is headroom.
       With a window open (backpack, computer, guide, *Můj oblek*) the world behind it renders at half resolution without AO.
   - **Grafika: nízká** stays as cheap as before (no composer, no shadows, ACES); it still gets the warm-white fire light,
     wind, weather, dusk sky, simple water, reeds, embers, cave edges and ore light. CI renders with it.
+  - **Smoothness** (no stutters): sky reflections are redrawn into the same buffers (every ~15 s, more often at dusk and
+    dawn), the forest uploads only the trees it uses, block changes from the rules (a torch falls, a ruin appears) and
+    from other players are merged into one rebuild per frame (other players: at most 5× a second; your own building shows
+    at once), a growing crop or food on a table rebuilds only that one model, and the HUD writes to the page only what changed.
+    Measure: `npm run perf` (`tests/playtest/perf.mjs`: frame times while flying and building; `PERF_GPU=1` uses the real
+    graphics card, `PERF_CPU=4` slows the processor like a weak laptop; headless numbers are only indicative).
   - Screenshots for comparing graphics: `node tests/playtest/shots.mjs dist <out> [--quality low|medium|high|auto]
     [--perf] [--views all] [--jpeg] [--size WxH] [--timeout s] [--skipdraw]` (fixed views at 1600×900, `--views all` adds golden hour, night, rain, dawn fog and the
     Mark dimension; `--perf` writes ms per frame).
