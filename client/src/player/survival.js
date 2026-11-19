@@ -25,10 +25,12 @@ import { ownerItem } from '../../../shared/data/magic.js';
 import { BONUS_DEFENSE } from '../../../shared/data/bonus.js';
 import { hasPerk } from './bonus.js';
 import { endGhost } from './ghost.js';
+import { shieldBlocks } from './offhand.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
   if (!player.alive || creative) return;
+  if (shieldBlocks(dx, dz)) { player.vel.x += dx * 1.5; player.vel.z += dz * 1.5; player.shake = 0.05; return; } // štít zepředu: jen kousek odhodí (offhand.js)
   if (magic.wardT > 0) amount *= 0.5; // kouzlo Ochranný štít (xp.js)
   if (hasPerk('obrana')) amount *= BONUS_DEFENSE; // bonus pro dárce Velká obrana (bonus.js)
   endGhost('Něco tě zranilo: duch je zpátky v těle'); // teleport duchem (ghost.js)
@@ -77,7 +79,7 @@ function die() {
     toast(jail ? (lost ? 'Jsi zase ve vězení. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Jsi zase ve vězení.') : lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
   }, 2600);
 }
-// Smrt: všechno z batohu, kurzoru a brnění vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
+// Smrt: všechno z batohu, kurzoru, brnění a druhé ruky vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
 // (shared/sim/ground-items.js DESPAWN). Vrací, kolik políček vypadlo.
 function dropEverything() {
   const { x, y, z } = player.pos;
@@ -87,6 +89,7 @@ function dropEverything() {
   if (ownerItem(inv.cursor?.id)) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = inv.cursor; } else drop(inv.cursor);
   inv.cursor = null;
   armor.forEach((s, i) => { drop(s); armor[i] = null; });
+  drop(inv.off[0]); inv.off[0] = null; // i druhá ruka (předmět vlastníka tam být nemůže, offhand.js)
   refreshUI();
   return n;
 }

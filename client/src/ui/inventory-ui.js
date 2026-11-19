@@ -32,7 +32,7 @@ import { iconImg, paintHotbar, slotHTML, slotInner } from './slots.js';
 import { clearBookSearch, filterBook, installBookSearch } from './book-search.js';
 import { DON, renderDonationUI, takeDonation } from './donation-ui.js';
 import { afterRender, installInvTricks, previewGhost, previewRecipe, slotDown, sortContainer } from './inv-tricks.js';
-import { XP_COOK, XP_CRAFT } from '../../../shared/data/magic.js';
+import { XP_COOK, XP_CRAFT, ownerItem } from '../../../shared/data/magic.js';
 import { addXp } from '../player/xp.js';
 export { iconImg, slotHTML };
 
@@ -45,7 +45,7 @@ export const armor = save?.armor || [null, null, null, null]; // helma, brnění
 export const armorPoints = () => armor.reduce((n, s) => n + (s ? ITEMS[s.id].armor.pts : 0), 0);
 // Celá sada speciálního brnění (všechny 4 kusy stejné sady) dává bonus.
 export const fullSet = () => { const s0 = armor[0] && ITEMS[armor[0].id].armor.set; return s0 && armor.every((a) => a && ITEMS[a.id].armor.set === s0) ? s0 : null; };
-export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots, dar: () => DON.slot })[c]();
+export const container = (c) => ({ inv: () => inv.slots, craft: () => ui.craft, armor: () => armor, off: () => inv.off, chest: () => chestOf(ui.fireKey), fire: () => fireOf(ui.fireKey).slots, furnace: () => furnaceOf(ui.fireKey).slots, power: () => powerOf(ui.fireKey).slots || [], car: () => vehicles.get(ui.fireKey)?.slots || [], kitchen: () => stoveOf(ui.fireKey).slots, dar: () => DON.slot })[c]();
 
 export function renderHotbar() { paintHotbar(inv.slots, inv.sel); }
 /** Pec bere nahoru jen to, co se taví, a dolů jen palivo (jako v Minecraftu). Vrací důvod odmítnutí, nebo null. */
@@ -102,6 +102,7 @@ export function renderCraftArea() {
   // Brnění (jen v inventáři): 4 políčka, prázdná ukazují obrys.
   const armorCol = ui.mode !== 'inv' ? '' : `<div class="armor-col">${armor.map((s, i) => s ? slotHTML(s, i, '', 'armor')
     : `<div class="slot ghost" data-c="armor" data-i="${i}" title="${ARMOR_SLOT_NAMES[i]}">${iconImg(`iron_${ARMOR_SLOTS[i]}`)}</div>`).join('')}
+    ${inv.off[0] ? slotHTML(inv.off[0], 0, 'offhand', 'off') : `<div class="slot ghost offhand" data-c="off" data-i="0" title="Druhá ruka (F prohodí s rukou)">${iconImg('shield')}</div>`}
     <div class="armor-pts">🛡 ${armorPoints()}</div><button class="mc-btn cos-open" id="costumeBtn" title="Můj oblek (O)">Oblek</button></div>`;
   area.innerHTML = `<div class="mc-title">${ui.mode === 'adv' ? 'Dílna (pokročilý pracovní stůl)' : ui.mode === 'bench' ? 'Pracovní stůl' : 'Brnění a výroba'}</div>
     <div class="craft-ui">${armorCol}
@@ -223,6 +224,7 @@ export function quickMove(c, i, s) {
   const piece = ITEMS[s.id].armor;
   if (c !== 'inv') left = insertInto(s, 0, 36);
   else if (ui.mode === 'inv' && piece && !armor[piece.slot]) { armor[piece.slot] = s; left = 0; }
+  else if (ui.mode === 'inv' && ITEMS[s.id].shield && !inv.off[0]) { inv.off[0] = s; left = 0; } // štít Shiftem do druhé ruky
   else if (ui.mode === 'chest') left = insertStack(chestOf(ui.fireKey), s);
   else if (ui.mode === 'dar' && !DON.slot[0]) { DON.slot[0] = s; left = 0; } // dar (pošle se při překreslení okna)
   else if (ui.mode === 'car' && vehicles.get(ui.fireKey)) { // do kufru (autobaterie do jejího místa)
@@ -268,6 +270,7 @@ export function slotClick(c, i, button, shift) {
   }
   const deny = (text) => { uiSound.deny(); if (text) toast(text); };
   if (c === 'armor' && inv.cursor && ITEMS[inv.cursor.id].armor?.slot !== i) return deny(ITEMS[inv.cursor.id].armor ? `Sem patří: ${ARMOR_SLOT_NAMES[i]}` : 'Sem patří jen brnění'); // do políčka jen správný kus brnění
+  if (c === 'off' && ownerItem(inv.cursor?.id)) return deny('Tohle do druhé ruky nejde'); // předměty vlastníka jen v batohu (server/owner-wand.js)
   if (c === 'power' && i === 0 && inv.cursor && blocks.get(ui.fireKey) === 'printer' && inv.cursor.id !== 'paper') return deny('Do tiskárny patří papír'); // do tiskárny jen papír
   if (c === 'car' && i === 0 && inv.cursor && !['car_battery', 'car_battery_empty'].includes(inv.cursor.id)) return deny('Sem patří autobaterie'); // místo na autobaterii
   if (c === 'furnace' && inv.cursor && furnaceRefuses(i, inv.cursor.id)) return deny(furnaceRefuses(i, inv.cursor.id)); // surovina nahoru, palivo dolů

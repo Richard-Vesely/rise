@@ -18,6 +18,7 @@ export function arenaReset() {
   const keep = [...inv.slots, inv.cursor].filter((s) => ownerItem(s?.id)); // předměty vlastníka (hůl, lektvar) zůstávají
   inv.slots.fill(null);
   inv.cursor = null;
+  inv.off[0] = null; // druhá ruka (offhand.js) taky prázdná
   KIT.forEach(([id, n], i) => { inv.slots[i] = { id, n }; });
   for (const s of keep) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = s; }
   inv.sel = 0;

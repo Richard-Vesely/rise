@@ -211,3 +211,4 @@ body.inv-open #hotName, #inventory[style*="grid"] ~ #hotName { opacity: 0; }
   border: 2px solid var(--inv-glow); box-shadow: 0 0 10px var(--inv-glow-soft); }
 #settings input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #e8f9ff; border: 2px solid var(--inv-glow); }
 body.gfx-low #menu .mc-panel, body.gfx-low #settings .mc-panel, body.gfx-low #pause .mc-panel, body.gfx-low #settings { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.armor-col .offhand { margin-top: 6px; } /* druhá ruka pod brněním (player/offhand.js) */
