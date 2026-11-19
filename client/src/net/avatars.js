@@ -26,6 +26,7 @@ import { armor, fullSet, invOpen, ui } from '../ui/inventory-ui.js';
 import { carCam, hornN, seatWorld, vehMeshes, vehPose } from '../vehicles/car.js';
 import { kindOf } from '../vehicles/kinds.js';
 import { ghost } from '../player/ghost.js';
+import { guardHand } from '../player/offhand.js';
 
 // ---------- můj oblek: z prohlížeče (podle jména), na serveru kroužku novější verze z profilu
 let myCostume = loadCostume(NET.name);
@@ -256,7 +257,7 @@ export function updateLocalBody(dt, moving) {
   me.anim.hurtSeen = player.lastHurt;
   animateCharacter(me, s, dt);
   effects(me, s, me.group.position, dt);
-  if (player.blocking) guardPose(me, player.blocking === 'off' ? 2 : 1);
+  if (guardHand()) guardPose(me, guardHand() === 'off' ? 2 : 1);
 }
 
 export function myPose() {
@@ -267,6 +268,6 @@ export function myPose() {
     veh: vehPose(), hn: hornN, ...(player.riding ? { rd: { id: player.riding.id, s: player.riding.s } } : {}),
     ar: armor.map((a) => a?.id || null), sit: player.sitting ? 1 : 0, fly: player.flying ? 1 : 0, flyT: player.flyT > 0 ? 1 : 0, alive: player.alive, cr: creative ? 1 : 0, set: fullSet(), hp: Math.round(player.hp),
     lk: myLk, ...(player.sneaking ? { sn: 1 } : {}), ...(NET.pvpOn ? { pv: 1 } : {}), // pv = zapnuté souboje (klávesa N)
-    ...(inv.off[0] ? { oh: inv.off[0].id } : {}), ...(player.blocking ? { bl: player.blocking === 'off' ? 2 : 1 } : {}), // druhá ruka a krytí štítem (1 hlavní, 2 druhá ruka)
+    ...(inv.off[0] ? { oh: inv.off[0].id } : {}), ...(guardHand() ? { bl: guardHand() === 'off' ? 2 : 1 } : {}), // druhá ruka a krytí štítem (1 hlavní, 2 druhá ruka)
   };
 }

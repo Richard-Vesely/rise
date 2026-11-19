@@ -50,12 +50,14 @@ export function updateShield(busy) {
 }
 /** Krytí skončí (pravé tlačítko si vzal luk, hůl nebo vychytávka). */
 export function stopGuard() { player.blocking = null; }
+/** Kterou rukou se hráč právě kryje ('main' / 'off'), nebo null. Ve vozidle se nekryje (interaction.js tam neběží). */
+export const guardHand = () => (player.vehicle || player.riding ? null : player.blocking || null);
 /**
  * Zastaví štít útok? dx, dz = směr od útočníka k hráči. Kryje zepředu (asi ±70°).
  * Při krytí se štít opotřebuje o 1 a zazní úder do dřeva; rozbitý štít zmizí z ruky.
  */
 export function shieldBlocks(dx, dz) {
-  if (!player.blocking || (!dx && !dz)) return false;
+  if (!guardHand() || (!dx && !dz)) return false;
   const front = Math.sin(player.yaw) * dx + Math.cos(player.yaw) * dz; // > 0: útočník je před hráčem (pohled = (−sin yaw, −cos yaw))
   if (front < 0.35 * Math.hypot(dx, dz)) return false;
   const main = player.blocking === 'main', s = main ? heldStack() : offStack();
