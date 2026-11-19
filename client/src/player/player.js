@@ -13,9 +13,10 @@ import { materialAt } from '../audio/materials.js';
 import { Sound } from '../audio/sound.js';
 import { MP } from '../game/boot.js';
 import { game } from '../game/debug.js';
-import { TOUCH, lookSens } from '../game/prefs.js';
+import { TOUCH, lookSens, prefStr } from '../game/prefs.js';
 import { save } from '../game/save-load.js';
 import { toggleView } from '../net/avatars.js';
+import { setBodyMode } from './body-control.js';
 import { openChat } from '../net/mp-ui.js';
 import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
@@ -313,3 +314,15 @@ export function updatePlayer(dt) {
   camera.rotation.set(player.pitch, player.yaw, 0);
   return moving;
 }
+
+// Ovládání tělem přes webkameru (Nastavení → Ovládání tělem): MediaPipe se stáhne, až když ho hráč zapne.
+// (Obyčejný import: import() na požádání rozdělil balíček hry a hra se spouštěla už v menu.)
+let bodyMode = '';
+function applyBodyMode() {
+  const m = ['knees', 'lean', 'hands'].includes(prefStr('body')) ? prefStr('body') : '';
+  if (m === bodyMode) return;
+  bodyMode = m;
+  setBodyMode(m || null);
+}
+applyBodyMode();
+addEventListener('rise-prefs', applyBodyMode);

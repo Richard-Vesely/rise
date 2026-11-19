@@ -372,3 +372,5 @@ RECIPES.push(
 );
 // Čarovná hůl: klacek a stínová esence (od stínožroutů)
 RECIPES.push({ out: 'wand', n: 1, shape: [' E', 'T '], key: { E: 'essence', T: 'stick' }, cat: 'tools' });
+// Trezor (truhla na kód): snadno vyrobitelný už v batohu – truhla a tři kameny.
+RECIPES.push({ out: 'safe', n: 1, shape: ['SS', 'SC'], key: { S: 'stone', C: 'chest' } });

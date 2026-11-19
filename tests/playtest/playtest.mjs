@@ -139,6 +139,47 @@ try {
   }, placed);
   check('break the placed block and get it back', r.gone && r.planks === 10, JSON.stringify(r));
 
+  // ------------------------------------------------------------ safe (Trezor): a chest with a code that can't be mined
+  r = await ev(() => {
+    const g = window.game, $ = (id) => document.getElementById(id), res = {};
+    T.clearInv(); T.give('safe', 1); T.give('iron_pick', 1); T.hold('safe');
+    T.tpg(10, 30); T.step(5); g.mobs.length = 0;
+    const x = 10.5, z = 27.5;
+    T.aim(x, g.groundHeight(x, z), z);
+    const old = new Set(g.blocks.keys());
+    g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(1, 0.0001);
+    const k = [...g.blocks.keys()].find((q) => !old.has(q) && g.blocks.get(q) === 'safe');
+    if (!k) return { placed: false };
+    const [bx, by, bz] = k.split(',').map(Number), aim = () => T.aim(bx + 0.5, by + 0.5, bz + 0.5);
+    T.hold('iron_pick'); aim();
+    res.breakable = g.target?.breakable;
+    T.mineUntil(() => !g.blocks.has(k), 200);
+    res.stays = g.blocks.get(k) === 'safe';
+    T.holdNothing(); aim(); g.useItem(); // nový trezor: vymyslet kód dvakrát
+    res.ask = g.ui.mode === 'safe' && !!$('safeCode2');
+    $('safeCode').value = '4711'; $('safeCode2').value = '4712'; $('safeGo').click();
+    res.mismatch = g.ui.mode === 'safe' && /neshodují/.test(T.text('safeMsg'));
+    $('safeCode2').value = '4711'; $('safeGo').click();
+    res.opened = g.ui.mode === 'chest' && !!$('safeTake');
+    g.chests.get(k)[0] = { id: 'stone', n: 3 };
+    $('safeTake').click(); T.step(1, 0.0001);
+    res.full = g.blocks.get(k) === 'safe';
+    g.closeInventory();
+    g.openInventory('safe', k); // zamčený: špatný kód neotevře
+    $('safeCode').value = '1234'; $('safeGo').click();
+    res.wrong = g.ui.mode === 'safe' && /Špatný/.test(T.text('safeMsg'));
+    $('safeCode').value = '4711'; $('safeGo').click();
+    res.right = g.ui.mode === 'chest';
+    g.chests.get(k)[0] = null; g.closeInventory(); g.openInventory('safe', k);
+    $('safeCode').value = '4711'; $('safeGo').click();
+    $('safeTake').click(); T.step(1, 0.0001);
+    res.taken = !g.blocks.has(k) && T.count('safe') === 1;
+    g.closeInventory();
+    return res;
+  });
+  check('safe: can not be mined, asks for a new code twice, opens only with the right code, taken back only when empty',
+    r.breakable === false && r.stays && r.ask && r.mismatch && r.opened && r.full && r.wrong && r.right && r.taken, JSON.stringify(r));
+
   // ------------------------------------------------------------ digging
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('stone_shovel', 1); T.hold('stone_shovel');
@@ -223,6 +264,7 @@ try {
   check('tools: a mined block wears the pickaxe by 1 and shows a durability bar', r.w === 1 && r.bar && r.stone === 1, JSON.stringify(r));
   r = await ev((k) => {
     const g = window.game; g.inv.slots[0].w = 58;
+    g.mobs.length = 0; // jinak může poslední ránu schytat tvor: krumpáč se rozbije o něj a kámen holou rukou nepadne
     g.blocks.set(k, 'cobble'); g.rebuildBlocks(); T.step(8);
     const [x, y, z] = k.split(',').map(Number);
     T.aim(x + 0.5, y + 0.5, z + 0.5);

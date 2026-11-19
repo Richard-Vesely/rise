@@ -15,6 +15,7 @@ import { save } from '../game/save-load.js';
 import { fillFurnace, renderFurnace } from '../machines/furnace.js';
 import { kitchenMissing, renderKitchen, startCooking } from '../machines/kitchen.js';
 import { renderPowerUI } from '../machines/power.js';
+import { renderSafe, safeTitle, takeSafe } from '../machines/safe.js';
 import { addItem, countItem, findRecipe, hasFor, insertInto, inv, recipeNeeds, removeItem } from '../player/inventory.js';
 import { creative, input, lockPointer, setCreative, setResetting, unlockPointer } from '../player/player.js';
 import { enterVehicle, renderCarUI } from '../vehicles/car.js';
@@ -69,9 +70,11 @@ export function renderCraftArea() {
   if (ui.mode === 'car') return renderCarUI(area);
   if (ui.mode === 'garage') return renderGarageUI(area, ui.fireKey);
   if (ui.mode === 'dar') return renderDonationUI(area);
+  if (ui.mode === 'safe') return renderSafe(area, ui.fireKey, () => { ui.mode = 'chest'; renderInventory(); }, closeInventory); // nejdřív kód
   if (ui.mode === 'chest') {
     const c = chestOf(ui.fireKey);
-    area.innerHTML = `<div class="mc-title">Truhla <button class="mc-btn mini" data-sort="chest" title="Sloučí a seřadí předměty v truhle"><i class="ico-sort"></i>Seřadit</button></div><div class="grid">${c.map((s, i) => slotHTML(s, i, '', 'chest')).join('')}</div><div class="mc-note">Shift + klik přesune předmět mezi truhlou a batohem · Shift + 2× klik přesune všechny stejné.</div>`;
+    area.innerHTML = `<div class="mc-title">${blocks.get(ui.fireKey) === 'safe' ? safeTitle() : 'Truhla'} <button class="mc-btn mini" data-sort="chest" title="Sloučí a seřadí předměty v truhle"><i class="ico-sort"></i>Seřadit</button></div><div class="grid">${c.map((s, i) => slotHTML(s, i, '', 'chest')).join('')}</div><div class="mc-note">Shift + klik přesune předmět mezi truhlou a batohem · Shift + 2× klik přesune všechny stejné.</div>`;
+    $('safeTake')?.addEventListener('click', () => { const why = takeSafe(ui.fireKey); if (why) toast(why); else closeInventory(); });
     return;
   }
   if (ui.mode === 'fire') {
@@ -120,8 +123,8 @@ function renderCatTabs(show) {
   if (el.innerHTML !== html) el.innerHTML = html;
 }
 function renderBook() {
-  document.querySelector('.mc-book').style.display = ui.mode === 'chest' || ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage' || ui.mode === 'dar' ? 'none' : '';
-  if (ui.mode === 'power' || ui.mode === 'car' || ui.mode === 'garage' || ui.mode === 'dar') return;
+  document.querySelector('.mc-book').style.display = ['chest', 'safe', 'power', 'car', 'garage', 'dar'].includes(ui.mode) ? 'none' : '';
+  if (['safe', 'power', 'car', 'garage', 'dar'].includes(ui.mode)) return;
   renderCatTabs(['inv', 'bench', 'adv'].includes(ui.mode) && !(creative && ui.mode === 'inv'));
   if (ui.mode === 'chest') return;
   if (ui.mode === 'kitchen') {

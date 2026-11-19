@@ -180,7 +180,7 @@ export function pullTarget(from, kind, id, x, y, z) {
   x = Number(x); y = Number(y); z = Number(z);
   if (![x, y, z].every(Number.isFinite)) return false;
   const me = playerOf(from)?.pose;
-  if (me && Math.hypot(me.x - x, me.y - y, me.z - z) > 5) return false;
+  if (me ? Math.hypot(me.x - x, me.y - y, me.z - z) > 5 : from !== 'host') return false; // hráč bez polohy nepřitahuje nic (hostitel bez polohy = hra pro jednoho)
   if (kind === 'm') {
     const m = mobs.find((q) => (q === id || q.nid === id) && !q.dead);
     if (!m) return false;
