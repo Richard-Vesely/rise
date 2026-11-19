@@ -152,8 +152,8 @@ export function tick(realDt) {
   stars.position.copy(camera.position);
   updateClouds();
   updateRidge(FOG.color, underground);
-  // odlesky oblohy (drahé, ~10 ms) jen když se znatelně posunul čas dne, nejpozději po 12 s
-  if ((envTimer += realDt) > 3 && (Math.abs(dayTime - envDay) > 0.012 || envTimer > 12)) { envTimer = 0; envDay = dayTime; updateEnvironment(); }
+  // odlesky oblohy (drahé, několik ms) jen když se znatelně posunul čas dne (za soumraku a svítání častěji), nejpozději po 20 s
+  if ((envTimer += realDt) > 3 && (Math.abs(dayTime - envDay) > (U.twilight.value > 0.02 ? 0.012 : 0.03) || envTimer > 20)) { envTimer = 0; envDay = dayTime; updateEnvironment(); }
   cullFar(realDt);
 
   frames++;
