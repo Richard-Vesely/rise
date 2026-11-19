@@ -13,7 +13,8 @@ import { GPU, QUALITY } from '../game/prefs.js';
  * fog: hustota (× nastavení grafiky), falloff: řídnutí s výškou (1/m), scatter: záře slunce v mlze, skyHaze: opar na obloze u obzoru
  * bloom: záře světel; ao: zastínění koutů a spár (jen vysoká se samostatnou kartou); shafts: sluneční paprsky (vysoká)
  * grade: barevné ladění (power / agxSat = kontrast a sytost uvnitř AgX, hue = ochrana odstínu (zelená tráva zůstane zelená),
- *   sat / contrast = po tónování, cool / warm = studené stíny a teplá světla, vignette = ztmavení rohů, nightTint = barva měsíčního světla)
+ *   sat / contrast = po tónování, cool / warm = studené stíny a teplá světla, vignette = ztmavení rohů, nightTint = barva měsíčního světla,
+ *   lift = zvednutí nejtmavších míst ve dne / v noci a v jeskyni, aby nic nebylo úplně černé)
  * adapt: přizpůsobení oka (EV navíc v noci a v jeskyni, rychlost v s)
  * shadow: soft = měkkost okrajů (texely), strength = jak tmavý je stín
  * water: mělká / hluboká barva, pěna, drsnost; clouds: pokrytí, měkkost, jas; sky: zákal, modř, jas oblohy
@@ -23,11 +24,11 @@ import { GPU, QUALITY } from '../game/prefs.js';
 export const LK = {
   name: 'Jasná budoucnost', tone: 'agx', exposure: 0.85,
   sun: 1.1, amb: 1.12, ambTint: [0.92, 0.95, 1.1], skyAmb: [1.0, 1.0, 1.06], groundAmb: [0.6, 0.55, 0.45],
-  moon: 0.09, nightAmb: [0.05, 0.065, 0.11], caveAmb: [0.07, 0.095, 0.14],
+  moon: 0.11, nightAmb: [0.07, 0.09, 0.15], caveAmb: [0.55, 0.66, 0.88],
   fog: { density: 0.6, falloff: 0.026, scatter: 0.7, skyHaze: 0.32, tint: [0.92, 0.96, 1.04] },
   bloom: { intensity: 0.7, threshold: 1.45, smoothing: 0.3, radius: 0.78 },
   ao: { intensity: 1.5, radius: 0.6 }, shafts: 0.5,
-  grade: { power: 1.25, agxSat: 1.3, hue: 0.55, sat: 1.1, contrast: 1.05, cool: [0.94, 0.98, 1.06], warm: [1.03, 1.0, 0.95], vignette: 0.14, nightTint: [0.43, 0.55, 0.77] },
+  grade: { power: 1.25, agxSat: 1.3, hue: 0.55, sat: 1.1, contrast: 1.05, cool: [0.94, 0.98, 1.06], warm: [1.03, 1.0, 0.95], vignette: 0.14, nightTint: [0.43, 0.55, 0.77], lift: [0.003, 0.0125] },
   adapt: { night: 0.8, cave: 1.2, speed: 1.5 },
   shadow: { soft: 2.2, strength: 0.8 },
   water: { shallow: [0.12, 0.55, 0.6], deep: [0.055, 0.227, 0.267], foam: 0.7, rough: 0.05 },

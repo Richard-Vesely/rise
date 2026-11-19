@@ -6,14 +6,17 @@ import { mobs } from '../../../shared/sim/mobs.js';
 import { REACH } from '../../../shared/world/constants.js';
 import { TREE_NAMES } from '../../../shared/world/nature.js';
 import { bkey, blockMeta, blocks, vehicles } from '../../../shared/world/state.js';
-import { biomeAt, isMark, shrineDist, shrineOf } from '../../../shared/world/terrain.js';
+import { torchBox, torchMeta } from '../../../shared/world/torch.js';
+import { biomeAt, isMark, shrineDist } from '../../../shared/world/terrain.js';
 import { NO_DIG_R, V, VOX, getVox, groundHeight, topY } from '../../../shared/world/voxels.js';
 import { forestRocks, forestTrees } from '../render/forest.js';
 import { isCut } from '../render/grass.js';
 import { camera } from '../render/renderer.js';
-import { rayVehicle, vehDim } from '../vehicles/car.js';
-import { shrineActive } from '../world/shrine.js';
+import { myDriverId, rayVehicle, vehDim } from '../vehicles/car.js';
+import { portals, shrineActive } from '../world/shrine.js';
+import { donorsLine } from '../ui/donation-ui.js';
 import { countItem } from './inventory.js';
+import { rayPlayer } from './pvp.js';
 
 // ============================================================ míření (co je před hráčem)
 export const rayO = new THREE.Vector3(), rayD = new THREE.Vector3();
@@ -35,7 +38,7 @@ function rayBoxes(o, d, cx, cy, cz, boxes) {
   }
   return best;
 }
-function raycastBlocks(o, d, max) {
+export function raycastBlocks(o, d, max) {
   let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
   const sx = Math.sign(d.x), sy = Math.sign(d.y), sz = Math.sign(d.z);
   const tdx = Math.abs(1 / d.x), tdy = Math.abs(1 / d.y), tdz = Math.abs(1 / d.z);
@@ -46,10 +49,11 @@ function raycastBlocks(o, d, max) {
   while (t <= max) {
     const type = blocks.get(bkey(x, y, z));
     if (type && !(t === 0 && !BLOCKS[type].solid)) { // židli, na které sedíš, nezaměříš
-      const sh = BLOCKS[type].shape;
-      if (!sh) return { t, x, y, z, type, normal };
-      // Schody, půlblok…: paprsek musí trefit skutečný tvar (nad půlblokem se dá mířit dál)
-      const hit = rayBoxes(o, d, x, y, z, shapeBoxes(sh, blockMeta.get(bkey(x, y, z)) || 0));
+      const sh = BLOCKS[type].shape, torch = type === 'torch';
+      if (!sh && !torch) return { t, x, y, z, type, normal };
+      // Schody, půlblok…: paprsek musí trefit skutečný tvar (nad půlblokem se dá mířit dál). Pochodeň je tenká: kolem ní
+      // jde vytěžit zeď nebo blok, na kterém drží.
+      const k = bkey(x, y, z), hit = rayBoxes(o, d, x, y, z, torch ? [torchBox(torchMeta(k, x, y, z))] : shapeBoxes(sh, blockMeta.get(k) || 0));
       if (hit && hit.t <= max) return { t: hit.t, x, y, z, type, normal: hit.normal };
     }
     // Podzemní bloky (horní vrstvu sloupce řeší povrch terénu níže v pickTarget).
@@ -63,12 +67,12 @@ function raycastBlocks(o, d, max) {
   }
   return null;
 }
-export function pickTarget() {
+export function pickTarget(reach = REACH) { // reach: kouzla (těžba na dálku, blesk) míří dál
   camera.getWorldPosition(rayO);
   camera.getWorldDirection(rayD);
   const o = rayO, d = rayD;
-  let best = null, bt = REACH;
-  const bh = raycastBlocks(o, d, REACH);
+  let best = null, bt = reach;
+  const bh = raycastBlocks(o, d, reach);
   if (bh?.vox) {
     bt = bh.t;
     best = voxTarget(bh.vox, [bh.x, bh.y, bh.z], bh.normal, [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t], false);
@@ -76,7 +80,7 @@ export function pickTarget() {
     const b = BLOCKS[bh.type];
     bt = bh.t;
     best = { kind: 'block', key: 'b' + bkey(bh.x, bh.y, bh.z), cell: [bh.x, bh.y, bh.z], normal: bh.normal, type: bh.type, name: b.name, point: [o.x + d.x * bh.t, o.y + d.y * bh.t, o.z + d.z * bh.t],
-      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', computer: 'pravé tlačítko = sednout k počítači' }[bh.type] || '', hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
+      hint: { workbench: 'pravé tlačítko = výroba 3×3', campfire: 'pravé tlačítko = pečení a tavení', chest: 'pravé tlačítko = otevřít', safe: 'pravé tlačítko = otevřít kódem · nedá se vytěžit', furnace: 'pravé tlačítko = tavení (surovina nahoru, palivo dolů)', stove: 'pravé tlačítko = vaření', adv_bench: 'pravé tlačítko = dílna', computer: 'pravé tlačítko = sednout k počítači', donation_box: `pravé tlačítko = darovat · ${donorsLine()}`, prison_block: 'vězení: tohle nerozbiješ', prison_gate: 'pravé tlačítko = brána ven', prison_rune: 'pravé tlačítko = dotknout se runy', hell_rock: 'peklo: tohle nerozbiješ', hell_lava: 'láva pálí · prázdný kbelík = kbelík lávy', hell_statue: 'MAREK – BŮH VŠEMOHOUCÍ', hell_altar: 'pravé tlačítko = oltář: cesta z pekla domů', hell_portal: 'pravé tlačítko = vstoupit do pekla', fire_gem_ore: 'ohnivá ruda: potřebuje železný krumpáč' }[bh.type] || (b.fixed ? donorsLine() : ''), breakable: !b.fixed && !b.locked, hard: b.hard, tool: b.tool, req: b.req ? { tool: 'pick', tier: b.req } : null, at: [bh.x + 0.5, bh.y + 0.5, bh.z + 0.5] };
   }
   const a = d.x * d.x + d.z * d.z;
   for (const t of forestTrees) {
@@ -110,25 +114,29 @@ export function pickTarget() {
     if (tt >= bt) continue;
     bt = tt;
     const hint = m.type === 'chicken' ? `vejce: ${m.eggs || 0} · pravé tl. = sebrat` : m.type === 'cow' ? (m.milkT > 0 ? 'podojená' : 'pravé tl. s kbelíkem = podojit')
-      : ['crawler', 'markoman', 'golem', 'wolf'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
+      : ['dragon', 'crawler', 'markoman', 'golem', 'wolf', 'spider'].includes(m.type) ? 'nepřítel' : 'lovná zvěř';
     best = { kind: 'mob', mob: m, name: m.def.name, hint };
   }
+  // Ostatní hráči (jen ve světě se souboji, pvp.js)
+  const ph = rayPlayer(sphere);
+  if (ph && ph.t < bt) { bt = ph.t; best = { kind: 'player', player: ph.player, name: ph.player.name, hint: 'hráč · souboj' }; }
   // Auto
   const vh = rayVehicle(o, d, bt);
   if (vh) {
     bt = vh.t;
     const v = vehicles.get(vh.id);
-    best = { kind: 'vehicle', id: vh.id, key: 'veh' + vh.id, name: vehDim(v.type).name, hint: `F = nastoupit · pravé tl. = kufr a palivo (${v.fuel.toFixed(0)} l) · drž levé = rozebrat`, hard: 4, at: [o.x + d.x * vh.t, o.y + d.y * vh.t, o.z + d.z * vh.t] };
+    const K = vehDim(v.type), busy = v.driver && v.driver !== myDriverId();
+    const enter = busy ? (K.seats.length > 1 ? 'F = přisednout' : 'obsazeno') : v.type === 'bike' ? 'F = nasednout' : 'F = nastoupit';
+    best = { kind: 'vehicle', id: vh.id, key: 'veh' + vh.id, name: K.name, hint: `${enter} · pravé tl. = ${K.trunk.toLowerCase()}${K.fuelMax ? ` a palivo (${v.fuel.toFixed(0)} l)` : ''} · drž levé = rozebrat`, hard: K.wid < 1 ? 1.5 : 4, at: [o.x + d.x * vh.t, o.y + d.y * vh.t, o.z + d.z * vh.t] };
   }
   // Portál ve svatyni (kruh o poloměru 2,4 m, stojí v rovině x–y)
-  const sh = shrineOf(o.x);
-  if (Math.abs(d.z) > 0.05) {
+  for (const sh of portals) if (Math.abs(d.z) > 0.05) {
     const tt = (sh.z - o.z) / d.z, hx = o.x + d.x * tt - sh.x, hy = o.y + d.y * tt - 3.05;
     if (tt > 0 && tt < bt && hx * hx + hy * hy < 2.6 * 2.6) {
       bt = tt;
       const act = shrineActive(sh);
       best = {
-        kind: 'portal', shrine: sh, name: sh.mark ? 'Portál domů' : act ? 'Portál do Markovy dimenze' : 'Spící portál svatyně',
+        kind: 'portal', shrine: sh, name: sh.dragon ? (sh.returnHome ? 'Portál domů' : 'Portál do Země draka') : sh.mark ? 'Portál domů' : act ? 'Portál do Markovy dimenze' : 'Spící portál svatyně',
         hint: act ? 'projdi jím' : `pravé tlačítko: vlož 3 úlomky světla (máš ${countItem('shard')})`,
       };
     }

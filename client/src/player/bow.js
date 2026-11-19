@@ -1,5 +1,6 @@
 // Luk: držením pravého tlačítka se natahuje, puštěním vystřelí šíp. Šíp letí obloukem (gravitace),
-// zraní tvora, do kterého narazí (stejná zpráva 'hit' jako úder mečem), a zabodne se do země nebo do bloku,
+// zraní tvora, do kterého narazí (stejná zpráva 'hit' jako úder mečem), ve světě se souboji i hráče (pvp.js),
+// a zabodne se do země nebo do bloku,
 // kde z něj zbude šíp na zemi (jde sebrat). Šípy vidí jen ten, kdo střílí. Bez vedlejších účinků při načtení.
 import { BLOCKS, ITEMS } from '../../../shared/data/index.js';
 import { mobs } from '../../../shared/sim/mobs.js';
@@ -13,7 +14,9 @@ import { sparks } from '../render/particles.js';
 import { camera, scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
+import { hitPlayer, playerOn } from './pvp.js';
 import { countItem, heldStack, removeItem } from './inventory.js';
+import { offArrows, takeOffArrow } from './offhand.js';
 import { creative, input, player } from './player.js';
 
 const GRAVITY = 15, LIFE = 6, STUCK = 4; // m/s², s letu, s zabodnutý (pak z něj je šíp na zemi)
@@ -35,7 +38,7 @@ export function updateBow(dt, target) {
   if (!drawing) {
     if (!input.rmb) return true;
     if (target?.kind === 'block' && BLOCKS[target.type]?.special) return false; // stoly, truhly, pec… se otevřou normálně
-    if (!creative && !countItem('arrow')) { if (!updateBow.told) toast('Nemáš šípy (vyrob je z kamene, klacku a vlákna)'); updateBow.told = true; return true; }
+    if (!creative && !countItem('arrow') && !offArrows()) { if (!updateBow.told) toast('Nemáš šípy (vyrob je z kamene, klacku a vlákna)'); updateBow.told = true; return true; }
     updateBow.told = false;
     drawing = true; drawT = 0; wasFull = false;
     toolSound('bowDraw');
@@ -53,7 +56,7 @@ export function updateBow(dt, target) {
 
 function shoot(B, k) {
   if (k < 0.1) return; // jen cuknutí: šíp zůstane v toulci
-  if (!creative) { if (!countItem('arrow')) return; removeItem('arrow', 1); }
+  if (!creative && !takeOffArrow()) { if (!countItem('arrow')) return; removeItem('arrow', 1); } // nejdřív šípy ze druhé ruky
   const dir = camera.getWorldDirection(camera.position.clone().set(0, 0, 0));
   const pos = camera.position.clone().addScaledVector(dir, 0.4);
   pos.y -= 0.08;
@@ -65,9 +68,9 @@ function shoot(B, k) {
   wearHeld(1);
 }
 
-const solid = (x, y, z) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z); return solidAt(X, Y, Z) || solidVox(X, Y, Z); };
+export const solid = (x, y, z) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z); return solidAt(X, Y, Z) || solidVox(X, Y, Z); };
 /** Tvor, kterého úsečka a→b protne (koule kolem těla tvora). */
-function mobOn(a, b) {
+export function mobOn(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
   for (const m of mobs) {
     if (m.dead) continue;
@@ -98,9 +101,9 @@ export function updateArrows(dt) {
       const h = dt / steps, from = a.pos.clone();
       a.vel.y -= GRAVITY * h;
       a.pos.addScaledVector(a.vel, h);
-      const m = mobOn(from, a.pos);
-      if (m) {
-        hitMob(m, a.dmg, Math.atan2(-a.vel.x, -a.vel.z), 0.6, { charge: Math.min(1, a.dmg / 6) });
+      const m = mobOn(from, a.pos), pl = !m && playerOn(from, a.pos), yaw = Math.atan2(-a.vel.x, -a.vel.z), charge = Math.min(1, a.dmg / 6);
+      if (m || pl) {
+        if (m) hitMob(m, a.dmg, yaw, 0.6, { charge }); else hitPlayer(pl, a.dmg, yaw, 0.6, true, charge);
         remove(i);
         break;
       }

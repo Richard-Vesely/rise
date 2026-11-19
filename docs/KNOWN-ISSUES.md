@@ -1,7 +1,7 @@
 # Known issues
 
 Things that are not right yet. v2 kept Marek's behaviour on purpose ("parity first"); only what blocked the server was
-changed. Pick one, open an issue, fix it in a small PR (ask Richard for anything in the core files, see AGENTS.md).
+changed. Pick one, open an issue, fix it in a small PR (core files: see rule 4 in AGENTS.md).
 
 ## Multiplayer (all hosts)
 - **Players are trusted.** The host accepts every world edit (`ops`), every small-map value (`kv`: chests, machines, cars…),
@@ -17,6 +17,10 @@ changed. Pick one, open an issue, fix it in a small PR (ask Richard for anything
   otherwise the loot is lost (always lost on the Node server).
 - **Animal sounds** for joined players are made in their own browser (same voices, from the right place), so two players
   don't hear the same sheep bleat at the same moment.
+- **The safe (*Trezor*) is a lock for friends, not a bank.** Safe contents sync to every player like any chest, so a
+  modified browser (or the console) can read or empty a safe without the code, and can remove the safe block. The code
+  itself is never sent or saved, only a 24-bit fingerprint in `blockMeta`; with the console that fingerprint can be
+  matched by trying codes, so a short code can be found. The wait after wrong tries is kept in the player's own browser.
 - **Chat is free text** (kept from Marek's version; Richard decides whether it stays).
 
 ## Node server

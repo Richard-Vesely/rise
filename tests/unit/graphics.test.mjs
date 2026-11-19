@@ -52,3 +52,18 @@ test('Grafika Automaticky: software → nízká, integrated → střední, discr
   for (const [name, cls] of cases) assert.equal(gpuClass(name), cls, name);
   assert.equal(autoQuality(true), 'low');
 });
+
+test('dusk and dawn run at day speed, the whole night still lasts a quarter of DAY_LENGTH', async () => {
+  const D = await import('../../shared/sim/day.js');
+  const { DAY_LENGTH } = await import('../../shared/world/constants.js');
+  const t0 = D.dayTime, c0 = D.dayCount;
+  const realBetween = (from, to) => { D.setDay(from); let s = 0; while (D.dayTime < to && D.dayTime >= from) { D.advanceDay(0.02); s += 0.02; } return s; };
+  // 18:00–19:00 (slunce do ~15° pod obzorem): stejně rychle jako den (dřív dvakrát rychleji)
+  assert.ok(Math.abs(realBetween(0.75, 0.7917) - DAY_LENGTH / 24) < 0.5, 'dusk at day speed');
+  // celá noc (slunce pod obzorem) trvá pořád DAY_LENGTH / 4
+  D.setDay(0.75); let s = 0;
+  while (!(D.sunElevation() >= 0 && D.dayTime < 0.5)) { D.advanceDay(0.02); s += 0.02; }
+  assert.ok(Math.abs(s - DAY_LENGTH / 4) < DAY_LENGTH * 0.01, `night lasts ${s} s`);
+  assert.ok(D.NIGHT_FAST > 2 && D.NIGHT_FAST < 4, `deep night ${D.NIGHT_FAST}×`);
+  D.setDay(t0, c0);
+});

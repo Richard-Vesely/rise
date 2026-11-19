@@ -94,7 +94,8 @@ Dobré vědět:
 - **Jedna věc najednou.** Nový tvor = jeden pull request. Nový tvor + déšť + truhla = tři.
 - Předměty, recepty, bloky, jídla a tvorové se přidávají hlavně ve složce **`shared/`**.
 - Všechny texty ve hře jsou **česky**.
-- Když AI navrhne změnit „jádro“ hry (síť, ukládání, server, pořadí modulů), zeptej se nejdřív Richarda.
+- Když AI navrhne změnit „jádro“ hry (síť, ukládání, server, pořadí modulů), ať ti vysvětlí, co se může rozbít,
+  a přidá na to test. Do pull requestu napiš, že měníš jádro.
 - Do hry nepřidáváme nic, co by sbíralo osobní údaje.
 
 ## 7. Vyzkoušej to
@@ -124,12 +125,19 @@ Tím se změna nahraje do **tvého forku**. Otevři ho na GitHubu a klikni **Com
 
 ## 9. Kontrola
 
-- **CI** (automatická kontrola) sestaví hru, spustí testy a hru si sama zahraje v prohlížeči.
-  Musí být zelená ✅. Když je červená ❌, klikni na **Details** a podívej se, co se nepovedlo.
-- **Richard** (nebo kamarád) si změnu prohlédne a možná napíše připomínky. Oprav je ve stejné větvi
-  (`git commit` + `git push`), pull request se sám aktualizuje.
-- Po schválení se změna **sloučí do `main`**. Za pár minut je ve hře na webu
-  (https://richard-vesely.github.io/rise/) a na serveru kroužku po další aktualizaci serveru.
+- **CI** (automatická kontrola) sestaví hru a spustí testy (**test**, pár minut). Ta musí být zelená ✅.
+  Pak si hru ještě sama zahraje v prohlížeči (**playtest**, asi 10 minut). Ta sloučení nebrzdí, ale když je červená ❌,
+  něco se nejspíš rozbilo: klikni na **Details**, podívej se, co se nepovedlo, a oprav to dalším pull requestem.
+- Nikdo to nemusí schvalovat. Když je CI zelená ✅, **Robot kroužku** pull request do pár minut sám
+  **sloučí do `main`** a napíše ti to do komentáře. (Můžeš i sám kliknout **Merge pull request**.)
+- Když to sloučit nejde (CI je červená nebo je konflikt s `main`), robot napíše do komentáře česky, co je
+  špatně, a přidá **zadání pro tvého AI pomocníka**: zkopíruj ho do chatu, nech AI opravit a pushni.
+  Nechceš, aby robot sloučil rozdělanou věc? Založ pull request jako **Draft**.
+- Když chceš, ať se na to někdo podívá (kamarád nebo Richard), napiš mu. Připomínky oprav ve stejné větvi
+  (`git commit` + `git push`), pull request se sám aktualizuje a CI proběhne znovu.
+- Za pár minut je změna ve hře na webu (https://richard-vesely.github.io/rise/) a asi do 5 minut i na serveru
+  kroužku (server se aktualizuje sám, hned jak projdou testy, i když se zrovna hraje: hráče na chvíli odpojí
+  a sám je připojí zpátky).
 
 ## Pravidla
 

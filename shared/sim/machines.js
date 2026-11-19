@@ -32,6 +32,7 @@ export function updateFurnaces(dt) {
     if (blocks.get(k) !== 'furnace') { furnaces.delete(k); continue; }
     if (isBusy(k)) continue; // pec má otevřenou hráč
     const [inp, fuel, out] = f.slots;
+    if ((inp?.id || null) !== (f.src ?? null)) { f.src = inp?.id || null; f.t = 0; } // jiná surovina = tavení začíná znovu
     const res = inp && smeltResult(inp.id);
     const can = res && (!out || (out.id === res && out.n < ITEMS[res].stack));
     if (f.burn > 0) f.burn = Math.max(0, f.burn - dt);

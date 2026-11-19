@@ -3,11 +3,11 @@ import './kitchen.js'; // pořadí spouštění: nejdřív předchozí modul (vi
 import { FUEL, ITEMS, SMELT_TIME, smeltResult } from '../../../shared/data/index.js';
 import { on } from '../../../shared/events.js';
 import { furnaceOf, furnaces } from '../../../shared/world/state.js';
-import { addItem, countItem, removeItem } from '../player/inventory.js';
+import { countItem, removeItem } from '../player/inventory.js';
 import { specials } from '../render/blocks.js';
 import { sparks } from '../render/particles.js';
 import { toast } from '../ui/hud.js';
-import { iconImg, invOpen, refreshUI, renderCraftArea, slotHTML, ui } from '../ui/inventory-ui.js';
+import { giveOrDrop, iconImg, invOpen, refreshUI, renderCraftArea, slotHTML, ui } from '../ui/inventory-ui.js';
 
 // ============================================================ pec: tavení rud, písku a dalších surovin s palivem
 // Políčka: [surovina, palivo, výsledek]. Palivo hoří i se zavřeným oknem; když nemá co tavit, nové palivo se nezapálí.
@@ -29,8 +29,14 @@ export function updateFurnaceGlow(time) {
 export function renderFurnace(area) {
   const f = furnaceOf(ui.fireKey), [inp, fuel, out] = f.slots, res = inp && smeltResult(inp.id);
   const p = res ? Math.min(100, (f.t / SMELT_TIME) * 100) : 0, b = f.burnMax ? (f.burn / f.burnMax) * 100 : 0;
+  // Kolik kusů ještě palivo utaví (to, co hoří, plus palivo v políčku), jako ukazatel plamene v Minecraftu
+  const left = Math.floor((f.burn + (fuel && FUEL[fuel.id] ? FUEL[fuel.id] * fuel.n : 0)) / SMELT_TIME);
+  const full = res && out && (out.id !== res || out.n >= ITEMS[res].stack);
   const note = !inp ? 'Nahoru vlož surovinu (ruda, písek, křemen, železo…), dolů palivo (uhlí, dřevo).'
-    : !res ? 'Tohle se v peci tavit nedá.' : f.burn > 0 ? `Taví se: ${ITEMS[res].name}` : fuel ? 'Zapaluje se…' : 'Přidej palivo (uhlí, dřevěné uhlí, dřevo).';
+    : !res ? 'Tohle se v peci tavit nedá.'
+      : full ? (out.id !== res ? 'Ve výstupu leží něco jiného: vyber to a pec se znovu rozjede.' : 'Výstup je plný: vyber hotové věci.')
+        : f.burn > 0 ? `Taví se: ${ITEMS[res].name}${left ? ` · palivo vystačí ještě na ${left} ks` : ''}`
+          : fuel ? 'Zapaluje se…' : f.t > 0 ? 'Došlo palivo! Tavení se vrací zpátky.' : 'Přidej palivo (uhlí, dřevěné uhlí, dřevo).';
   area.innerHTML = `<div class="mc-title">Pec</div>
     <div class="fire-ui">
       <div class="fire-col">${slotHTML(inp, 0, '', 'furnace')}
@@ -42,17 +48,25 @@ export function renderFurnace(area) {
     </div>
     <div class="mc-note">${note}</div>`;
 }
-// Klik v knize pece: surovina se přesune do pece, a když chybí palivo, přidá se uhlí/dřevo z batohu
+// Palivo, které kniha pece bere z batohu: nejdřív uhlí, pak dřevo; líh a kaktus nikdy (líh je na jiné věci)
+const AUTO_FUEL = () => Object.keys(FUEL).filter((x) => x !== 'ethanol' && x !== 'cactus')
+  .sort((a, b) => (b.includes('coal') - a.includes('coal')) || FUEL[b] - FUEL[a]);
+// Klik v knize pece: surovina se přesune do pece, a když chybí palivo, přidá se ho z batohu tolik, kolik je potřeba
 export function fillFurnace(id) {
   const f = furnaceOf(ui.fireKey);
-  if (f.slots[0] && f.slots[0].id !== id) { addItem(f.slots[0].id, f.slots[0].n, true); f.slots[0] = null; }
+  if (f.slots[0] && f.slots[0].id !== id) { const old = f.slots[0]; f.slots[0] = null; giveOrDrop(old.id, old.n, old.w); }
   const k = Math.min(countItem(id), ITEMS[id].stack - (f.slots[0]?.n || 0));
   if (k <= 0) { toast(`Nemáš: ${ITEMS[id].name}`); return refreshUI(); }
   removeItem(id, k);
   if (f.slots[0]) f.slots[0].n += k; else f.slots[0] = { id, n: k };
   if (!f.slots[1]) {
-    const fuelId = Object.keys(FUEL).sort((a, b) => FUEL[b] - FUEL[a]).find((x) => x !== id && countItem(x) > 0);
-    if (fuelId) { const n = Math.min(countItem(fuelId), ITEMS[fuelId].stack); removeItem(fuelId, n); f.slots[1] = { id: fuelId, n }; }
+    const fuelId = AUTO_FUEL().find((x) => x !== id && countItem(x) > 0);
+    if (fuelId) {
+      const need = Math.ceil((f.slots[0].n * SMELT_TIME - f.burn) / FUEL[fuelId]);
+      const n = Math.min(countItem(fuelId), ITEMS[fuelId].stack, Math.max(1, need));
+      removeItem(fuelId, n);
+      f.slots[1] = { id: fuelId, n };
+    }
   }
   refreshUI();
 }

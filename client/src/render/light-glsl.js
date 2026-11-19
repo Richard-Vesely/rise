@@ -60,4 +60,12 @@ export const POINT_GLSL = /* glsl */`
     }
     return sum;
   }
+  // Světlo ohně a lamp na trávě a zemi: odmocninová křivka – střed u ohně se nepřepálí do neonově žlutozelené,
+  // slabé světlo dál od ohně se naopak trochu zesílí (světlo dosáhne dál, jako skutečný oheň). Trochu méně syté:
+  // tráva pod ohněm zůstane přirozeně zelená, jen teplejší.
+  vec3 softLight(vec3 p) {
+    float l = dot(p, vec3(0.3, 0.59, 0.11));
+    p *= 1.2 * inversesqrt(l + 0.06);
+    return mix(p, vec3(dot(p, vec3(0.3, 0.59, 0.11))), 0.3);
+  }
 `;

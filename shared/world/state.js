@@ -29,7 +29,7 @@ class BlockMap extends SyncMap {
 
 export const removed = new SyncSet('removed'); // pokácené stromy, vytěžené balvany, sebrané úlomky
 export const blocks = new BlockMap('blocks'); // "x,y,z" -> typ bloku
-export const blockMeta = new SyncMap('blockMeta'); // "x,y,z" -> otočení (bit 0–1) a horní půlblok (bit 2)
+export const blockMeta = new SyncMap('blockMeta'); // "x,y,z" -> otočení (bit 0–1) a horní půlblok (bit 2); pochodeň: 1 stojí, 2–5 na zdi (world/torch.js)
 export const chests = new Map(); // klíč bloku -> 27 políček
 export const fires = new Map(); // klíč bloku -> { slots: [vstup, výstup], t }
 export const stoves = new Map(); // klíč bloku -> { slots: [výstup], recipe, t }

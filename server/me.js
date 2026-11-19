@@ -3,6 +3,7 @@
 // Pořád platí, že hráči se věří (KNOWN-ISSUES.md): upravený prohlížeč může poslat jiné předměty, ale ne rozbitý soubor.
 import { ITEMS, cleanCostume } from '../shared/data/index.js';
 import { maxDur } from '../shared/tools.js';
+import { cleanMagic } from '../shared/data/magic.js';
 
 export const ME_MAX_BYTES = 64 * 1024;
 export const INV_SLOTS = 36, ARMOR_SLOTS = 4;
@@ -34,7 +35,7 @@ function flags(o) {
  * Zkontroluje a uklidí stav hráče. Vrátí čistou kopii, nebo null (nesmysl: ignorovat).
  * @param {unknown} me
  * @param {number} [bytes] délka zprávy (JSON), když je známá
- * @returns {{ inv: ({id: string, n: number, w?: number}|null)[], armor: ({id: string, n: number, w?: number}|null)[], pos: number[], yaw: number, hp: number, hunger: number, crafted: object, placedAny: object, creative: boolean, flying: boolean, flyT: number, look?: object } | null}
+ * @returns {{ inv: ({id: string, n: number, w?: number}|null)[], armor: ({id: string, n: number, w?: number}|null)[], off: {id: string, n: number, w?: number}|null, pos: number[], yaw: number, hp: number, hunger: number, crafted: object, placedAny: object, creative: boolean, flying: boolean, flyT: number, look?: object } | null}
  */
 export function cleanMe(me, bytes = 0) {
   if (bytes > ME_MAX_BYTES || !me || typeof me !== 'object' || Array.isArray(me)) return null;
@@ -55,6 +56,8 @@ export function cleanMe(me, bytes = 0) {
       creative: me.creative === true,
       flying: me.flying === true,
       flyT: num(me.flyT, 0, 1e5) ? me.flyT : 0,
+      magic: cleanMagic(me.magic), // XP, naučená kouzla, aktivní kouzlo (shared/data/magic.js)
+      off: slot(me.off ?? null), // druhá ruka (nepovinná: starší prohlížeče ji neposílají)
     };
     if (me.look != null && typeof me.look === 'object') out.look = cleanCostume(me.look); // oblek (jen vzhled), nepovinný
 

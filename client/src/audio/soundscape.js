@@ -140,6 +140,7 @@ function listen() {
     const v = getVox(x, y, z);
     remoteOp(x, y, z, () => (v === V.AIR ? Sound.blockBreak(y >= topY(x, z) - 2 ? 'dirt' : 'stone') : Sound.blockPlace(voxMaterial(v))));
   });
+  on('torchDrop', (x, y, z) => remoteOp(x, y, z, () => Sound.blockBreak('wood'))); // pochodeň bez opory odpadla (shared/world/torch.js)
   initUISounds();
 }
 

@@ -47,7 +47,7 @@ try {
   const cos = await ev(() => ({ suits: [...document.querySelectorAll('#costume .cos-suit')].map((b) => b.textContent), who: document.querySelector('#costume .cos-head span').textContent, dots: document.querySelectorAll('#costume .cos-dot').length }));
   await page.click('#costume .cos-suit[data-s="pilot"]');
   await page.click('#costume [data-k="c"] .cos-dot[data-i="9"]');
-  check('menu: Můj oblek shows 7 suits with Czech names for this player', cos.suits.length === 7 && cos.suits.includes('Průzkumník') && cos.suits.includes('Nebeský') && cos.who === 'Tester' && cos.dots > 20 && (await page.textContent('#costume .cos-desc')).startsWith('Kombinéza'), JSON.stringify(cos));
+  check('menu: Můj oblek shows 10 suits (7 suits + 3 heroes) with Czech names for this player', cos.suits.length === 10 && cos.suits.includes('Průzkumník') && cos.suits.includes('Nebeský') && cos.suits.includes('Mág') && cos.who === 'Tester' && cos.dots > 20 && (await page.textContent('#costume .cos-desc')).startsWith('Kombinéza'), JSON.stringify(cos));
   await page.click('#costume [data-act="ok"]');
   const saved = await ev(() => ({ ...JSON.parse(localStorage.getItem('rise-obleky') || '{}').Tester, closed: !document.getElementById('costume') }));
   check('menu: the chosen costume is saved per player name', saved?.s === 'pilot' && saved.c === 9 && saved.t > 0 && saved.closed, JSON.stringify(saved));
@@ -81,14 +81,17 @@ try {
     const g = window.game; T.clearInv(); T.holdNothing();
     T.tpg(0, 40); T.step(2);
     g.rebuildForest?.(g.player.pos.x, g.player.pos.z, true);
-    const t = [...g.forestTrees].sort((a, b) => Math.hypot(a.x, a.z - 40) - Math.hypot(b.x, b.z - 40))[0];
+    // Blízké biomy mohou mít jiné dřevo; tento test ověřuje obyčejné klády z dubu.
+    const t = [...g.forestTrees].filter(t => t.kind === 'oak').sort((a, b) => Math.hypot(a.x, a.z - 40) - Math.hypot(b.x, b.z - 40))[0];
     T.tpg(t.x + 1.6, t.z); T.step(10);
     T.aim(t.x, t.y + 1.2, t.z);
     const label = T.text('targetLabel');
-    const n = T.mineUntil(() => T.count('log') > 0 || T.count('cherry_log') > 0);
-    return { label, n, logs: T.count('log'), gone: !g.forestTrees.some((x) => x.key === t.key), removed: g.removed?.has?.(t.key) };
+    const n = T.mineUntil(() => !g.forestTrees.some((x) => x.key === t.key));
+    const dropped = g.groundItems.filter((x) => x.id === 'log' && x.n > 0).reduce((k, x) => k + x.n, 0), direct = T.count('log');
+    T.collect();
+    return { label, n, dropped, direct, logs: T.count('log'), gone: !g.forestTrees.some((x) => x.key === t.key), removed: g.removed?.has?.(t.key) };
   });
-  check('chop a tree by hand gives logs', r.logs >= 3, `${r.logs} logs in ${r.n} ticks, label "${r.label}"`);
+  check('chop a tree by hand gives logs (they pop out on the ground and you pick them up)', r.logs >= 3 && r.dropped >= 3 && r.direct === 0, `${r.logs} logs in ${r.n} ticks (dropped ${r.dropped}, direct ${r.direct}), label "${r.label}"`);
   check('felled tree disappears', r.gone);
 
   // ------------------------------------------------------------ crafting
@@ -131,9 +134,51 @@ try {
     const [x, y, z] = k.split(',').map(Number);
     T.aim(x + 0.5, y + 0.5, z + 0.5);
     const n = T.mineUntil(() => !g.blocks.has(k));
+    T.collect();
     return { n, gone: !g.blocks.has(k), planks: T.count('planks') };
   }, placed);
   check('break the placed block and get it back', r.gone && r.planks === 10, JSON.stringify(r));
+
+  // ------------------------------------------------------------ safe (Trezor): a chest with a code that can't be mined
+  r = await ev(() => {
+    const g = window.game, $ = (id) => document.getElementById(id), res = {};
+    T.clearInv(); T.give('safe', 1); T.give('iron_pick', 1); T.hold('safe');
+    T.tpg(10, 30); T.step(5); g.mobs.length = 0;
+    const x = 10.5, z = 27.5;
+    T.aim(x, g.groundHeight(x, z), z);
+    const old = new Set(g.blocks.keys());
+    g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(1, 0.0001);
+    const k = [...g.blocks.keys()].find((q) => !old.has(q) && g.blocks.get(q) === 'safe');
+    if (!k) return { placed: false };
+    const [bx, by, bz] = k.split(',').map(Number), aim = () => T.aim(bx + 0.5, by + 0.5, bz + 0.5);
+    T.hold('iron_pick'); aim();
+    res.breakable = g.target?.breakable;
+    T.mineUntil(() => !g.blocks.has(k), 200);
+    res.stays = g.blocks.get(k) === 'safe';
+    T.holdNothing(); aim(); g.useItem(); // nový trezor: vymyslet kód dvakrát
+    res.ask = g.ui.mode === 'safe' && !!$('safeCode2');
+    $('safeCode').value = '4711'; $('safeCode2').value = '4712'; $('safeGo').click();
+    res.mismatch = g.ui.mode === 'safe' && /neshodují/.test(T.text('safeMsg'));
+    $('safeCode2').value = '4711'; $('safeGo').click();
+    res.opened = g.ui.mode === 'chest' && !!$('safeTake');
+    g.chests.get(k)[0] = { id: 'stone', n: 3 };
+    $('safeTake').click(); T.step(1, 0.0001);
+    res.full = g.blocks.get(k) === 'safe';
+    g.closeInventory();
+    g.openInventory('safe', k); // zamčený: špatný kód neotevře
+    $('safeCode').value = '1234'; $('safeGo').click();
+    res.wrong = g.ui.mode === 'safe' && /Špatný/.test(T.text('safeMsg'));
+    $('safeCode').value = '4711'; $('safeGo').click();
+    res.right = g.ui.mode === 'chest';
+    g.chests.get(k)[0] = null; g.closeInventory(); g.openInventory('safe', k);
+    $('safeCode').value = '4711'; $('safeGo').click();
+    $('safeTake').click(); T.step(1, 0.0001);
+    res.taken = !g.blocks.has(k) && T.count('safe') === 1;
+    g.closeInventory();
+    return res;
+  });
+  check('safe: can not be mined, asks for a new code twice, opens only with the right code, taken back only when empty',
+    r.breakable === false && r.stays && r.ask && r.mismatch && r.opened && r.full && r.wrong && r.right && r.taken, JSON.stringify(r));
 
   // ------------------------------------------------------------ digging
   r = await ev(() => {
@@ -142,11 +187,63 @@ try {
     const cx = -8, cz = 27, top = g.topY(cx, cz);
     T.aim(cx + 0.5, g.groundHeight(cx + 0.5, cz + 0.5), cz + 0.5);
     const n = T.mineUntil(() => g.getVox(cx, top, cz) === 0, 900);
+    T.collect();
     return { n, air: g.getVox(cx, top, cz) === 0, dirt: T.count('dirt'), fiber: T.count('fiber'), dug: g.columnDug(cx, cz) };
   });
   check('dig grass then dirt (voxel underground)', r.air && r.dirt >= 1 && r.fiber >= 1 && r.dug, JSON.stringify(r));
   r = await ev(() => { let tiles = 0, glowOnly = true; for (const c of window.game.voxChunks.values()) { const a = c.mesh?.geometry.getAttribute('aTile'); if (a) tiles++; if (c.mesh && Array.isArray(c.mesh.material)) glowOnly = false; } return { tiles, glowOnly }; });
   check('underground: one material on a texture array (layer per block type)', r.tiles > 0 && r.glowOnly, JSON.stringify(r));
+
+  // ------------------------------------------------------------ torches (like Minecraft): floor, wall, never the ceiling, pop off, instant break, light
+  r = await ev(() => {
+    const g = window.game, K = (x, y, z) => `${x},${y},${z}`, bx = 16, bz = 27;
+    T.clearInv(); T.give('torch', 8); T.hold('torch');
+    T.tpg(bx + 0.5, bz + 3.5); T.step(3); g.player.flyT = 1e6; g.mobs.length = 0;
+    const y = Math.floor(g.groundHeight(bx + 0.5, bz + 0.5)) + 1, at = (px, py, pz) => { T.tp(px, pz, py); g.player.vel.set(0, 0, 0); };
+    for (const k of [K(bx, y, bz), K(bx, y + 1, bz), K(bx + 4, y + 3, bz)]) g.blocks.set(k, 'cobble');
+    g.rebuildBlocks();
+    const res = {};
+    at(bx + 0.5, y + 2.4, bz + 3.5); T.aim(bx + 0.5, y + 2, bz + 0.5); g.useItem(); T.step(2); // horní stěna sloupku
+    res.floor = g.blockMeta.get(K(bx, y + 2, bz));
+    at(bx + 0.5, y, bz + 3.5); T.aim(bx + 0.5, y + 0.5, bz + 1); g.useItem(); T.step(2); // boční stěna
+    const wk = K(bx, y, bz + 1), ws = g.specials.get(wk);
+    res.wall = g.blockMeta.get(wk); res.lean = ws && +(ws.lp[2] - (bz + 1)).toFixed(2);
+    at(bx + 4.5, y, bz + 0.8); T.aim(bx + 4.5, y + 3, bz + 0.5); g.useItem(); T.step(2); // spodek visícího bloku
+    res.ceiling = g.blocks.get(K(bx + 4, y + 2, bz)) ?? null; res.toast = T.text('toast');
+    g.blocks.set(K(bx + 5, y + 2, bz), 'cobble'); g.rebuildBlocks();
+    T.aim(bx + 4.5, y + 3, bz + 0.5); g.useItem(); T.step(2); // teď je vedle zeď: pochodeň skončí na ní
+    res.fallback = g.blockMeta.get(K(bx + 4, y + 2, bz));
+    res.left = T.count('torch');
+    // blok, na kterém visí pochodeň, zmizí: pochodeň odpadne a spadne jako předmět; ta nahoře stojí dál
+    g.blocks.delete(K(bx, y, bz)); g.rebuildBlocks(); T.step(10);
+    res.popped = !g.blocks.has(wk) && !g.specials.has(wk);
+    res.item = g.groundItems.some((it) => it.id === 'torch' && it.n > 0 && Math.hypot(it.pos.x - (bx + 0.5), it.pos.z - (bz + 1.5)) < 1.5);
+    res.stays = g.blocks.get(K(bx, y + 2, bz));
+    // rozbije se hned, i rukou
+    T.holdNothing(); at(bx + 0.5, y + 2.6, bz + 2.2); T.aim(bx + 0.5, y + 2.45, bz + 0.5);
+    const n0 = T.count('torch'); res.mine = T.mineUntil(() => !g.blocks.has(K(bx, y + 2, bz)), 40);
+    T.step(40); res.got = T.count('torch') - n0; // rovnou do batohu, nebo vyskočí jako předmět a přiletí
+    // vyskočí náhodným směrem: z vršku sloupku občas spadne až na zem, víc než 1,3 m pod nohy (moc hluboko na magnet) – dojdi pro ni
+    if (res.got < 1) { T.collect(); res.got = T.count('torch') - n0; }
+    return res;
+  });
+  check('torch: on top of a block it stands, on the side it hangs leaning from the wall', r.floor === 1 && r.wall === 4 && r.lean > 0 && r.lean < 0.4, JSON.stringify(r));
+  check('torch: never on the ceiling (with a message), falls back to a wall you look along', r.ceiling === null && /Pochodeň/.test(r.toast) && r.fallback === 3 && r.left === 5, JSON.stringify(r));
+  check('torch: pops off and drops as an item when its block goes, breaks instantly by hand', r.popped && r.item && r.stays === 'torch' && r.mine <= 3 && r.got >= 1, JSON.stringify(r));
+  r = await ev(() => {
+    const g = window.game, x = 22, z = 21, top = g.topY(x, z), y = top - 9, pl = () => g.scene.children.filter((o) => o.isPointLight).length;
+    const before = pl();
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -6; dz <= 6; dz++) for (let dy = 0; dy <= 2; dy++) g.setVox(x + dx, y + dy, z + dz, g.V.AIR);
+    let n = 0; // 31 pochodní v jedné jeskyni
+    for (let dx = -3; dx <= 3; dx += 2) for (let dz = -6; dz <= 6; dz += 2) { g.setVox(x + dx, y - 1, z + dz, g.V.STONE); g.blockMeta.set(`${x + dx},${y},${z + dz}`, 1); g.blocks.set(`${x + dx},${y},${z + dz}`, 'torch'); n++; }
+    for (const dz of [-5, 0, 5]) { g.setVox(x - 4, y + 1, z + dz, g.V.STONE); g.blockMeta.set(`${x - 3},${y + 1},${z + dz}`, 2); g.blocks.set(`${x - 3},${y + 1},${z + dz}`, 'torch'); n++; }
+    g.rebuildBlocks();
+    T.tp(x + 0.5, z + 0.5, y); T.step(30, 0.05);
+    const c = g.voxChunks.get(`${Math.floor(x / 16)},${Math.floor(z / 16)}`), a = c?.mesh?.geometry.getAttribute('aFire');
+    let max = 0; if (a) for (let i = 0; i < a.count; i++) max = Math.max(max, a.getX(i));
+    return { n, attr: !!a, max: +max.toFixed(2), before, after: pl() };
+  });
+  check('a cave with 31 torches: their light is baked into the walls, no extra real-time lights', r.n >= 30 && r.attr && r.max > 0.3 && r.after === r.before, JSON.stringify(r));
 
   // ------------------------------------------------------------ tools and combat: durability, cracks, repair, attack charge, armor wear
   r = await ev(() => {
@@ -159,6 +256,7 @@ try {
     g.input.lmb = true; T.step(10);
     const mid = { stage: g.crackStage(), p: +g.mineState().p.toFixed(2), tg: g.target && (g.target.type || g.target.kind), near: g.mobs.filter((m) => m.pos.distanceTo(p) < 5).map((m) => m.type).join() };
     const n = T.mineUntil(() => !g.blocks.has(k));
+    T.collect();
     const s = g.inv.slots[0];
     return { mid, n, w: s?.w, bar: !!document.querySelector('#hotbar .slot .dur'), stone: T.count('stone'), cracksGone: g.crackStage() === -1, k };
   });
@@ -166,11 +264,14 @@ try {
   check('tools: a mined block wears the pickaxe by 1 and shows a durability bar', r.w === 1 && r.bar && r.stone === 1, JSON.stringify(r));
   r = await ev((k) => {
     const g = window.game; g.inv.slots[0].w = 58;
+    g.mobs.length = 0; // jinak může poslední ránu schytat tvor: krumpáč se rozbije o něj a kámen holou rukou nepadne
     g.blocks.set(k, 'cobble'); g.rebuildBlocks(); T.step(8);
     const [x, y, z] = k.split(',').map(Number);
     T.aim(x + 0.5, y + 0.5, z + 0.5);
     T.mineUntil(() => !g.blocks.has(k));
-    return { held: g.inv.slots[0], toast: T.text('toast'), stone: T.count('stone') };
+    const toast = T.text('toast');
+    T.collect();
+    return { held: g.inv.slots[0], toast, stone: T.count('stone') };
   }, r.k);
   check('tools: a worn-out pickaxe breaks with a Czech message (and the block still drops)', r.held === null && r.toast === 'Dřevěný krumpáč se rozbil!' && r.stone === 2, JSON.stringify(r));
   r = await ev(() => {
@@ -210,6 +311,178 @@ try {
     return { drawn, hp0, hp: m.dead ? 0 : m.hp, arrows: T.count('arrow'), w: g.inv.slots[0]?.w };
   });
   check('bow: a fully drawn arrow hurts a boar for 10, uses one arrow and wears the bow', r.drawn === 1 && r.hp0 - r.hp === 10 && r.arrows === 4 && r.w === 1, JSON.stringify(r));
+  r = await ev(() => { // druhá ruka: F prohodí, štít kryje zepředu (zezadu ne), štít se opotřebuje
+    const g = window.game; T.clearInv(); T.give('shield', 1); T.hold('shield'); T.give('iron_sword', 1);
+    T.press('KeyF');
+    const swapped = g.inv.off[0]?.id === 'shield' && !g.inv.slots[0];
+    T.hold('iron_sword'); g.mobs.length = 0; T.tpg(-50, 30); T.step(3);
+    g.player.yaw = 0; g.player.pitch = 0; g.player.hp = 100;
+    g.input.rmb = true; T.step(2);
+    const blocking = g.player.blocking, pose = g.myPose?.();
+    g.damagePlayer(10, 0, 1); const hpFront = g.player.hp; // útočník před hráčem (hráč kouká k −z, rána letí k +z)
+    g.damagePlayer(10, 0, -1); const hpBack = g.player.hp; // útočník za zády
+    g.input.rmb = false; T.step(2);
+    const shieldW = g.inv.off[0]?.w, after = g.player.blocking, main = g.inv.slots[0]?.id;
+    g.player.hp = 100;
+    return { swapped, blocking, oh: pose?.oh, bl: pose?.bl, hpFront, hpBack, shieldW, after, main };
+  });
+  check('offhand: F moves the shield to the second hand, right button guards: a hit from the front is stopped (the shield wears), from behind not', r.swapped && r.blocking === 'off' && r.hpFront === 100 && r.hpBack < 100 && r.shieldW === 1 && r.after === null && r.main === 'iron_sword', JSON.stringify(r));
+  check('offhand: other players see the second hand and the guard (pose oh, bl)', r.oh === 'shield' && r.bl === 2, JSON.stringify(r));
+  r = await ev(() => { // blok ze druhé ruky: v ruce meč, ve druhé ruce prkna (rovné místo vedle stavění výš)
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword'); g.inv.off[0] = { id: 'planks', n: 5 };
+    // let po markjablku z testu pochodní (flyT) vypnout: ve vzduchu by pravé tlačítko stavělo i pod sebe (stavění pod sebe)
+    const flyT = g.player.flyT; g.player.flyT = 0;
+    g.mobs.length = 0; T.tpg(12, 30); T.step(5);
+    const x = 12.5, z = 27.5, y = g.groundHeight(x, z);
+    T.aim(x, y, z);
+    const old = new Set(g.blocks.keys());
+    g.input.rmb = true; T.step(1); g.input.rmb = false; T.step(1, 0.0001);
+    const added = [...g.blocks.keys()].filter((k) => !old.has(k));
+    const res = { added, onGround: g.player.onGround, planksLeft: g.inv.off[0]?.n, main: g.inv.slots[0]?.id, mainN: g.inv.slots[0]?.n };
+    for (const k of added) g.blocks.delete(k);
+    g.rebuildBlocks();
+    // šípy ze druhé ruky: luk bere nejdřív odtud
+    T.clearInv(); T.give('bow', 1); T.give('arrow', 2); T.hold('bow'); g.inv.off[0] = { id: 'arrow', n: 3 }; g.player.pitch = 0.2;
+    g.input.rmb = true; T.step(25); g.input.rmb = false; T.step(2);
+    res.arrowsOff = g.inv.off[0]?.n; res.arrowsBag = T.count('arrow');
+    // pochodeň ve druhé ruce: F ji vrátí do ruky
+    g.inv.off[0] = { id: 'torch', n: 4 }; T.holdNothing(); T.press('KeyF');
+    res.torchBack = g.inv.slots[g.inv.sel]?.id === 'torch' && !g.inv.off[0];
+    T.clearInv(); g.player.flyT = flyT;
+    return res;
+  });
+  check('offhand: a block in the second hand is placed while the sword stays in the hand', r.added.join() === '12,1,27' && r.onGround && r.planksLeft === 4 && r.main === 'iron_sword' && r.mainN === 1, JSON.stringify(r));
+  check('offhand: the bow takes arrows from the second hand first, F swaps back', r.arrowsOff === 2 && r.arrowsBag === 2 && r.torchBack, JSON.stringify(r));
+  r = await ev(async () => { // smrt: batoh a brnění vypadnou na zem tam, kde hráč padl
+    const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.give('apple', 5); g.armor[0] = { id: 'iron_helmet', n: 1 }; g.inv.off[0] = { id: 'torch', n: 3 };
+    g.mobs.length = 0; T.tpg(-70, 30); T.step(5);
+    const at = g.player.pos.clone(), before = g.groundItems.length;
+    g.player.hp = 5; g.damagePlayer(50, 0, 0);
+    const near = g.groundItems.filter((it) => it.pos.distanceTo(at) < 4).map((it) => it.id).sort();
+    const empty = g.inv.slots.every((x) => !x) && !g.armor[0] && !g.inv.off[0];
+    await new Promise((ok) => setTimeout(ok, 3000));
+    return { near, empty, added: g.groundItems.length - before, alive: g.player.alive, home: g.player.pos.distanceTo(at) > 20 };
+  });
+  check('death: the backpack, armor and second hand fall to the ground where you died, you come back home without them', r.empty && ['apple', 'iron_helmet', 'iron_sword', 'torch'].every((id) => r.near.includes(id)) && r.alive && r.home, JSON.stringify(r));
+  r = await ev(async () => { // XP a kouzla: nová úroveň nabídne kouzla, Magická střela zraní kance, poražený kanec dá XP
+    const g = window.game; T.clearInv(); T.give('wand', 1); T.hold('wand');
+    g.mobs.length = 0; T.tpg(-60, 30); T.step(5);
+    const xp0 = g.magic.xp;
+    g.addXp(20);
+    await new Promise((ok) => setTimeout(ok, 800));
+    const cards = [...document.querySelectorAll('#spellWin [data-pick]')].map((b) => b.dataset.pick);
+    const pick = cards.includes('bolt') ? 'bolt' : cards[0]; // nabídka je náhodná: střela tam nemusí být
+    document.querySelector(`#spellWin [data-pick="${pick}"]`)?.click();
+    const learned = [...g.magic.learned], sel = g.magic.sel, open = !!document.getElementById('spellWin');
+    if (pick !== 'bolt') { g.magic.learned.push('bolt'); g.magic.sel = 'bolt'; } // další kroky zkouší Magickou střelu
+    const p = g.player.pos;
+    g.spawnMob('boar', p.x, p.z - 7);
+    const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp, mana0 = g.magic.mana;
+    T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z);
+    g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false;
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const hp1 = m.hp, mana1 = g.magic.mana;
+    const xpBefore = g.magic.xp;
+    g.player.hp = 100;
+    for (let k = 0; k < 4 && !m.dead; k++) { g.magic.cd = {}; g.magic.mana = 100; T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; for (let i = 0; i < 40; i++) T.step(1, 0.016); }
+    T.step(2);
+    return { cards, pick, open, learned, sel, hp0, hp1, mana0, mana1, dead: m.dead, xpGain: g.magic.xp - xpBefore, levelUp: g.magic.xp - xp0, bar: document.querySelector('#xpBars .spell')?.textContent };
+  });
+  check('magic: a new level offers 3 spells, picking one learns it', r.cards.length === 3 && r.learned.includes(r.pick) && r.sel === r.pick && !r.open, JSON.stringify(r));
+  check('magic: the wand casts the magic bolt: the boar takes 6, the mana goes down (8, it refills while the bolt flies)', r.hp0 - r.hp1 === 6 && r.mana0 - r.mana1 >= 4 && /Magická střela/.test(r.bar || ''), JSON.stringify(r));
+  check('magic: a boar knocked out by spells gives XP', r.dead && r.xpGain === 4, JSON.stringify(r));
+  r = await ev(async () => { // obchod za zlato: /sell v chatu prodá zlato, /shop otevře obchod, koupě stojí zlaťáky; vychytávky fungují
+    const g = window.game, chat = (t) => { const c = document.getElementById('chatInput'); c.value = t; c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); };
+    T.clearInv(); T.give('gold_ingot', 20); T.give('gold_block', 2);
+    chat('/sell');
+    const coins = T.count('coin'), gold = T.count('gold_ingot');
+    chat('/shop');
+    await new Promise((ok) => setTimeout(ok, 300));
+    const items = [...document.querySelectorAll('#shopWin [data-buy]')].map((b) => b.dataset.buy);
+    document.querySelector('#shopWin [data-buy="saber_blue"]')?.click();
+    document.querySelector('#shopWin [data-buy="wings"]')?.click();
+    const after = { coins: T.count('coin'), saber: T.count('saber_blue'), wings: T.count('wings') };
+    document.querySelector('#shopWin [data-buy="jet"]')?.click(); // 400: na to už nemá
+    const jet = T.count('jet');
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    const closed = !document.getElementById('shopWin');
+    T.hold('wings'); g.player.flyT = 0; g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016);
+    const fly = g.player.flyT;
+    T.hold('saber_blue'); T.step(2);
+    return { coins, gold, items, after, jet, closed, fly };
+  });
+  check('shop: /sell turns gold into coins (20 ingots × 10 + 2 blocks × 90 = 380)', r.coins === 380 && r.gold === 0, JSON.stringify(r));
+  check('shop: /shop lists sabers, trident, wings, flamethrower, medkit, the jet and 123 more game items; buying takes coins', ['saber_red', 'trident', 'wings', 'flamethrower', 'medkit', 'jet'].every((id) => r.items.includes(id)) && r.items.length >= 138 && ['iron_pick', 'pizza', 'car'].every((id) => r.items.includes(id)) && r.after.saber === 1 && r.after.wings === 1 && r.after.coins === 380 - 150 - 60 && r.jet === 0 && r.closed, JSON.stringify(r));
+  check('shop: wings give 30 s of flying on right click', r.fly > 29, JSON.stringify(r));
+  r = await ev(() => { // speciální vychytávky: lektvar rychlosti, teleportační koule, raketový batoh, granát, hák
+    const g = window.game, use = (id) => { T.clearInv(); T.give(id, 1); T.hold(id); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016); };
+    g.mobs.length = 0; T.tpg(-40, 60); T.step(5);
+    use('speed_potion');
+    const speed = g.player.speedT, potionGone = T.count('speed_potion') === 0;
+    const p0 = g.player.pos.clone(); g.player.pitch = -0.1;
+    use('teleport_orb');
+    const moved = g.player.pos.distanceTo(p0);
+    T.tpg(-40, 60); T.step(5);
+    const y0 = g.player.pos.y; T.clearInv(); T.give('jetpack', 1); T.hold('jetpack'); g.input.rmb = true; T.step(20, 0.016); g.input.rmb = false;
+    const up = g.player.pos.y - y0;
+    T.tpg(-40, 60); T.step(20); g.player.flyT = 0;
+    const p = g.player.pos; g.spawnMob('boar', p.x, p.z - 6); const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp;
+    T.aim(m.pos.x, m.pos.y + 1.5, m.pos.z);
+    use('grenade'); for (let i = 0; i < 80; i++) T.step(1, 0.016);
+    const boom = hp0 - m.hp;
+    T.aim(p.x, p.y - 3, p.z - 12);
+    use('grapple');
+    const pulled = Math.hypot(g.player.vel.x, g.player.vel.z);
+    return { speed, potionGone, moved, up, boom, pulled };
+  });
+  check('gadgets: speed potion, teleport orb, jetpack, grenade and grappling hook work', r.speed > 29 && r.potionGone && r.moved > 5 && r.up > 1 && r.boom > 0 && r.pulled > 3, JSON.stringify(r));
+  r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu
+    const g = window.game, p = g.player.pos, k = `${Math.floor(p.x) + 2},${Math.floor(p.y)},${Math.floor(p.z)}`;
+    g.Sound?.init?.();
+    T.clearInv(); T.give('disc_hero', 1); T.hold('disc_hero');
+    g.blocks.set(k, 'jukebox');
+    g.useJukebox(k);
+    const meta = g.blockMeta?.get(k), left = T.count('disc_hero');
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const playing = g.jukeboxesPlaying();
+    g.useJukebox(k);
+    for (let i = 0; i < 40; i++) T.step(1, 0.016);
+    const after = g.jukeboxesPlaying(), back = T.count('disc_hero');
+    g.blocks.delete(k);
+    return { meta, left, playing, after, back, ctx: !!g.Sound?.ctx };
+  });
+  check('jukebox: a disc goes in and plays the film music, right click again gives it back and stops', r.meta === 'disc_hero' && r.left === 0 && r.back === 1 && r.after.length === 0 && (!r.ctx || r.playing.includes('disc_hero')), JSON.stringify(r));
+  r = await ev(async () => { // peklo: portál s varováním, ďáblové, láva pálí, kbelík lávy, oltář: výkupné zmizí a jdeš domů
+    const g = window.game, wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    T.clearInv();
+    for (let i = 0; i < 25 && !g.blocks.has(`${g.HELL.x},${g.HELL.y},${g.HELL.z}`); i++) { T.step(10); await wait(50); } // peklo se staví v updateSpawns
+    g.useHellPortal();
+    const warn = document.querySelector('#hellWin')?.textContent || '';
+    document.querySelector('#hellWin [data-go]')?.click();
+    const p = g.player.pos, inside = g.inHell(p.x, p.y, p.z);
+    let devils = 0;
+    for (let i = 0; i < 30 && !devils; i++) { T.step(20, 0.05); g.player.hp = 100; devils = g.mobs.filter((m) => m.type === 'devil' && !m.dead).length; } // ďáblové by hráče v testu zabili: léčit
+    g.useAltar();
+    const locked = document.querySelector('#hellWin [data-pay]')?.disabled;
+    dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape', bubbles: true }));
+    g.mobs.length = 0;
+    // láva: postav se do ní
+    const lava = [...g.blocks.entries()].find(([, t]) => t === 'hell_lava')[0].split(',').map(Number);
+    T.tp(lava[0] + 0.5, lava[2] + 0.5, lava[1]);
+    const hp0 = g.player.hp, alive = g.player.alive;
+    T.step(20, 0.05);
+    const burnt = hp0 - g.player.hp;
+    g.player.hp = 100;
+    T.give('disc_hero', 2); T.give('disc_space', 1); T.give('fire_gem', 24); T.give('lava_bucket', 1); T.give('apple', 3);
+    g.useAltar();
+    const ready = !document.querySelector('#hellWin [data-pay]')?.disabled;
+    document.querySelector('#hellWin [data-pay]')?.click();
+    const q = g.player.pos;
+    return { warn: /oltář/.test(warn), inside, devils, locked, alive, burnt, ready, home: !g.inHell(q.x, q.y, q.z) && Math.hypot(q.x - 1.5, q.z - 15.5) < 2, left: ['disc_hero', 'disc_space', 'fire_gem', 'lava_bucket', 'apple'].map((id) => T.count(id)) };
+  });
+  check('hell: the portal warns first, then you are in hell and devils come', r.warn && r.inside && r.devils > 0, JSON.stringify(r));
+  check('hell: lava burns, the altar stays locked without the ransom', r.burnt > 0 && r.locked === true, JSON.stringify(r));
+  check('hell: 3 discs + 24 fire gems + a lava bucket at the altar = home; only those disappear', r.ready && r.home && r.left.join() === '0,0,0,0,3', JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword');
     T.tpg(-30, 30); T.step(30);
@@ -275,6 +548,19 @@ try {
   });
   check('campfire roasts meat', r.fire?.id === 'meat', JSON.stringify(r.fire));
   check('furnace smelts iron ore with coal', r.furnace?.id === 'iron', JSON.stringify(r.furnace));
+  r = await ev(() => { // jako v Minecraftu: dolů jen palivo, Shift+klik pošle uhlí do paliva
+    const g = window.game, k = '44,5,40';
+    g.blocks.set(k, 'furnace'); g.furnaces.delete(k); g.rebuildBlocks();
+    g.openInventory('furnace', k);
+    g.inv.cursor = { id: 'stone_sword', n: 1 }; g.slotClick('furnace', 1, 0, false);
+    const refused = !g.furnaces.get(k).slots[1] && g.inv.cursor?.id === 'stone_sword';
+    g.inv.cursor = null;
+    const keep = g.inv.slots[20]; g.inv.slots[20] = { id: 'coal', n: 5 }; g.slotClick('inv', 20, 0, true);
+    const fuel = g.furnaces.get(k).slots[1];
+    g.inv.slots[20] = keep; g.closeInventory();
+    return { refused, fuel };
+  });
+  check('furnace: fuel slot refuses a sword, Shift+click puts coal into fuel', r.refused && r.fuel?.id === 'coal' && r.fuel.n === 5, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game, gen = '50,5,50', cab = '51,5,50', lamp = '52,5,50';
     g.blocks.set(gen, 'coal_generator'); g.blocks.set(cab, 'cable_copper'); g.blocks.set(lamp, 'electric_lamp');
@@ -439,6 +725,7 @@ try {
   // ------------------------------------------------------------ save and load
   const before = await ev(() => {
     const g = window.game; T.clearInv(); T.give('stone', 7); T.give('apple', 3); g.addItem('iron_pick', 1, true, 33);
+    g.inv.off[0] = { id: 'shield', n: 1, w: 12 }; // druhá ruka se ukládá taky
     g.blocks.set('3,1,40', 'bricks'); g.rebuildBlocks(); g.setTime(0.3);
     g.saveGame();
     return { blocks: g.blocks.size, stone: T.count('stone'), apple: T.count('apple'), portal: g.portalActive, built: g.ruinsBuilt.size, vox: g.worldState().vox.length };
@@ -446,9 +733,10 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.click('#mSolo');
   await waitGame(page);
-  const after = await ev(() => { const g = window.game; return { blocks: g.blocks.size, stone: T.count('stone'), apple: T.count('apple'), portal: g.portalActive, built: g.ruinsBuilt.size, vox: g.worldState().vox.length, brick: g.blocks.get('3,1,40'), pickW: g.inv.slots.find((s) => s?.id === 'iron_pick')?.w }; });
+  const after = await ev(() => { const g = window.game; return { blocks: g.blocks.size, stone: T.count('stone'), apple: T.count('apple'), portal: g.portalActive, built: g.ruinsBuilt.size, vox: g.worldState().vox.length, brick: g.blocks.get('3,1,40'), pickW: g.inv.slots.find((s) => s?.id === 'iron_pick')?.w, off: g.inv.off[0] }; });
   check('save + reload keeps world and backpack', after.blocks === before.blocks && after.stone === 7 && after.apple === 3 && after.portal && after.built === before.built && after.vox === before.vox && after.brick === 'bricks', JSON.stringify({ before, after }));
   check('save + reload keeps tool wear', after.pickW === 33, JSON.stringify(after));
+  check('save + reload keeps the second hand (with wear)', after.off?.id === 'shield' && after.off?.w === 12, JSON.stringify(after));
   check('intro not shown after reload', await ev(() => document.getElementById('intro').style.display !== 'grid'));
 
   // ------------------------------------------------------------ graphics pipeline (render/look.js, post.js, shadows.js)
@@ -468,6 +756,43 @@ try {
   });
   check('graphics: weather (rain, wet ground) and dusk/night sky', r.rain > 0.9 && r.rainVisible && r.wet > 0.05 && r.overcast > 0.8 && r.twilight > 0.3 && r.starsNight > 0.9 && r.moon > 0.9, JSON.stringify(r));
   if (!process.env.PLAYTEST_QUALITY) check('graphics: Automaticky picks nízká on software WebGL', r.gpu !== 'software' || r.quality === 'low', JSON.stringify(r));
+  // ------------------------------------------------------------ bonuses for donors (player/bonus.js, player/ghost.js); only on the club server, faked here with NET.client
+  r = await ev(() => {
+    const g = window.game, out = {};
+    T.tp(0, 14); T.step(5);
+    const body = g.player.pos.clone(), bx = Math.floor(body.x), bz = Math.floor(body.z) - 10;
+    for (let y = 0; y < 4; y++) g.blocks.set(`${bx},${y},${bz}`, 'planks'); // a pillar to land in
+    g.NET.client = true;
+    T.press('KeyX'); out.noPerkNoGhost = !g.ghost.on;
+    g.applyBonus(['teleport', 'let', 'obrana', 'syty']);
+    out.perks = [...g.perks].join();
+    g.player.hunger = 50; T.step(10); out.hunger = Math.round(g.player.hunger);
+    g.player.hp = 100; g.damagePlayer(30, 0, 0); out.hp = Math.round(g.player.hp); g.player.hp = 100;
+    g.player.flying = false; T.press('Space'); T.press('Space'); out.flying = g.player.flying;
+    const y0 = g.player.pos.y; g.keys.add('Space'); T.step(20); g.keys.delete('Space'); out.rose = +(g.player.pos.y - y0).toFixed(1);
+    g.player.flying = false; T.tp(body.x, body.z, body.y); T.step(10);
+    g.player.yaw = 0; g.player.pitch = 0;
+    const b0 = g.player.pos.clone();
+    T.press('KeyX'); out.ghostOn = g.ghost.on;
+    g.keys.add('KeyW'); T.step(20); g.keys.delete('KeyW');
+    out.bodyStays = g.player.pos.distanceTo(b0) < 0.01;
+    out.ghostFlew = +(b0.z - g.ghost.pos.z).toFixed(1);
+    out.camAtGhost = g.camera.position.distanceTo(g.ghost.pos) < 0.01;
+    g.ghost.pos.set(bx + 0.5, 1.5 + 1.62, bz + 0.5); // inside the pillar
+    T.press('KeyX'); out.landed = !g.ghost.on; out.at = [+(g.player.pos.x - bx).toFixed(1), +g.player.pos.y.toFixed(2), +(g.player.pos.z - bz).toFixed(1)];
+    T.press('KeyX'); g.damagePlayer(1, 0, 0); out.hurtEndsGhost = !g.ghost.on; g.player.hp = 100;
+    T.press('KeyX'); const g0 = g.player.pos.clone(); g.ghost.pos.x += 50; window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', shiftKey: true })); T.key('KeyX', false);
+    out.shiftXBack = !g.ghost.on && g.player.pos.distanceTo(g0) < 0.01;
+    g.NET.jail = { need: 1, given: 0, item: 'spider_eye', at: null }; T.press('KeyX'); out.noGhostInPrison = !g.ghost.on; g.NET.jail = null;
+    g.applyBonus([]); g.player.hunger = 50; T.step(20); out.hungryAgain = g.player.hunger < 50;
+    g.NET.client = false; g.player.flying = false;
+    for (let y = 0; y < 4; y++) g.blocks.delete(`${bx},${y},${bz}`);
+    T.tp(0, 14); T.step(5);
+    return out;
+  });
+  check('bonuses: no bonus = X does nothing; never hungry; a third of the damage; fly with double Space', r.noPerkNoGhost && r.perks === 'syty,obrana,let,teleport' && r.hunger === 100 && r.hp === 90 && r.flying && r.rose > 5, JSON.stringify(r));
+  check('bonuses: ghost (X) flies fast while the body stays; X again lands on top of the block it is in', r.ghostOn && r.bodyStays && r.ghostFlew > 25 && r.camAtGhost && r.landed && r.at[1] >= 4 && Math.abs(r.at[0] - 0.5) < 0.1 && Math.abs(r.at[2] - 0.5) < 0.1, JSON.stringify(r));
+  check('bonuses: a hit or Shift+X sends the ghost back; no ghost in prison; taken away = hungry again', r.hurtEndsGhost && r.shiftXBack && r.noGhostInPrison && r.hungryAgain, JSON.stringify(r));
   // ------------------------------------------------------------ 3D icons of blocks and machines (drawn in the background after the start)
   const icons3d = await page.waitForFunction(() => ['coal_generator', 'tech_panel', 'bricks', 'planks_stairs'].every((id) => window.game.ICONS[id]?.smooth && window.game.ICONS[id].canvas.width === 64), null, { timeout: 60000 }).then(() => true, () => false);
   check('block and machine icons are 3D renders (64 px, smooth)', icons3d);

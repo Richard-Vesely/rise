@@ -4,10 +4,22 @@ import { ITEMS } from '../../../shared/data/index.js';
 import { clamp, hash2 } from '../../../shared/util.js';
 import { bricksTex, cobbleTex, markPlanksTex, planksTex } from './textures.js';
 
+/**
+ * Plátno pro ikonu: drží se v paměti počítače, ne na grafické kartě (willReadFrequently). Z ikon se čtou pixely
+ * (3D předmět na zemi a v ruce, obrys ikony v okně); čtení z plátna na grafické kartě musí počkat, až karta dokreslí
+ * všechno, co má rozdělané, a na pomalém stroji (softwarové WebGL) tak hra zamrzla na sekundy, když poprvé spadla pochodeň.
+ */
+export function iconCanvas(w = 16, h = w) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d', { willReadFrequently: true });
+  return c;
+}
+
 // ============================================================ pixelové ikony předmětů
 // Bloky se kreslí jako malé 3D kostičky (jako v Minecraftu), ostatní předměty jako pixel art 16×16.
 export const ICONS = (() => {
-  const canvas = (n) => { const c = document.createElement('canvas'); c.width = c.height = n; return c; };
+  const canvas = (n) => iconCanvas(n);
   const rgb = (c, k = 1) => `rgb(${clamp(c[0] * k, 0, 255) | 0},${clamp(c[1] * k, 0, 255) | 0},${clamp(c[2] * k, 0, 255) | 0})`;
 
   // Malá 16×16 textura stěny (zmenšená velká textura nebo nakreslená po pixelech).
@@ -83,6 +95,7 @@ export const ICONS = (() => {
     5: { L: '#ffd2ff', M: '#d24ee8', D: '#5e1680' },
     shadow: { L: '#8a76a0', M: '#3c2c4e', D: '#120a1a' },
     sky: { L: '#ffffff', M: '#ffe7a0', D: '#c0902e' },
+    fire: { L: '#ffd040', M: '#ff5a1a', D: '#6a120a' },
   };
   const HELMET = ['................', '................', '................', '....DDDDDDDD....', '...DLLLMMMMMD...', '..DLMMMMMMMMMD..',
     '..DLMMMMMMMMMD..', '..DMMDDDDDDMMD..', '..DMD......DMD..', '..DMD......DMD..', '...D........D...'];

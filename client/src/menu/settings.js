@@ -8,10 +8,24 @@ const touchAuto = matchMedia('(pointer: coarse)').matches && navigator.maxTouchP
 const OPTS = {
   quality: [['', 'Automaticky'], ['low', 'Nízká'], ['medium', 'Střední'], ['high', 'Vysoká']],
   controls: [['', 'Automaticky'], ['touch', 'Dotykové'], ['mouse', 'Myš a klávesnice']],
+  body: [['', 'Vypnuto'], ['knees', 'Chůze na místě'], ['lean', 'Náklon'], ['hands', 'Jen rukama (vsedě)']], // ovládání tělem přes webkameru (player/body-control.js)
 };
 let box = null;
+// Dokud je okno otevřené, klávesy E a Esc zavřou jen jeho (dřív E zavřelo batoh pod ním, zamklo myš a okno zůstalo viset
+// nad běžící hrou, Zavřít pak nešlo kliknout). Ostatní klávesy hra nedostane (hráč za oknem nechodí); posuvníky
+// se šipkami dál fungují (to je výchozí chování prohlížeče).
+function onKey(e) {
+  if (!box) return;
+  e.stopImmediatePropagation();
+  if (e.code === 'Escape' || e.code === 'KeyE') { e.preventDefault(); close(); }
+}
+function close() {
+  box?.remove(); box = null;
+  removeEventListener('keydown', onKey, true);
+}
 function open(opts = {}) {
   box?.remove();
+  addEventListener('keydown', onKey, true);
   box = document.createElement('div');
   box.id = 'settings';
   const render = () => {
@@ -22,6 +36,7 @@ function open(opts = {}) {
       <div class="mc-title">Nastavení</div>
       <div class="set-row"><div class="set-label">Grafika <small>(automaticky: ${autoQ})</small></div>${seg('quality')}</div>
       <div class="set-row"><div class="set-label">Ovládání <small>(automaticky: ${autoC})</small></div>${seg('controls')}</div>
+      <div class="set-row"><div class="set-label">Ovládání tělem (webkamera) <small>upaž = otočit, ruka nahoru = útok / použít; video zůstává v počítači</small></div>${seg('body')}</div>
       <div class="set-row"><div class="set-label">Velikost dotykových tlačítek <b>${Math.round((p.btnScale || 1) * 100)} %</b></div><input type="range" min="60" max="150" step="5" value="${Math.round((p.btnScale || 1) * 100)}" data-r="btnScale"></div>
       <div class="set-row"><div class="set-label">Citlivost otáčení <b>${Math.round((p.sens || 1) * 100)} %</b></div><input type="range" min="40" max="250" step="10" value="${Math.round((p.sens || 1) * 100)}" data-r="sens"></div>
       <div class="set-sound">${VOL_LABELS.map(([k, t]) => { const v = Math.round(readVolumes(p)[k] * 100); return `<div class="set-row"><div class="set-label">${t} <b>${v} %</b></div><input type="range" min="0" max="100" step="5" value="${v}" data-r="${k}"></div>`; }).join('')}</div>
@@ -33,7 +48,7 @@ function open(opts = {}) {
   box.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.close !== undefined) { box.remove(); box = null; return; }
+    if (b.dataset.close !== undefined) { close(); return; }
     if (b.dataset.restart !== undefined) { opts.onRestart?.(); return; }
     if (b.dataset.k) { const p = load(); if (b.dataset.v) p[b.dataset.k] = b.dataset.v; else delete p[b.dataset.k]; store(p); render(); }
   });

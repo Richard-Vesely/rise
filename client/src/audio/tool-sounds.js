@@ -30,6 +30,11 @@ export function toolSound(name, strength = 1) {
       S.burst({ dur: 0.05, f0: 2400 * p, f1: 900, q: 1, vol: 0.2 });
       S.burst({ dur: 0.25 + 0.15 * strength, f0: 1800 * p, f1: 600 * p, q: 1.5, vol: 0.06 + 0.1 * strength, delay: 0.03 });
       break;
+    case 'shieldBlock': // úder do štítu: tupé ťuknutí do dřeva a cinknutí lemu
+      S.burst({ dur: 0.09, f0: 700 * p, f1: 200, type: 'lowpass', q: 1, vol: 0.45 });
+      S.tone(160 * p, 0.16, 0.22, 'triangle', 0, 90);
+      S.tone(1900 * p, 0.12, 0.04, 'sine', 0.01);
+      break;
     case 'arrowHit': // šíp se zabodl do země nebo do bloku
       S.burst({ dur: 0.06, f0: 900 * p, f1: 300, type: 'lowpass', q: 1, vol: 0.25 });
       S.tone(240 * p, 0.12, 0.08, 'triangle', 0, 180);
@@ -55,6 +60,17 @@ export function toolSound(name, strength = 1) {
       break;
     case 'poof': // tvor se rozplyne v kouři
       S.burst({ dur: 0.35, f0: 900 * p, f1: 200, type: 'lowpass', q: 0.6, vol: 0.16, attack: 0.04 });
+      break;
+    case 'avada': // Avada Kedavra: syčivý nápor, hluboký úder a klesající přízračný tón
+      S.burst({ dur: 0.5, f0: 6000 * p, f1: 900, q: 0.8, vol: 0.35, attack: 0.03 });
+      S.tone(880 * p, 0.7, 0.12, 'sawtooth', 0, 110);
+      S.tone(55, 0.6, 0.45, 'sine', 0.05, 30);
+      S.tone(1320 * p, 0.5, 0.05, 'triangle', 0.04, 220);
+      break;
+    case 'hunt': // Štvanice: vrčivý tón a vytí
+      S.tone(70 * p, 0.6, 0.3, 'sawtooth', 0, 50);
+      S.tone(420 * p, 0.7, 0.07, 'triangle', 0.1, 260);
+      S.burst({ dur: 0.35, f0: 600 * p, f1: 200, type: 'lowpass', q: 1, vol: 0.25 });
       break;
     case 'equip': // vytažení nástroje
       S.burst({ dur: 0.06, f0: 2500 * p, f1: 2000, q: 2, vol: 0.05 });

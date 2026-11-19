@@ -13,9 +13,10 @@ import { materialAt } from '../audio/materials.js';
 import { Sound } from '../audio/sound.js';
 import { MP } from '../game/boot.js';
 import { game } from '../game/debug.js';
-import { TOUCH, lookSens } from '../game/prefs.js';
+import { TOUCH, lookSens, prefStr } from '../game/prefs.js';
 import { save } from '../game/save-load.js';
 import { toggleView } from '../net/avatars.js';
+import { setBodyMode } from './body-control.js';
 import { openChat } from '../net/mp-ui.js';
 import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
@@ -25,11 +26,16 @@ import { camera, renderer } from '../render/renderer.js';
 import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
 import { closeInventory, fullSet, invOpen, openInventory, renderHotbar, renderInventory } from '../ui/inventory-ui.js';
-import { enterVehicle, exitVehicle, honk, toggleCarCam, vehiclePush } from '../vehicles/car.js';
+import { enterVehicle, exitVehicle, honk, setGear, toggleCarCam, toggleLights, useNitro, vehiclePush } from '../vehicles/car.js';
 import { dropHeld } from '../world/ground-items.js';
 import { shrineColliders } from '../world/shrine.js';
+import { hasPerk } from './bonus.js';
+import { ghost, toggleGhost } from './ghost.js';
 import { resetUseCd, target } from './interaction.js';
 import { inv } from './inventory.js';
+import { swapHands } from './offhand.js'; // (po interaction.js: offhand.js bere opotřebení z durability.js)
+import { togglePvp } from './pvp.js';
+import { holdingWand, nextSpell, toggleBook } from './xp.js';
 
 // ============================================================ hráč a ovládání
 const canvas = renderer.domElement;
@@ -78,6 +84,7 @@ $('inventory').addEventListener('click', (e) => { if (e.target.closest('#costume
 $('modeBtn').textContent = `Režim: ${creative ? 'Kreativní' : 'Přežití'}`;
 export function setCreative(on) {
   if (on && !NET.perm) { toast('Kreativní režim zakázal hostitel'); return; }
+  if (on && NET.jail) { toast('Ve vězení kreativní režim nejde'); return; } // vězení serveru kroužku (player/prison.js)
   creative = on;
   if (!on) player.flying = false;
   toast(on ? 'Kreativní režim · 2× Mezerník = létání' : 'Režim přežití');
@@ -88,31 +95,41 @@ export function setCreative(on) {
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return; // psaní do chatu nebo do pole
-  if (MP && e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
+  if (e.code === 'KeyT' && !e.repeat && !invOpen && !guideOpen && (isLocked() || game.testMode)) { e.preventDefault(); openChat(); return; }
   if (e.code === 'KeyE' && !e.repeat) { invOpen ? closeInventory() : (isLocked() || game.testMode) && openInventory(); return; }
   if (e.code === 'Escape' && invOpen) { closeInventory(); return; }
   if (e.code === 'KeyH' && !e.repeat) { toggleGuide(); return; }
+  if (e.code === 'KeyK' && !e.repeat && !invOpen && !guideOpen) { toggleBook(); return; } // kniha kouzel (xp.js)
+  if (e.code === 'KeyR' && !e.repeat && !invOpen && holdingWand()) { nextSpell(); return; } // další kouzlo hole
+  if (e.code === 'KeyN' && !e.repeat && MP && !guideOpen && (isLocked() || game.testMode)) { togglePvp(); return; } // ve hře pro víc hráčů N = souboje (pvp.js)
   if (guideOpen) return;
+  if (e.code === 'KeyX' && !e.repeat && !invOpen && (isLocked() || game.testMode) && toggleGhost(e.shiftKey)) return; // duch (bonus teleport, ghost.js)
+  if (ghost.on) { keys.add(e.code); if (e.code === 'Space') e.preventDefault(); return; } // duch jen létá
   if (e.code === 'KeyC' && !e.repeat && !invOpen) { setCreative(!creative); return; }
   if (e.code === 'KeyG' && !e.repeat && !invOpen && (isLocked() || game.testMode)) { dropHeld(e.shiftKey); return; }
-  // Auto: F nastoupit / vystoupit, L světla, B klakson, V kamera (první / třetí osoba)
+  // Vozidla: F nastoupit / vystoupit (i jako spolujezdec), L světla, B klakson (kolo zvonek, loď houkačka), N nitro,
+  // 1/2/3 převod na kole, V kamera (první / třetí osoba). Jinak F prohodí předmět v ruce s druhou rukou (offhand.js).
   if (e.code === 'KeyF' && !e.repeat && !invOpen && (isLocked() || game.testMode)) {
-    if (player.vehicle) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id);
+    if (player.vehicle || player.riding) exitVehicle(); else if (target?.kind === 'vehicle') enterVehicle(target.id); else swapHands();
     return;
   }
+  if (player.riding && !e.repeat && ['KeyL', 'KeyB', 'KeyN', 'KeyV'].includes(e.code)) return; // spolujezdec neřídí
   if (player.vehicle && !e.repeat && !invOpen) {
     const v = vehicles.get(player.vehicle);
-    if (e.code === 'KeyL' && v) { if (v.type !== 'plane' && !v.lights && !v.engine && !(v.slots[0]?.id === 'car_battery' && v.bat > 0)) toast('Světla nesvítí – vybitá autobaterie'); else v.lights = !v.lights; return; }
-    if (e.code === 'KeyB' && v?.type !== 'plane') { honk(); return; }
+    if (e.code === 'KeyL' && v) { toggleLights(v); return; }
+    if (e.code === 'KeyB') { honk(); return; }
+    if (e.code === 'KeyN') { useNitro(); return; }
     if (e.code === 'KeyV') { toggleCarCam(); player.yaw = 0; return; }
+    const gear = e.code.match(/^Digit([1-3])$/);
+    if (gear && v?.type === 'bike') { setGear(v, Number(gear[1])); return; }
   }
-  if (e.code === 'KeyV' && !e.repeat && !invOpen && !player.vehicle) { toggleView(); return; } // pohled z první / třetí osoby
+  if (e.code === 'KeyV' && !e.repeat && !invOpen && !player.vehicle && !player.riding) { toggleView(); return; } // pohled z první / třetí osoby
   if (e.code === 'KeyO' && !e.repeat && !invOpen && (isLocked() || game.testMode)) { openCostume(); return; }
   // Nebeská sada: dvojitý skok
   if (e.code === 'Space' && !e.repeat && !creative && fullSet() === 'sky' && !player.onGround && !player.doubleUsed && !(player.flyT > 0)) {
     player.vel.y = JUMP; player.doubleUsed = true; sparks.emit(player.pos.x, player.pos.y, player.pos.z, [1, 0.9, 0.6], 20, 2, 0);
   }
-  if (e.code === 'Space' && !e.repeat && creative && !player.vehicle) {
+  if (e.code === 'Space' && !e.repeat && (creative || hasPerk('let')) && !player.vehicle && !player.riding) { // kreativní režim nebo bonus Létání (bonus.js)
     const now = performance.now();
     if (now - lastSpace < 300) { player.flying = !player.flying; player.vel.y = 0; toast(player.flying ? 'Létání zapnuto' : 'Létání vypnuto'); }
     lastSpace = now;
@@ -209,10 +226,13 @@ export function updatePlayer(dt) {
   const len = Math.max(1, Math.hypot(f, s));
   if (player.flyT > 0) player.flyT = Math.max(0, player.flyT - dt);
   const set = fullSet();
-  const flying = (creative && player.flying) || player.flyT > 0;
+  const flying = ((creative || hasPerk('let')) && player.flying) || player.flyT > 0;
   const shift = keys.has('ShiftLeft') || keys.has('ShiftRight');
   const sprint = flying ? keys.has('ControlLeft') : shift && player.hunger > 5;
-  const speed = (flying ? (sprint ? 24 : 12) : sprint ? RUN : WALK) * (set === 'shadow' && !flying ? 1.25 : 1);
+  // plavání: hruď pod hladinou (hluboký rybník, jezero)
+  const swim = flying ? null : waterAt(player.pos.x, player.pos.y + 1.1, player.pos.z);
+  if (player.speedT > 0) player.speedT -= dt; // lektvar rychlosti (player/gadgets.js)
+  const speed = (flying ? (sprint ? 24 : 12) : sprint ? RUN : WALK) * (set === 'shadow' && !flying ? 1.25 : 1) * (player.speedT > 0 ? 1.6 : 1) * (swim !== null ? 0.55 : 1);
   const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
   const tx = ((s * cos - f * sin) / len) * speed, tz = ((-s * sin - f * cos) / len) * speed;
   const v = player.vel, p = player.pos;
@@ -222,6 +242,10 @@ export function updatePlayer(dt) {
   if (flying) { // Mezerník = nahoru, Shift = dolů, Ctrl = rychleji
     const up = (keys.has('Space') ? 1 : 0) - (shift ? 1 : 0);
     v.y += (up * 10 - v.y) * Math.min(1, 10 * dt);
+  } else if (swim !== null) { // ve vodě hráč stoupá k hladině (hlava nad vodou); Mezerník = nahoru, Shift = ponořit se
+    const want = keys.has('Space') ? 3.4 : shift ? -2.6 : clamp((swim - 1.3 - p.y) * 2.5, -1.5, 1.6);
+    v.y += (want - v.y) * Math.min(1, 4 * dt);
+    if (player.onGround && keys.has('Space') && swim - p.y < 1.4) { v.y = JUMP; player.onGround = false; } // vylézt na břeh
   } else {
     if (player.onGround && keys.has('Space')) { v.y = JUMP; player.onGround = false; }
     v.y = Math.max(set === 'sky' ? -7 : -40, v.y - GRAVITY * dt); // nebeská sada: pomalý pád
@@ -291,3 +315,15 @@ export function updatePlayer(dt) {
   camera.rotation.set(player.pitch, player.yaw, 0);
   return moving;
 }
+
+// Ovládání tělem přes webkameru (Nastavení → Ovládání tělem): MediaPipe se stáhne, až když ho hráč zapne.
+// (Obyčejný import: import() na požádání rozdělil balíček hry a hra se spouštěla už v menu.)
+let bodyMode = '';
+function applyBodyMode() {
+  const m = ['knees', 'lean', 'hands'].includes(prefStr('body')) ? prefStr('body') : '';
+  if (m === bodyMode) return;
+  bodyMode = m;
+  setBodyMode(m || null);
+}
+applyBodyMode();
+addEventListener('rise-prefs', applyBodyMode);

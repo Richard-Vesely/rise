@@ -14,14 +14,27 @@ export const shardObjs = new Map();
 const beamMat = new THREE.ShaderMaterial({
   uniforms: { uTime: U.time, uNight: U.night },
   transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
-  vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    varying vec3 vN, vV;
+    void main() {
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vN = normalize(mat3(modelMatrix) * normal); vV = cameraPosition - wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
   fragmentShader: /* glsl */`
     uniform float uTime, uNight;
     varying vec2 vUv;
+    varying vec3 vN, vV;
     void main() {
-      float a = pow(max(1.0 - vUv.y, 0.0), 2.5) * (0.55 + 0.15 * sin(uTime * 3.0 + vUv.y * 20.0));
-      // paprsek je orientační bod: ve dne svítí silněji, aby byl vidět i proti jasné obloze
-      gl_FragColor = vec4(vec3(0.35, 0.9, 1.0) * a * 0.6 * (1.0 + ${(GLOW > 1 ? 1.4 : 1.0).toFixed(1)} * (1.0 - uNight)), 1.0);
+      // měkký světelný sloupec: uprostřed jasný, k okrajům (kde se na plášť díváme z boku) průhledný, zblízka slabší
+      float d = length(vV), side = abs(dot(normalize(vN), vV / d));
+      float a = pow(max(1.0 - vUv.y, 0.0), 2.5) * (0.55 + 0.15 * sin(uTime * 3.0 + vUv.y * 20.0)) * side * side * smoothstep(1.5, 14.0, d);
+      // paprsek je orientační bod: ve dne svítí silněji, aby byl vidět i proti jasné obloze (pevný nejmenší jas)
+      // ve dne vzdálené paprsky (přes ~250 m) zmizí: desítky bílých čar na obzoru vypadaly jako chyba; kompas je ukazuje dál, v noci svítí všechny
+      float far = mix(1.0 - smoothstep(90.0, 260.0, d), 1.0, uNight);
+      gl_FragColor = vec4(vec3(0.35, 0.9, 1.0) * max(a, 0.05 * side * (1.0 - vUv.y)) * 0.75 * far * (1.0 + ${(GLOW > 1 ? 1.4 : 1.0).toFixed(1)} * (1.0 - uNight)), 1.0);
     }`,
 });
 const crystalGeo = new THREE.OctahedronGeometry(0.42).scale(1, 1.7, 1);

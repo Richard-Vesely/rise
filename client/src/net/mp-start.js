@@ -9,6 +9,8 @@ import { playerSafe } from '../mobs/mobs.js';
 import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
 import { receiveGift } from '../pc/papers-world.js';
+import { startArena } from '../player/arena.js';
+import { askOpen } from '../player/prison.js';
 import { creative, guideOpen, isLocked, player, setCreative } from '../player/player.js';
 import { rebuildBlocks } from '../render/blocks.js';
 import { rebuildForest } from '../render/forest.js';
@@ -16,7 +18,7 @@ import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
 import { fullSet, invOpen } from '../ui/inventory-ui.js';
 import { myPose, updateAvatars } from './avatars.js';
-import { chatLine, chatOpen, hidePause, leaveGame, netBox, renderNetBox, renderPause, showPause, sysLine } from './mp-ui.js';
+import { chatLine, chatOpen, hidePause, leaveGame, netBox, rejoinAfterRestart, renderNetBox, renderPause, restarting, showPause, sysLine } from './mp-ui.js';
 import { applyLaterKV, onHostMsg, toHost } from './multiplayer.js';
 
 // ---------- hlavní smyčka sítě (volá ji tick)
@@ -65,10 +67,10 @@ if (MP) {
   netBox.style.display = 'flex';
   document.body.classList.add('mp');
   $('newWorld').style.display = 'none';
-  $('hint').textContent += ' · T chat · Esc menu a hráči';
+  $('hint').textContent += ' · T chat · N souboje · Esc menu a hráči';
   document.addEventListener('pointerlockchange', () => {
     if (isLocked()) { hidePause(); return; }
-    if (!invOpen && !guideOpen && !chatOpen && !pcOpen && !docOpen && !NET.leaving) showPause();
+    if (!invOpen && !guideOpen && !chatOpen && !askOpen && !pcOpen && !docOpen && !NET.leaving) showPause();
   });
   window.__netOnPeerError = (e) => { if (NET.client && !BOOT.conn?.open) leaveGame('Spojení s hostitelem se přerušilo.'); else console.warn('PeerJS:', e?.type); };
   if (NET.host) {
@@ -78,10 +80,11 @@ if (MP) {
     sysLine(`Server spuštěn. Kód pro kamarády: ${NET.code}`);
   } else {
     window.__netOnData = (d) => { try { onHostMsg(d); } catch (e) { console.error(e); } };
-    window.__netOnClose = () => { if (!NET.leaving) leaveGame(NET.kicked ? 'Hostitel tě vyhodil ze hry.' : BOOT.peer ? 'Hostitel ukončil hru.' : 'Spojení se přerušilo. Zkus se připojit znovu.'); };
+    window.__netOnClose = () => { if (restarting()) rejoinAfterRestart(); else if (!NET.leaving) leaveGame(NET.kicked ? 'Hostitel tě vyhodil ze hry.' : BOOT.peer ? 'Hostitel ukončil hru.' : 'Spojení se přerušilo. Zkus se připojit znovu.'); };
     for (const d of BOOT.queue || []) window.__netOnData(d);
     if (!NET.perm && creative) setCreative(false);
     sysLine(`Připojeno k serveru ${NET.code}${NET.worldName ? ` · svět ${NET.worldName}` : ''}`);
+    if (NET.pvp) startArena(); // aréna: výbava, místo v aréně, tabulka bodů
   }
   // Záložka na pozadí: prohlížeč zastaví snímky (requestAnimationFrame), svět (hlavně u hostitele) ale musí běžet dál.
   setInterval(() => {

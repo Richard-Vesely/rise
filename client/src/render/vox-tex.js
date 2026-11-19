@@ -62,14 +62,15 @@ export function buildVoxTextures(T = 128) {
     const v = facet * (0.7 + 0.3 * rim) * (0.92 + hash2(x, y) * 0.16);
     return [c[0] * v, c[1] * v, c[2] * v, rockH[i] * 0.75 + sm(0, 0.3, k) * (0.12 + k * (o.crystal ? 0.3 : 0.18)), o.alt && c === o.alt ? 0.8 : o.rough, o.alt && c === o.alt ? 0 : o.metal, o.glow ? Math.min(1, 0.35 + k * 1.2) : 0];
   };
+  // zrna jsou velká a hustá (jako v Minecraftu), aby se rudný blok poznal i z dálky a nevypadal jako konfety
   const ORES = {
-    coal: { share: 0.42, size: 6, color: [34, 33, 36], rough: 0.35, metal: 0 },
-    iron: { share: 0.38, size: 5, color: [200, 146, 104], rough: 0.42, metal: 0.55 },
-    crystal: { share: 0.5, size: 8, crystal: true, color: [56, 214, 250], rough: 0.08, metal: 0, glow: true },
-    markorite: { share: 0.5, size: 8, crystal: true, color: [228, 58, 220], rough: 0.08, metal: 0, glow: true },
-    copper: { share: 0.36, size: 5, color: [222, 122, 66], alt: [84, 176, 138], rough: 0.35, metal: 0.85 },
-    gold: { share: 0.38, size: 5, color: [255, 206, 72], rough: 0.22, metal: 1 },
-    quartz: { share: 0.5, size: 8, crystal: true, color: [242, 240, 252], rough: 0.12, metal: 0 },
+    coal: { share: 0.55, size: 10, color: [34, 33, 36], rough: 0.35, metal: 0 },
+    iron: { share: 0.52, size: 9, color: [200, 146, 104], rough: 0.42, metal: 0.55 },
+    crystal: { share: 0.6, size: 12, crystal: true, color: [56, 214, 250], rough: 0.08, metal: 0, glow: true },
+    markorite: { share: 0.6, size: 12, crystal: true, color: [228, 58, 220], rough: 0.08, metal: 0, glow: true },
+    copper: { share: 0.5, size: 9, color: [222, 122, 66], alt: [84, 176, 138], rough: 0.35, metal: 0.85 },
+    gold: { share: 0.52, size: 9, color: [255, 206, 72], rough: 0.22, metal: 1 },
+    quartz: { share: 0.6, size: 12, crystal: true, color: [242, 240, 252], rough: 0.12, metal: 0 },
   };
 
   const tile = (name, x, y, i) => {

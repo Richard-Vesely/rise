@@ -1,12 +1,12 @@
 // Ikony jídla, surovin, nádobí, ryb a nábytku.
 import '../world/dig.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import { clamp, hash2 } from '../../../shared/util.js';
-import { ICONS } from './icons.js';
+import { ICONS, iconCanvas } from './icons.js';
 
 // ============================================================ ikony jídla, surovin a nádobí
 // Kreslí se tvary (elipsy, obdélníky) po pixelech 16×16 a nakonec se přidá tmavý obrys jako v Minecraftu.
 (() => {
-  const canvas16 = () => { const c = document.createElement('canvas'); c.width = c.height = 16; return c; };
+  const canvas16 = () => { const c = iconCanvas(); c.width = c.height = 16; return c; };
   const inE = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
   const inR = (x, y, x0, y0, x1, y1) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
   const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -150,7 +150,7 @@ import { ICONS } from './icons.js';
   // Bloky jako 3D kostičky
   const tile16 = (fn) => { const c = canvas16(), g = c.getContext('2d'); for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { g.fillStyle = fn(x, y); g.fillRect(x, y, 1, 1); } return c; };
   const isoCube = (top, side) => {
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = 32;
     const g = c.getContext('2d'), S = 16;
     g.imageSmoothingEnabled = false;
@@ -180,7 +180,7 @@ import { ICONS } from './icons.js';
   const lit = (h, x, y) => { const k = 1.12 - ((x - 8) + (y - 8)) * 0.035; return `rgb(${hex(h).map((v) => clamp(v * k, 0, 255) | 0).join(',')})`; };
   const noise = (x, y, s = 0) => hash2(Math.floor(x) * 7 + s, Math.floor(y) * 13 - s);
   function paint(fn) {
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = 16;
     const g = c.getContext('2d');
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const col = fn(x + 0.5, y + 0.5); if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }
@@ -266,7 +266,7 @@ import { ICONS } from './icons.js';
   const lit = (h, x, y) => { const k = 1.12 - ((x - 8) + (y - 8)) * 0.035; return `rgb(${hex(h).map((v) => clamp(v * k, 0, 255) | 0).join(',')})`; };
   const noise = (x, y, s = 0) => hash2(Math.floor(x) * 7 + s, Math.floor(y) * 13 - s);
   function paint(fn) {
-    const c = document.createElement('canvas');
+    const c = iconCanvas();
     c.width = c.height = 16;
     const g = c.getContext('2d');
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const col = fn(x + 0.5, y + 0.5); if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); } }

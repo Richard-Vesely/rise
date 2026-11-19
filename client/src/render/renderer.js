@@ -28,6 +28,7 @@ camera.rotation.order = 'YXZ';
 scene.add(camera);
 
 export const U = {
+  oceans: { value: 0 }, // svět s oceány (render/water.js podle WORLD_GEN.oceans)
   sunDir: { value: new THREE.Vector3(0, 1, 0) },
   sunColor: { value: new THREE.Vector3(1, 1, 1) },
   ambient: { value: new THREE.Vector3(0.4, 0.5, 0.7) },
@@ -49,11 +50,13 @@ export const U = {
   // okolní světlo: obloha shora, odraz od země zdola; prosvítání trávy proti slunci
   // světla pochodní a lamp (pevný počet, render/blocks.js) i pro terén a trávu: poloha + síla, barva
   pl: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, plColor: { value: Array.from({ length: 6 }, () => new THREE.Vector3()) },
+  // odlesky oblohy (PMREM z render/sky.js) pro vlastní shadery: louže, opar
+  env: { value: null }, envOn: { value: 0 },
   skyAmb: { value: new THREE.Vector3(0.5, 0.6, 0.9) }, groundAmb: { value: new THREE.Vector3(0.3, 0.3, 0.25) }, sss: { value: LK.sss }, foliage: { value: LK.foliage },
 };
 export const shaderUniforms = (extra = {}) => ({
   ...THREE.UniformsUtils.clone(THREE.UniformsLib.fog),
-  uSunDir: U.sunDir, uSunColor: U.sunColor, uAmbient: U.ambient, uTime: U.time, uCam: U.cam, uNight: U.night, uWet: U.wet, uWind: U.wind, uTwilight: U.twilight, uHeadPos: U.headPos, uHeadDir: U.headDir, uHeadOn: U.headOn,
+  uOceans: U.oceans, uSunDir: U.sunDir, uSunColor: U.sunColor, uAmbient: U.ambient, uTime: U.time, uCam: U.cam, uNight: U.night, uWet: U.wet, uWind: U.wind, uTwilight: U.twilight, uHeadPos: U.headPos, uHeadDir: U.headDir, uHeadOn: U.headOn,
   uShadowMap: U.shadowMap, uShadowMatrix: U.shadowMatrix, uShadowP: U.shadowP, uShadowStrength: U.shadowStrength, uSkyAmb: U.skyAmb, uGroundAmb: U.groundAmb, uSSS: U.sss, uFoliage: U.foliage, uPL: U.pl, uPLC: U.plColor,
   ...extra,
 });

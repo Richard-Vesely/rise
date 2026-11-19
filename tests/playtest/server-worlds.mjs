@@ -7,13 +7,13 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { launch, checker, openPage, waitGame, sleep } from './lib.mjs';
+import { launch, checker, openPage, waitGame, sleep, SLOW } from './lib.mjs';
 
 const out = process.argv[2] || 'playtest-worlds';
 const { check, results, failed } = checker('worlds: ');
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'louka-worlds-'));
 function startServer() {
-  const env = { ...process.env, PORT: '0', DATA_DIR: dataDir, ROOM_PASSWORD: 'kroužek', SAVE_SECONDS: '1', WORLDS: 'svet:Hlavní svět,kreativ:Kreativní svět:creative' };
+  const env = { ...process.env, PORT: '0', DATA_DIR: dataDir, ROOM_PASSWORD: 'kroužek', SAVE_SECONDS: '1', SILENT_SECONDS: String(30 * SLOW), WORLDS: 'svet:Hlavní svět,kreativ:Kreativní svět:creative' };
   const child = spawn(process.execPath, ['server/index.js'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   let log = '';
   return new Promise((ok, fail) => {
@@ -24,7 +24,7 @@ function startServer() {
   });
 }
 const stop = (s) => new Promise((ok) => { if (s.child.exitCode !== null || s.child.signalCode) return ok(); s.child.stopping = true; s.child.on('exit', ok); s.child.kill(); });
-const until = async (page, fn, arg, timeout = 15000) => { try { await page.waitForFunction(fn, arg, { timeout, polling: 100 }); return true; } catch { return false; } };
+const until = async (page, fn, arg, timeout = 15000) => { try { await page.waitForFunction(fn, arg, { timeout: timeout * SLOW, polling: 100 }); return true; } catch { return false; } };
 // Hlavní menu: tlačítka světů ze serveru (GET /worlds)
 async function toWorlds(page, name) {
   const ok = await until(page, () => document.querySelectorAll('#mWorlds button[data-world]').length === 2 && !document.getElementById('pgMain').hidden);

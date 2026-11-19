@@ -15,6 +15,7 @@ export const post = {
   composer: null, ao: null, bloom: null, scale: 1,
   under: 0,      // jak moc je hráč pod zemí (0–1)
   water: 0,      // kamera pod hladinou (0–1)
+  waterLevel: -1e9, // výška té hladiny
   exposure: 1,   // přizpůsobení oka (násobek jasu, render/daylight.js)
   night: 0,      // noc pro barevné ladění (měsíční modř)
   weather: 0,    // déšť / mlha: šedší a hustší vzduch
@@ -27,7 +28,7 @@ export const post = {
 const ATMOS_GLSL = /* glsl */`
   uniform mat4 uInvProj, uCamWorld;
   uniform vec3 uCamPos, uFogColor, uSunDir, uSunCol, uWaterCol;
-  uniform float uDensity, uFalloff, uScatter, uSkyHaze, uUnder, uShafts, uNight, uEnvOn, uEnvGain, uSkyFog, uWater, uFlash;
+  uniform float uDensity, uFalloff, uScatter, uSkyHaze, uUnder, uShafts, uNight, uEnvOn, uEnvGain, uSkyFog, uWater, uFlash, uWaterLevel;
   uniform sampler2D uEnv;
   // konstanty pro odlesky oblohy (PMREM 256 px → výška 1024; v textu shaderu, protože postprocessing přejmenovává defines efektů)
   #define ENVMAP_TYPE_CUBE_UV
@@ -37,12 +38,16 @@ const ATMOS_GLSL = /* glsl */`
   vec3 viewPos(vec2 uv, float d) { vec4 v = uInvProj * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); return v.xyz / v.w; }
   void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
     bool sky = depth >= 0.999999;
+    // vzdálené hory na obzoru (render/clouds.js, 2,6–3,2 km) se zahalí jako obloha, ne jako terén
+    if (!sky && length(viewPos(uv, depth)) > 2500.0) sky = true;
     vec3 vp = viewPos(uv, sky ? 0.5 : depth);
     vec3 wp = (uCamWorld * vec4(vp, 1.0)).xyz;
     vec3 rd = normalize(wp - uCamPos);
     float dist = sky ? 3.0 / max(uDensity, 1e-4) : length(wp - uCamPos);
     // pod vodou: krátký modrozelený dohled
     if (uWater > 0.0) {
+      // hloubka v bufferu průhlednou hladinu nezná: paprsek vzhůru končí na hladině (ta se kreslí zespodu jako strop)
+      if (rd.y > 1e-3) dist = min(dist, (uWaterLevel - uCamPos.y) / rd.y);
       float wf = 1.0 - exp(-dist * 0.22);
       vec3 col = mix(inputColor.rgb * vec3(0.55, 0.85, 0.9), uWaterCol, wf);
       outputColor = vec4(mix(inputColor.rgb, col, uWater), inputColor.a);
@@ -58,7 +63,7 @@ const ATMOS_GLSL = /* glsl */`
     // barva mlhy = barva oblohy u obzoru v tom směru (k slunci teplejší, od slunce modřejší), z odlesků oblohy
     vec3 fogCol = uFogColor;
     if (uEnvOn > 0.5) {
-      vec3 hd = normalize(vec3(rd.x, max(rd.y, 0.0) * 0.6 + 0.035, rd.z));
+      vec3 hd = normalize(vec3(rd.x, max(rd.y, 0.0) * 0.6 + 0.075, rd.z)); // kousek nad obzorem: modřejší než bělavý pruh u země
       vec3 skyCol = textureCubeUV(uEnv, hd, 0.55).rgb * uEnvGain;
       fogCol = mix(fogCol, skyCol, uSkyFog * (1.0 - uUnder));
     }
@@ -99,7 +104,7 @@ class AtmosphereEffect extends Effect {
         ['uFogColor', u(new THREE.Vector3())], ['uSunDir', U.sunDir], ['uSunCol', u(new THREE.Vector3())], ['uWaterCol', u(new THREE.Vector3(0.02, 0.09, 0.1))],
         ['uDensity', u(0)], ['uFalloff', u(LK.fog.falloff)], ['uScatter', u(LK.fog.scatter)], ['uSkyHaze', u(LK.fog.skyHaze)],
         ['uUnder', u(0)], ['uShafts', u(LK.shafts)], ['uNight', U.night], ['uEnv', u(null)], ['uEnvOn', u(0)], ['uEnvGain', u(1)], ['uSkyFog', u(0.85)],
-        ['uWater', u(0)], ['uFlash', u(0)],
+        ['uWater', u(0)], ['uFlash', u(0)], ['uWaterLevel', u(0)],
         ['uShadowMap', U.shadowMap], ['uShadowMatrix', U.shadowMatrix], ['uShadowP', U.shadowP], ['uShadowStrength', U.shadowStrength],
       ]),
     });
@@ -115,6 +120,7 @@ class AtmosphereEffect extends Effect {
     g('uDensity').value = FOG.density * LK.fog.density;
     g('uUnder').value = post.under;
     g('uWater').value = post.water;
+    g('uWaterLevel').value = post.waterLevel;
     g('uFlash').value = post.flash;
     // vzhled se dá ladit za běhu (game.LK v konzoli)
     g('uFalloff').value = LK.fog.falloff * (1 - 0.6 * post.weather);
@@ -123,6 +129,7 @@ class AtmosphereEffect extends Effect {
     g('uShafts').value = post.menu ? 0 : LK.shafts * (1 - post.weather);
     // za deště je vzduch šedý (barva mlhy), za jasna má barvu oblohy
     g('uSkyFog').value = 0.85 * (1 - 0.75 * post.weather);
+    g('uEnvGain').value = 1 - 0.45 * post.night; // noční opar u obzoru tmavší (jinak svítí jako bílý pás)
     const env = scene.environment;
     if (env && env.image?.height) {
       g('uEnv').value = env;
@@ -131,7 +138,7 @@ class AtmosphereEffect extends Effect {
   }
 }
 // Konstanty pro čtení odlesků oblohy (PMREM) – stejné jako počítá three.js pro materiály (WebGLPrograms).
-function cubeUVDefines(h) {
+export function cubeUVDefines(h) {
   const maxMip = Math.log2(h) - 2;
   return `#define CUBEUV_TEXEL_WIDTH ${(1 / (3 * Math.max(2 ** maxMip, 7 * 16))).toFixed(8)}
   #define CUBEUV_TEXEL_HEIGHT ${(1 / h).toFixed(8)}
@@ -159,7 +166,7 @@ const AGX_GLSL = /* glsl */`
 const LOOK_GLSL = /* glsl */`
   #include <tonemapping_pars_fragment>
   ${AGX_GLSL}
-  uniform float uSat, uContrast, uVignette, uGrain, uHue, uNightK, uUnderK;
+  uniform float uSat, uContrast, uVignette, uGrain, uHue, uNightK, uUnderK, uLift;
   uniform vec3 uCool, uWarm, uNightTint;
   float luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
@@ -186,6 +193,8 @@ const LOOK_GLSL = /* glsl */`
     }
     vec2 d = uv - 0.5;
     c *= 1.0 - uVignette * smoothstep(0.2, 0.75, dot(d, d) * 2.0);
+    // nic není úplně černé: nejtmavší místa se zvednou do tmavé modrošedé (v jeskyni a v noci víc), světla se nezmění
+    c += uLift * (1.0 - smoothstep(0.0, 0.25, luma(c))) * mix(vec3(0.85, 0.92, 1.1), vec3(0.75, 0.88, 1.25), uNightK);
     if (uGrain > 0.0) c += (fract(sin(dot(uv * 913.7 + fract(time * 7.3), vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * uGrain;
     outputColor = vec4(clamp(c, 0.0, 1.0), inputColor.a);
   }
@@ -197,7 +206,7 @@ class LookEffect extends Effect {
       uniforms: new Map([
         ['uSat', u(G.sat)], ['uContrast', u(G.contrast)], ['uVignette', u(G.vignette)], ['uGrain', u(LK.grain)], ['uHue', u(G.hue)],
         ['uCool', u(new THREE.Vector3(...G.cool))], ['uWarm', u(new THREE.Vector3(...G.warm))], ['uNightTint', u(new THREE.Vector3(...G.nightTint))],
-        ['uNightK', u(0)], ['uUnderK', u(0)], ['uAgxPower', u(G.power)], ['uAgxSat', u(G.agxSat)], ['uExposure', u(1)],
+        ['uNightK', u(0)], ['uUnderK', u(0)], ['uLift', u(0)], ['uAgxPower', u(G.power)], ['uAgxSat', u(G.agxSat)], ['uExposure', u(1)],
       ]),
     });
   }
@@ -211,6 +220,7 @@ class LookEffect extends Effect {
     u('uNightK').value = post.night * (1 - post.under);
     u('uGrain').value = LK.grain; u('uAgxPower').value = G.power; u('uAgxSat').value = G.agxSat;
     u('uExposure').value = LK.exposure * post.exposure;
+    u('uLift').value = G.lift[0] + (G.lift[1] - G.lift[0]) * Math.max(post.night, post.under);
     const B = LK.bloom, b = post.bloom;
     b.intensity = B.intensity; b.luminanceMaterial.threshold = B.threshold; b.luminanceMaterial.smoothing = B.smoothing; b.mipmapBlurPass.radius = B.radius;
   }
@@ -225,7 +235,9 @@ function build() {
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     const ao = new N8AOPostPass(scene, camera, size.x, size.y);
     ao.setQualityMode('Performance');
-    Object.assign(ao.configuration, { aoRadius: LK.ao.radius, distanceFalloff: 0.6, intensity: LK.ao.intensity, halfRes: true, depthAwareUpsampling: true, gammaCorrection: false, color: new THREE.Color(0, 0, 0) });
+    // N8AO by jinak průhledné věci (voda, déšť, lístky) kreslilo ještě dvakrát navíc a čtyřikrát za snímek procházelo scénu
+    ao.autoDetectTransparency = false;
+    Object.assign(ao.configuration, { aoRadius: LK.ao.radius, distanceFalloff: 0.6, intensity: LK.ao.intensity, halfRes: true, depthAwareUpsampling: true, gammaCorrection: false, transparencyAware: false, color: new THREE.Color(0, 0, 0) });
     composer.addPass(ao);
     post.ao = ao;
   }
