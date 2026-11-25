@@ -371,8 +371,11 @@ try {
     g.addXp(20);
     await new Promise((ok) => setTimeout(ok, 800));
     const cards = [...document.querySelectorAll('#spellWin [data-pick]')].map((b) => b.dataset.pick);
-    document.querySelector('#spellWin [data-pick=\"bolt\"]')?.click();
-    const learned = [...g.magic.learned], sel = g.magic.sel;
+    const pick = cards[0]; // nabídka je náhodná: vezmi první kartu
+    document.querySelector(`#spellWin [data-pick="${pick}"]`)?.click();
+    const learned = [...g.magic.learned], sel = g.magic.sel, closed = !document.getElementById('spellWin');
+    if (!g.magic.learned.includes('bolt')) g.magic.learned.push('bolt'); // na zbytek testu je potřeba Magická střela
+    g.magic.sel = 'bolt';
     const p = g.player.pos;
     g.spawnMob('boar', p.x, p.z - 7);
     const m = g.mobs.find((x) => x.type === 'boar'), hp0 = m.hp, mana0 = g.magic.mana;
@@ -384,9 +387,9 @@ try {
     g.player.hp = 100;
     for (let k = 0; k < 4 && !m.dead; k++) { g.magic.cd = {}; g.magic.mana = 100; T.aim(m.pos.x, m.pos.y + m.def.cy, m.pos.z); g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; for (let i = 0; i < 40; i++) T.step(1, 0.016); }
     T.step(2);
-    return { cards, learned, sel, hp0, hp1, mana0, mana1, dead: m.dead, xpGain: g.magic.xp - xpBefore, levelUp: g.magic.xp - xp0, bar: document.querySelector('#xpBars .spell')?.textContent };
+    return { cards, pick, closed, learned, sel, hp0, hp1, mana0, mana1, dead: m.dead, xpGain: g.magic.xp - xpBefore, levelUp: g.magic.xp - xp0, bar: document.querySelector('#xpBars .spell')?.textContent };
   });
-  check('magic: a new level offers 3 spells, picking one learns it', r.cards.length === 3 && r.cards.includes('bolt') && r.learned.includes('bolt') && r.sel === 'bolt', JSON.stringify(r));
+  check('magic: a new level offers 3 spells, picking one learns it', r.cards.length === 3 && r.learned.includes(r.pick) && r.sel === r.pick && r.closed, JSON.stringify(r));
   check('magic: the wand casts the magic bolt: the boar takes 6, the mana goes down (8, it refills while the bolt flies)', r.hp0 - r.hp1 === 6 && r.mana0 - r.mana1 >= 4 && /Magická střela/.test(r.bar || ''), JSON.stringify(r));
   check('magic: a boar knocked out by spells gives XP', r.dead && r.xpGain === 4, JSON.stringify(r));
   r = await ev(async () => { // obchod za zlato: /sell v chatu prodá zlato, /shop otevře obchod, koupě stojí zlaťáky; vychytávky fungují
