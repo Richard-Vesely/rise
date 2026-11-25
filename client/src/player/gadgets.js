@@ -123,7 +123,7 @@ export function updateGadgets(dt, special) {
     if (!nukeAllowedAt(x, z)) { toast('U svatyně a spawnu se atomovka odpálit nedá'); return true; }
     removeItem(id, 1);
     if (NET.client) NET.req(['nuke', x, y, z]); else nukeAt('host', x, y, z);
-    toast('☢ Atomovka letí! Uteč z dosahu (asi 14 m).');
+    toast('☢ Atomovka letí! Uteč z dosahu (aspoň 30 m).');
   } else if (d.ogre && fresh) { // Zlobří roh: přivolá tvého zlobra (shared/sim/pets.js)
     if (performance.now() < ogreAt) { toast(`Zlobr přijde až za ${Math.ceil((ogreAt - performance.now()) / 1000)} s`); return true; }
     ogreAt = performance.now() + 30000;

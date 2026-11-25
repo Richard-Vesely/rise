@@ -1,6 +1,6 @@
 // Atomovka z obchodu za zlato (předmět 'nuke_item', shared/data/shop.js): hráč ji hodí tam, kam míří (do 90 m).
 // Běží u toho, kdo drží svět: nejdřív všem ohlásí padající raketu (['fx', 'nuke', x, y, z, t], client/src/world/boom.js),
-// po dopadu vyhloubí kráter asi 2000 kostek a zraní hráče a tvory v dosahu.
+// po dopadu vyhloubí kráter asi 22 000 kostek (44 m široký, 22 m hluboký) a zraní hráče a tvory v dosahu.
 // Pojistky: nezničí nezničitelné bloky (socha, vězení, peklo: BLOCKS.fixed) ani bedrock, nedá se odpálit blízko svatyní
 // a spawnu (NUKE.safe), a hráče zraní jen tam, kde se smí bojovat (strikeHooks.canHurt v shared/net/room.js).
 // Bez vedlejších účinků při načtení.
@@ -11,8 +11,8 @@ import { SHRINES } from '../world/terrain.js';
 import { V, getVox, setVox } from '../world/voxels.js';
 import { killMob } from './mobs.js';
 
-/** Atomovka: kráter (poloměr, střed pod místem dopadu ≈ 2000 kostek v zemi), dosah zranění, zranění, pád (s), dohoz (m), bezpečí kolem svatyní (m). */
-export const NUKE = { crater: 8.5, sink: 3.5, reach: 14, dmg: 999, fall: 2.5, range: 90, safe: 45 };
+/** Atomovka: kráter (poloměr, střed v místě dopadu: polokoule v zemi ≈ 22 000 kostek, 44 m široká a 22 m hluboká), dosah zranění, zranění, pád (s), dohoz (m), bezpečí kolem svatyní (m). */
+export const NUKE = { crater: 22, sink: 0, reach: 30, dmg: 999, fall: 2.5, range: 90, safe: 70 };
 const queue = []; // { x, y, z, at, sent, from }
 let hooks = { fx: null, canHurt: () => true };
 /** Kam posílat efekt a kdo smí být zraněn (nastaví shared/net/room.js). */
