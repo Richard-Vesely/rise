@@ -102,6 +102,11 @@ export const SFX = {
   denied() { this.tone(160, 0.08, 0.14, 'triangle', 0, 120, { attack: 0.002 }); this.burst({ dur: 0.04, f0: 900, f1: 500, q: 2, vol: 0.06 }); },
 
   // ---------- boj a pohyb
+  // Odraz: krátké zašustění podrážky podle povrchu a tichý svist, žádné arkádové pípnutí.
+  jump(mat = 'grass') {
+    this.mat(mat, 'step', 0.45);
+    this.burst({ dur: 0.13, f0: 600, f1: 1800, q: 0.7, vol: 0.035, attack: 0.02 });
+  },
   swing() { this.burst({ dur: R(0.16, 0.22), f0: 450, f1: R(2000, 2800), q: 1.4, vol: 0.16, attack: 0.05 }); },
   hit() { this.burst({ dur: 0.16, f0: 1400, f1: 200, q: 1, vol: 0.45, type: 'lowpass' }); this.tone(140, 0.16, 0.22, 'square', 0, 60, { vary: 0.08 }); this.tone(90, 0.12, 0.3, 'sine', 0, 50, { attack: 0.002 }); },
   kill() { this.tone(260, 0.5, 0.14, 'sawtooth', 0, 50, { vary: 0.08 }); this.burst({ dur: 0.5, f0: 3000, f1: 300, q: 0.7, vol: 0.28 }); },
@@ -119,6 +124,11 @@ export const SFX = {
     for (let i = 0; i < 6; i++) this.tone(R(250, 500), 0.05, 0.05, 'sine', R(0.05, 0.4), R(700, 1200), { attack: 0.004, prio: 0 });
   },
   swim() { this.burst({ dur: 0.35, f0: 1500, f1: 350, q: 0.7, vol: 0.09, type: 'lowpass', attack: 0.08 }); },
+  // Výstup na břeh: odtečení vody a pár kapek z mokrých bot.
+  waterExit() {
+    this.burst({ dur: 0.2, f0: 1700, f1: 450, q: 0.7, vol: 0.065, type: 'lowpass', attack: 0.015 });
+    for (let i = 0; i < 3; i++) this.tone(R(650, 900), 0.06, 0.025, 'sine', 0.06 + i * 0.07, R(250, 400), { attack: 0.003 });
+  },
 
   // ---------- předměty
   // Sebrání: krátké vysoké "plip" s náhodnou výškou (Minecraft: 1,6–3,4×)

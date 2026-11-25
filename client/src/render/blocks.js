@@ -17,6 +17,7 @@ import { GFX } from '../game/prefs.js';
 import { buildCropModel } from '../machines/kitchen.js';
 import { buildGarageModel } from '../machines/garage-model.js';
 import { buildSafeModel } from '../machines/safe-model.js';
+import { MISSILE_SIZE,rebuildMissileStructures } from '../../../shared/world/missile-structures.js';
 import { buildElecModel, rebuildCables } from '../machines/power.js';
 import { heldStack, inv } from '../player/inventory.js';
 import { player } from '../player/player.js';
@@ -458,7 +459,7 @@ function placeSpecial(k, type) {
   const tm = type === 'torch' ? torchMeta(k, x, y, z) : 0, gh = groundHeight(x + 0.5, z + 0.5);
   // pochodeň na zdi visí v buňce, stojící stojí na povrchu terénu, když je v její buňce
   const ry = tm > 1 ? y : tm ? (gh > y - 0.3 && gh < y + 0.9 ? Math.max(y, gh) : y) : solidAt(x, y - 1, z) || solidVox(x, y - 1, z) ? y : Math.max(y, gh);
-  obj.position.set(x + 0.5, ry, z + 0.5);
+  obj.position.set(x + 0.5, MISSILE_SIZE[type]?y:ry, z + 0.5);
   if (BLOCKS[type].facing) obj.rotation.y = ((blockMeta.get(k) || 0) & 3) * Math.PI / 2; // pec a dílna čelem k hráči
   scene.add(obj);
   const f = tm && torchFlame(tm); // kde hoří plamen (světlo, jiskry, kouř)
@@ -466,6 +467,7 @@ function placeSpecial(k, type) {
 }
 /** Jen jeden zvláštní blok dostane nový model (plodina povyrostla, jídlo na stole, otočená židle) – bez přestavby světa. */
 export function rebuildSpecialAt(k) {
+  if(MISSILE_SIZE[blocks.get(k)]||MISSILE_SIZE[specials.get(k)?.type])rebuildMissileStructures();
   lightsDirty = true;
   const type = blocks.get(k), old = specials.get(k);
   if (type && BLOCKS[type]?.special) placeSpecial(k, type);
@@ -521,7 +523,7 @@ export function updateLights(time) {
 
 // 3D ikony bloků a strojů (render/icon-render.js) – až po načtení všech modulů (modely strojů jsou v pozdějších souborech).
 const ICON_3D = ['workbench', 'chest', 'safe', 'stove', 'furnace', 'adv_bench', 'table', 'chair', 'well', 'spikes', 'spawner', 'coal_generator', 'solar_panel',
-  'battery_block', 'power_switch', 'electric_lamp', 'bulb_lamp', 'motor_block', 'electric_furnace', 'charger', 'computer', 'printer', 'garage'];
+  'battery_block', 'power_switch', 'electric_lamp', 'bulb_lamp', 'motor_block', 'electric_furnace', 'charger', 'computer', 'printer', 'garage', 'dirt_source', 'dirt_silo', 'dirt_defense', 'missile_radar', 'missile_control'];
 export function blockIconList() {
   const items = [];
   for (const [id, b] of Object.entries(BLOCKS)) {

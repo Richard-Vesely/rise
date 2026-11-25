@@ -1,6 +1,7 @@
 // Míření: co je před hráčem.
 import '../render/held-item.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import * as THREE from 'three';
+import { structuresAt } from '../../../shared/world/missile-structures.js';
 import { BLOCKS, shapeBoxes } from '../../../shared/data/index.js';
 import { mobs } from '../../../shared/sim/mobs.js';
 import { REACH } from '../../../shared/world/constants.js';
@@ -47,6 +48,12 @@ export function raycastBlocks(o, d, max) {
   let tz = d.z === 0 ? Infinity : (sz > 0 ? z + 1 - o.z : o.z - z) * tdz;
   let t = 0, normal = [0, 0, 0];
   while (t <= max) {
+    let largeHit=null;
+    for(const entry of structuresAt(x,y,z)){
+      const hit=rayBoxes(o,d,0,0,0,[entry.box]);
+      if(hit&&hit.t<=max&&(!largeHit||hit.t<largeHit.t))largeHit={...hit,x:entry.x,y:entry.y,z:entry.z,type:entry.type};
+    }
+    if(largeHit)return largeHit;
     const type = blocks.get(bkey(x, y, z));
     if (type && !(t === 0 && !BLOCKS[type].solid)) { // židli, na které sedíš, nezaměříš
       const sh = BLOCKS[type].shape, torch = type === 'torch';

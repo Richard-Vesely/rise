@@ -1,7 +1,9 @@
 // Hráč: ovládání, pohyb a kolize.
 import '../pc/editor.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import * as THREE from 'three';
+import { structuresAt } from '../../../shared/world/missile-structures.js';
 import { BLOCKS, shapeBoxes } from '../../../shared/data/index.js';
+import { flightTime } from '../../../shared/sim/flight-potion.js';
 import { NET } from '../../../shared/net/net.js';
 import { clamp } from '../../../shared/util.js';
 import { EYE, GRAVITY, JUMP, PH, PW, RUN, WALK } from '../../../shared/world/constants.js';
@@ -10,6 +12,7 @@ import { waterAt } from '../../../shared/world/nature.js';
 import { shrineOf, terrainH } from '../../../shared/world/terrain.js';
 import { V, VMIN, getVox, groundHeight, solidVox, topY } from '../../../shared/world/voxels.js';
 import { materialAt } from '../audio/materials.js';
+import { WaterSounds } from '../audio/movement.js';
 import { Sound } from '../audio/sound.js';
 import { MP } from '../game/boot.js';
 import { game } from '../game/debug.js';
@@ -164,10 +167,15 @@ addEventListener('mousemove', (e) => {
 const hitBoxes = [];
 function overlapBoxes(p) {
   hitBoxes.length = 0;
+  const large=new Set();
   const x0 = p.x - PW, x1 = p.x + PW, y0 = p.y, y1 = p.y + PH, z0 = p.z - PW, z1 = p.z + PW;
   for (let y = Math.floor(y0); y <= Math.floor(y1 - 1e-3); y++)
     for (let z = Math.floor(z0); z <= Math.floor(z1); z++)
       for (let x = Math.floor(x0); x <= Math.floor(x1); x++) {
+        for(const entry of structuresAt(x,y,z)){
+          if(large.has(entry.k))continue;large.add(entry.k);const b=entry.box;
+          if(b[0]<x1&&b[3]>x0&&b[1]<y1&&b[4]>y0&&b[2]<z1&&b[5]>z0)hitBoxes.push(b);
+        }
         const k = bkey(x, y, z), t = blocks.get(k), B = t && BLOCKS[t];
         if (B?.solid && B.shape) {
           for (const b of shapeBoxes(B.shape, blockMeta.get(k) || 0))
@@ -206,6 +214,7 @@ function moveAxis(axis, amt) {
 export const playerIntersects = (x, y, z) => { const p = player.pos; return p.x - PW < x + 1 && p.x + PW > x && p.y < y + 1 && p.y + PH > y && p.z - PW < z + 1 && p.z + PW > z; };
 
 let lastStepSign = 1;
+const waterSounds = new WaterSounds();
 export function updatePlayer(dt) {
   if (player.sitting) {
     const stand = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space'].some((k) => keys.has(k)) || !blocks.has(player.sitting);
@@ -224,7 +233,7 @@ export function updatePlayer(dt) {
   if (keys.has('KeyA') || keys.has('ArrowLeft')) s -= 1;
   if (input.joy) { f -= input.joy.y; s += input.joy.x; } // dotykový joystick
   const len = Math.max(1, Math.hypot(f, s));
-  if (player.flyT > 0) player.flyT = Math.max(0, player.flyT - dt);
+  if (player.flyT > 0) player.flyT = flightTime(player.flyT,dt);
   const set = fullSet();
   const flying = ((creative || hasPerk('let')) && player.flying) || player.flyT > 0;
   const shift = keys.has('ShiftLeft') || keys.has('ShiftRight');
@@ -245,9 +254,9 @@ export function updatePlayer(dt) {
   } else if (swim !== null) { // ve vodě hráč stoupá k hladině (hlava nad vodou); Mezerník = nahoru, Shift = ponořit se
     const want = keys.has('Space') ? 3.4 : shift ? -2.6 : clamp((swim - 1.3 - p.y) * 2.5, -1.5, 1.6);
     v.y += (want - v.y) * Math.min(1, 4 * dt);
-    if (player.onGround && keys.has('Space') && swim - p.y < 1.4) { v.y = JUMP; player.onGround = false; } // vylézt na břeh
+    if (player.onGround && keys.has('Space') && swim - p.y < 1.4) { v.y = JUMP; player.onGround = false; Sound.jump('water'); } // vylézt na břeh
   } else {
-    if (player.onGround && keys.has('Space')) { v.y = JUMP; player.onGround = false; }
+    if (player.onGround && keys.has('Space')) { v.y = JUMP; player.onGround = false; Sound.jump(materialAt(p.x, p.y, p.z)); }
     v.y = Math.max(set === 'sky' ? -7 : -40, v.y - GRAVITY * dt); // nebeská sada: pomalý pád
   }
 
@@ -299,12 +308,16 @@ export function updatePlayer(dt) {
   const sign = Math.sign(Math.sin(player.bob));
   // Zvuky pohybu: kroky podle materiálu pod nohama, dopad po pádu, šplouchnutí a plavání ve vodě.
   const wet = waterAt(p.x, p.y + 0.05, p.z) !== null, deep = wet && waterAt(p.x, p.y + 1, p.z) !== null;
-  if (wet && !player.wasWet && (fallV < -4 || moving > 3)) Sound.splash(Math.min(1.4, 0.6 + Math.max(-fallV, moving) / 12));
-  player.wasWet = wet;
-  if (landed && !wasGround && fallV < -5.5 && !flying) Sound.land(materialAt(p.x, p.y, p.z), -fallV);
-  else if (sign !== lastStepSign && moving > 1 && (player.onGround || deep)) {
-    if (deep) Sound.swim(); else Sound.footstep(materialAt(p.x, p.y, p.z), player.sprinting);
+  for (const event of waterSounds.update(dt, {
+    x: p.x, y: p.y, z: p.z, wet, deep, moving, fallSpeed: Math.max(0, -fallV), flying,
+    swimming: swim !== null && (Math.hypot(f, s) > 0.1 || keys.has('Space') || shift),
+  })) {
+    if (event.type === 'splash') Sound.splash(event.size);
+    else if (event.type === 'exit') Sound.waterExit();
+    else Sound.swim();
   }
+  if (landed && !wasGround && fallV < -5.5 && !flying) Sound.land(materialAt(p.x, p.y, p.z), -fallV);
+  else if (sign !== lastStepSign && moving > 1 && player.onGround && !deep && !flying) Sound.footstep(materialAt(p.x, p.y, p.z), player.sprinting);
   lastStepSign = sign;
   player.sprinting = sprint && moving > 1;
   const bobY = 0; // houpání kamery při chůzi: player/camera-feel.js

@@ -107,7 +107,7 @@ test('every recipe is safe to call before the browser allows sound (no audio con
   const S = { ...SFX, ...VOICES, ctx: null, burst: (o) => calls.push(o), tone: (...a) => calls.push(a), ring: (...a) => calls.push(a) };
   for (const m of MATERIAL_NAMES) for (const k of Object.keys(KIND)) S.mat(m, k);
   for (const [fn, args] of [['footstep', ['sand', true]], ['land', ['stone', 12]], ['blockHit', ['stone', 'pick']], ['blockBreak', ['glass']], ['blockPlace', ['wood']], ['bite', ['bread']], ['bite', ['mushroom_soup']],
-    ['ui', ['open']], ['ui', ['pick']], ['mobVoice', ['golem']], ['mobVoice', ['sheep']], ['bird', ['warbler']], ['thunder', [100]], ['rumble', []], ['toolBreak', []], ['splash', [1]], ['eat', []], ['chest', []], ['pour', []]]) {
+    ['ui', ['open']], ['ui', ['pick']], ['mobVoice', ['golem']], ['mobVoice', ['sheep']], ['bird', ['warbler']], ['thunder', [100]], ['rumble', []], ['toolBreak', []], ['splash', [1]], ['jump', ['grass']], ['jump', ['water']], ['waterExit', []], ['eat', []], ['chest', []], ['pour', []]]) {
     assert.doesNotThrow(() => S[fn](...args), fn);
   }
   assert.ok(calls.length > 100);

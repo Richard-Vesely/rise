@@ -376,3 +376,19 @@ RECIPES.push({ out: 'wand', n: 1, shape: [' E', 'T '], key: { E: 'essence', T: '
 RECIPES.push({ out: 'safe', n: 1, shape: ['SS', 'SC'], key: { S: 'stone', C: 'chest' } });
 // Štít do druhé ruky (client/src/player/offhand.js)
 RECIPES.push({ out: 'shield', n: 1, shape: ['PIP', 'PPP', ' P '], key: { P: 'planks', I: 'iron' }, cat: 'tools' });
+
+// Kovový raketový systém. Původní dirt_* identifikátory zachovávají staré světy.
+for (const [id, name, shape, extra] of [
+  ['dirt_cable', 'Datový kabel', ['CC'], { solid: false, cable: 'dirt', elec: { cable: true, cap: 200, clay: true } }],
+  ['dirt_source', 'Generátor na hlínu', ['SS', 'CB'], { special: true, elec: { gen: 120, clay: true, claySource: true } }],
+  ['dirt_silo', 'Raketové silo', ['SS', 'BS'], { special: true, facing: true, elec: { use: 8, clay: true } }],
+  ['dirt_defense', 'Odpalovací jednotka', ['SC', 'BS'], { special: true, facing: true, elec: { use: 18, clay: true } }],
+  ['missile_radar', 'Radarová jednotka', ['CC', 'SB'], { special: true, facing: true, elec: { use: 12, clay: true } }],
+  ['missile_control', 'Raketové kontrolní centrum', ['BB', 'SS'], { special: true, facing: true, elec: { use: 10, clay: true } }],
+]) {
+  ITEMS[id] = { name, stack: 64, cat: 'machines', block: id, art: ['box', '#64734e', '#343e47'] };
+  BLOCKS[id] = { name, solid: true, drop: id, hard: 2, tool: 'pick', ...extra };
+  RECIPES.push({ out: id, n: id === 'dirt_cable' ? 8 : 1, shape, key: Object.fromEntries(Object.entries({S:'steel_plate', C:'copper_wire', B:'circuit_board'}).filter(([k])=>shape.join('').includes(k))), cat: 'machines' });
+}
+ITEMS.dirt_rocket = { name: 'Raketa', stack: 64, cat: 'machines', art: ['rod', '#d1d9dd', '#48545b'] };
+RECIPES.push({ out: 'dirt_rocket', n: 4, shape: ['S', 'C'], key: { S: 'steel_plate', C: 'circuit_board' }, cat: 'machines' });

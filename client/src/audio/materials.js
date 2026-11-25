@@ -20,6 +20,7 @@ const METAL = /iron|steel|copper|gold|bars|cable/;
 export function blockMaterial(id) {
   const B = BLOCKS[id];
   if (!B) return 'stone';
+  if (B.elec?.clay) return 'metal';
   if (BLOCK_MAT[id]) return BLOCK_MAT[id];
   if (B.mat && B.mat !== id) return blockMaterial(B.mat);
   if (B.elec || METAL.test(id)) return 'metal';

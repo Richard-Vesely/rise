@@ -1,5 +1,6 @@
 // HUD: kompas, hodiny, lišty, oznámení, rady.
 import '../render/daylight.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
+import { INFINITE_FLIGHT } from '../../../shared/sim/flight-potion.js';
 import { ARMOR_SETS } from '../../../shared/data/index.js';
 import { dayCount, dayTime } from '../../../shared/sim/day.js';
 import { wrapAngle } from '../../../shared/util.js';
@@ -150,7 +151,7 @@ export function updateHUD(dt) {
   setStyle($('foodfill'), 'width', `${(+player.hunger).toFixed(1)}%`);
   setStyle($('armorfill'), 'width', `${((armorPoints() / 23) * 100).toFixed(1)}%`);
   const set = fullSet(), fx = [];
-  if (player.flyT > 0) fx.push(`🍎 Létání ${Math.ceil(player.flyT)} s`);
+  if (player.flyT > 0) fx.push(player.flyT===INFINITE_FLIGHT?'🧪 Létání ∞':`🍎 Létání ${Math.ceil(player.flyT)} s`);
   if (set) fx.push(`🛡 ${ARMOR_SETS[set].name}á sada: ${ARMOR_SETS[set].bonus}`);
   const fxHtml = fx.map((t) => `<div>${t}</div>`).join('');
   const eff = $('effects');
