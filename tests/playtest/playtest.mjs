@@ -194,6 +194,20 @@ try {
   r = await ev(() => { let tiles = 0, glowOnly = true; for (const c of window.game.voxChunks.values()) { const a = c.mesh?.geometry.getAttribute('aTile'); if (a) tiles++; if (c.mesh && Array.isArray(c.mesh.material)) glowOnly = false; } return { tiles, glowOnly }; });
   check('underground: one material on a texture array (layer per block type)', r.tiles > 0 && r.glowOnly, JSON.stringify(r));
 
+  // Chat → výběr kliknutím → zasypání, včetně ochrany před opětovným kopáním držením.
+  r = await ev(() => {
+    const g = window.game, x = -8, z = 27, top = g.topY(x, z);
+    const c = document.getElementById('chatInput');
+    c.value = 'zapln diru';
+    c.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    T.aim(x + 0.5, top - 0.1, z + 0.5); T.step(2);
+    const selected = g.target?.kind;
+    g.input.lmb = true; T.step(20);
+    g.input.lmb = false; T.step(2);
+    return { selected, filled: !g.columnDug(x, z), toast: T.text('toast') };
+  });
+  check('chat zapln diru fills the selected hole; holding the click does not dig again', r.filled && r.toast.includes('zaplněná'), JSON.stringify(r));
+
   // ------------------------------------------------------------ torches (like Minecraft): floor, wall, never the ceiling, pop off, instant break, light
   r = await ev(() => {
     const g = window.game, K = (x, y, z) => `${x},${y},${z}`, bx = 16, bz = 27;
