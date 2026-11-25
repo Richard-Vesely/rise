@@ -443,7 +443,7 @@ test('pvp-all world (option for the lektor): fights count in every dimension, no
   } finally { await stop(srv); }
 });
 
-test('shop nuke: thrown where you aim, crater of about 2000 blocks, keeps fixed blocks, not near the spawn, hurts only players who fight', { timeout: 60000 }, async () => {
+test('shop nuke: thrown where you aim, crater of about 22 000 blocks, keeps fixed blocks, not near the spawn, hurts only players who fight', { timeout: 60000 }, async () => {
   const srv = await startServer({ DATA_DIR: tmp('louka-nuke-'), WORLDS: 'svet:Hlavní svět' });
   try {
     const a = player(srv.port, 'Adam', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
@@ -454,16 +454,16 @@ test('shop nuke: thrown where you aim, crater of about 2000 blocks, keeps fixed 
     a.send(['nuke', 12, terrainH(12, 12), 12]); // u spawnu: nic
     await sleep(800);
     assert.ok(!a.msgs.some((m) => m[0] === 'fx'), 'not near the spawn');
-    a.send(['pose', at(200, 200)]); b.send(['pose', at(205, 205)]); await sleep(300); // Bára má souboje vypnuté
-    a.send(['nuke', 205, terrainH(205, 205), 205]);
+    a.send(['pose', at(300, 300)]); b.send(['pose', at(305, 305)]); await sleep(300); // Bára má souboje vypnuté
+    a.send(['nuke', 305, terrainH(305, 305), 305]);
     assert.ok(await b.waitFor((m) => m[0] === 'fx' && m[1] === 'nuke'), 'everyone sees it fall');
-    await b.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'v' && Math.hypot(o[1] - 205, o[3] - 205) < 9), 5000);
+    await b.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'v' && Math.hypot(o[1] - 305, o[3] - 305) < 23), 8000);
     await sleep(400);
-    const holes = b.msgs.filter((m) => m[0] === 'ops').flatMap((m) => m[1]).filter((o) => o[0] === 'v' && Math.hypot(o[1] - 205, o[3] - 205) < 9);
-    assert.ok(holes.length > 1500 && holes.length < 2600, `crater of about 2000 blocks (${holes.length})`);
+    const holes = b.msgs.filter((m) => m[0] === 'ops').flatMap((m) => m[1]).filter((o) => o[0] === 'v' && Math.hypot(o[1] - 305, o[3] - 305) < 23);
+    assert.ok(holes.length > 17000 && holes.length < 30000, `crater of over 20 000 blocks (${holes.length})`);
     assert.ok(!b.msgs.some((m) => m[0] === 'dmg'), 'Bára does not fight (N off): the bomb does not hurt her');
-    a.send(['pose', at(400, 400, { pv: 1 })]); b.send(['pose', at(404, 404, { pv: 1 })]); await sleep(300);
-    a.send(['nuke', 404, terrainH(404, 404), 404]);
+    a.send(['pose', at(600, 600, { pv: 1 })]); b.send(['pose', at(604, 604, { pv: 1 })]); await sleep(300);
+    a.send(['nuke', 604, terrainH(604, 604), 604]);
     assert.ok(await b.waitFor((m) => m[0] === 'dmg' && m[1] >= 999, 6000), 'with fights on (N) it does');
     for (const p of [a, b]) await p.close();
   } finally { await stop(srv); }

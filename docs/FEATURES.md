@@ -489,9 +489,10 @@ attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit
   dies. Drops the **legendary fire armor** (*Legendární ohnivá zbroj*, 6/11/9/6, the strongest; full set: lava doesn't burn
   and you heal 1.5 HP/s), the **ogre horn**, 16–24 fire gems and 32–64 gold ingots.
 - **Atomic bomb from the shop** (*Atomovka*, 3000 coins, `nuke_item`): right-click throws it where you aim (up to 90 m).
-  Everyone sees the missile fall for 2.5 s, then flash, fireball, mushroom cloud and shock wave; the crater removes about
-  2000 blocks (underground and built blocks). Safety: never the unbreakable blocks (statue, prison, hell: `fixed`) or
-  bedrock, not within 45 m of a shrine (the spawn and the statue are there), and it hurts players (999 within 14 m) only
+  Everyone sees the missile fall for 2.5 s, then flash, fireball, mushroom cloud and shock wave; the crater is a huge bowl
+  44 m wide and 22 m deep, over 20 000 blocks (underground and built blocks; the server needs about 0.25 s once for it).
+  (The kid asked for 1000 × 200 m: that would be ~150 million blocks and freeze the server.) Safety: never the unbreakable
+  blocks (statue, prison, hell: `fixed`) or bedrock, not within 70 m of a shrine (the spawn and the statue are there), and it hurts players (999 within 30 m) only
   where fights are allowed (a `pvp` / `pvp-all` world, `pvp-mark` in Markova dimenze, or both with N on; yourself always).
   Mobs in reach die (not the archdevil). Rules `shared/sim/strikes.js` (`canHurt` in `shared/net/room.js`), look
   `client/src/world/boom.js`.

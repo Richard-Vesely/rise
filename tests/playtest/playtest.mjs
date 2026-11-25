@@ -441,11 +441,14 @@ try {
     g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016);
     const nearSpawn = T.count('nuke_item');
     T.tpg(-300, 300); T.step(10);
-    const gx = -300, gz = 330, gy = g.groundHeight(gx, gz);
+    const gx = -300, gz = 365, gy = g.groundHeight(gx, gz); // 65 m daleko: kráter i výbuch (30 m) hráče nezasáhnou
+    g.player.flyT = 1e6; T.tp(-300, 300, gy + 45); // vysoko ve vzduchu: paprsek míření nezavadí o zem cestou
     T.aim(gx, gy, gz); g.player.hp = 100;
+    const tp = g.pickTarget(90)?.point, me = [g.player.pos.x, g.player.pos.y, g.player.pos.z].map(Math.round);
     g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false;
     for (let i = 0; i < 80; i++) T.step(1, 0.05);
-    return { nearSpawn, used: T.count('nuke_item') === 0, crater: g.groundHeight(gx, gz) < gy - 4, alive: g.player.alive };
+    g.player.flyT = 0;
+    return { nearSpawn, tp: tp?.map(Math.round), me, used: T.count('nuke_item') === 0, crater: g.groundHeight(gx, gz) < gy - 4, alive: g.player.alive };
   });
   check('shop nuke: not near the spawn; elsewhere it falls and leaves a deep crater', r.nearSpawn === 1 && r.used && r.crater && r.alive, JSON.stringify(r));
   r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu

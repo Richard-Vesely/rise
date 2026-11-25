@@ -25,7 +25,7 @@ const DESC = {
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',
   wand: 'Pravé tl. = kouzlo. Kouzla se učí za XP (nová úroveň = vyber si kouzlo). R = další kouzlo, K = kniha kouzel.',
-  nuke_item: 'Pravé tl. = hodíš atomovku, kam míříš (do 90 m). Kráter asi 2000 kostek. Nezničí sochu, vězení ani peklo, u spawnu nejde. Hráče zraní jen tam, kde se smí bojovat.',
+  nuke_item: 'Pravé tl. = hodíš atomovku, kam míříš (do 90 m). Obrovský kráter: 44 m široký, 22 m hluboký, asi 22 000 kostek. Zabije všechno do 30 m (hráče jen tam, kde se smí bojovat). Nezničí sochu, vězení ani peklo, do 70 m od spawnu nejde. Hráče zraní jen tam, kde se smí bojovat.',
   ogre_horn: 'Pravé tl. = přivoláš svého zlobra (jednou za 30 s). Jde za tebou a útočí na toho, koho praštíš.',
   coin: 'Zlaťák. /sell v chatu (T) prodá zlato za zlaťáky, /shop otevře obchod.',
   saber_blue: 'Světelný meč z obchodu: nejsilnější meč, svítí.', saber_green: 'Světelný meč z obchodu: nejsilnější meč, svítí.',
