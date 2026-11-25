@@ -346,6 +346,13 @@ function isoBoxes(top, side, boxes) {
     return x === 1 || x === 14 || y === 14 ? '#5a3a20' : '#8a5a2a';
   }));
   // peklo: kbelík lávy a ohnivá koule
+  icon('nuke_item', face((x, y) => { // atomová bomba: šedé tělo, žluté pruhy, znak radiace, ploutve
+    if (y >= 12 && (x <= 4 || x >= 11) && y <= 14) return '#3a3a42'; // ploutve
+    const d = Math.hypot((x - 7.5) / 4.6, (y - 7.5) / 6.5);
+    if (d > 1) return null;
+    if (Math.hypot(x - 7.5, y - 6.5) < 2.6) { const a = Math.atan2(y - 6.5, x - 7.5); return Math.hypot(x - 7.5, y - 6.5) < 0.9 || Math.cos(a * 3) > 0.3 ? '#1a1a1e' : '#ffd020'; }
+    return y === 11 || y === 2 ? '#ffd020' : d > 0.85 ? '#4a4e56' : '#8a909a';
+  }));
   icon('ogre_horn', face((x, y) => { // zakřivený roh se zlatým kováním
     const d = Math.hypot(x - 3, y - 13);
     if (d > 6.5 && d < 10.5 && x > 2 && y < 12) return Math.abs(d - 8.5) < 0.6 ? '#c8a040' : d < 8 ? '#f0e4c8' : '#c8b890';

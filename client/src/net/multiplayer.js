@@ -1,5 +1,6 @@
 // Hra pro více hráčů, strana připojeného hráče: zprávy od hostitele a loutky tvorů; obrázky ke změnám světa od ostatních.
 import '../game/loop.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
+import { boomFx } from '../world/boom.js';
 import { pulledTo } from '../player/rod-hook.js';
 import * as THREE from 'three';
 import { on } from '../../../shared/events.js';
@@ -35,7 +36,7 @@ import { pvLock } from '../player/pvp.js';
 // Hostitel drží svět: klienti mu posílají změny (bloky, stromy, podzemí…), on je provede a rozešle ostatním
 // (shared/net/room.js, změny světa: shared/net/ops.js). Tady je strana připojeného hráče a obrázky ke změnám.
 const puppets = new Map(); // klient: tvorové podle hostitele (nid -> tvor)
-Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp, pvpMark: !!BOOT.welcome?.worldInfo?.pvpMark, onPvLock: pvLock, onTp: pulledTo });
+Object.assign(NET, { code: BOOT.code, pid: NET.host ? 'host' : BOOT.welcome?.pid, allowAll: !!BOOT.settings?.creative, maxPlayers: BOOT.welcome?.max || 6, worldName: BOOT.welcome?.worldInfo?.name || '', pvp: !!BOOT.welcome?.worldInfo?.pvp, pvpMark: !!BOOT.welcome?.worldInfo?.pvpMark, pvpAll: !!BOOT.welcome?.worldInfo?.pvpAll, onPvLock: pvLock, onTp: pulledTo, onFx: boomFx });
 
 // ---------- zprávy
 export function toHost(msg) { if (BOOT.conn?.open) BOOT.conn.send(msg); }
@@ -117,6 +118,7 @@ export function onHostMsg(msg) {
     case 'vezq': applyAsk(msg[1]); break; // otázka u brány z bludiště (player/prison.js)
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'tp': pulledTo(msg[1], msg[2], msg[3], msg[4]); break; // přitáhl tě někdo prutem
+    case 'fx': boomFx(msg[1], msg[2], msg[3], msg[4], msg[5]); break; // atomovka (shared/sim/strikes.js)
     case 'pvlock': pvLock(msg[1]); break; // byl jsi v souboji: souboje 20 s nejdou vypnout
     case 'goto': try { sessionStorage.setItem('rise-goto', String(msg[1] || '').slice(0, 40)); } catch {} leaveGame(); break; // Marek: /svet (menu se samo připojí, menu.js)
     case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl; pvp-mark: hráč vyřadil hráče

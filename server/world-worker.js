@@ -33,7 +33,7 @@ import { setupWorld, stepWorld } from './sim.js';
 const W = workerData;
 const post = (m) => parentPort.postMessage(m);
 const log = (text) => post({ t: 'log', text });
-const info = { id: W.id, name: W.name, creative: W.creative, pvp: W.pvp, pvpMark: W.pvpMark, first: W.first };
+const info = { id: W.id, name: W.name, creative: W.creative, pvp: W.pvp, pvpMark: W.pvpMark, ...(W.pvpAll ? { pvpAll: true } : {}), first: W.first };
 
 // ---------- svět a místnost
 const saved = W.dir ? loadWorldFile(W.dir, log) : null;
@@ -41,7 +41,7 @@ const world = saved?.world ?? null;
 /** @type {Record<string, object>} id profilu -> stav hráče v tomhle světě (batoh, pozice, zdraví…) */
 const players = saved?.players ?? {};
 const stats = () => post({ t: 'stats', players: others.size, ...tickStats(), heapMB: Math.round(process.memoryUsage().heapUsed / 1048576) });
-setupWorld({ world, maxPlayers: W.maxPlayers, allowCreative: W.creative, pvp: W.pvp, pvpMark: W.pvpMark, code: 'server', log, onChange: stats, statue: true });
+setupWorld({ world, maxPlayers: W.maxPlayers, allowCreative: W.creative, pvp: W.pvp, pvpMark: W.pvpMark, pvpAll: !!W.pvpAll, code: 'server', log, onChange: stats, statue: true });
 
 // ---------- pokladnička darů u sochy (dát může každý, brát jen vlastník serveru)
 const dbox = createDonationBox({

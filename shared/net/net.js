@@ -10,6 +10,8 @@ export const NET = {
   onPvLock: null, // (s) => void: hostitel v prohlížeči byl v souboji, souboje nejdou s sekund vypnout
   onTp: null, // (x, y, z, kdo) => void: hostitele v prohlížeči někdo přitáhl prutem (client/src/player/rod-hook.js)
   pvpMark: false, // souboje jen v Markově dimenzi (volba pvp-mark): bez arény, bez tabulky, normální hra
+  onFx: null, // (druh, x, y, z, t) => void: atomovka u hostitele v prohlížeči (client/src/world/boom.js)
+  pvpAll: false, // s pvpMark: souboje ve všech dimenzích (volba pvp-all), jinak stejné jako pvp-mark
   jail: null, // připojený hráč je ve vězení serveru kroužku: { need, given, item, at } (client/src/player/prison.js), jinak null
   uidPrefix: 'h', // začátek jedinečných id (vyhozené předměty, dokumenty, auta…)
   // Změna světa: ve hře pro více hráčů se rozešle ostatním (při přehrávání cizí změny se neposílá).
