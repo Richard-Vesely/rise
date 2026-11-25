@@ -25,6 +25,7 @@ const DESC = {
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',
   wand: 'Pravé tl. = kouzlo. Kouzla se učí za XP (nová úroveň = vyber si kouzlo). R = další kouzlo, K = kniha kouzel.',
+  ogre_horn: 'Pravé tl. = přivoláš svého zlobra (jednou za 30 s). Jde za tebou a útočí na toho, koho praštíš.',
   coin: 'Zlaťák. /sell v chatu (T) prodá zlato za zlaťáky, /shop otevře obchod.',
   saber_blue: 'Světelný meč z obchodu: nejsilnější meč, svítí.', saber_green: 'Světelný meč z obchodu: nejsilnější meč, svítí.',
   saber_red: 'Světelný meč z obchodu: nejsilnější meč, svítí.', saber_purple: 'Světelný meč z obchodu: nejsilnější meč, svítí.',

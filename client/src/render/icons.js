@@ -96,6 +96,7 @@ export const ICONS = (() => {
     shadow: { L: '#8a76a0', M: '#3c2c4e', D: '#120a1a' },
     sky: { L: '#ffffff', M: '#ffe7a0', D: '#c0902e' },
     fire: { L: '#ffd040', M: '#ff5a1a', D: '#6a120a' },
+    legend: { L: '#fff6a0', M: '#ffb020', D: '#a8200a' },
   };
   const HELMET = ['................', '................', '................', '....DDDDDDDD....', '...DLLLMMMMMD...', '..DLMMMMMMMMMD..',
     '..DLMMMMMMMMMD..', '..DMMDDDDDDMMD..', '..DMD......DMD..', '..DMD......DMD..', '...D........D...'];

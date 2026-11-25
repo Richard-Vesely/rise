@@ -223,7 +223,7 @@ export function buildMobModel(type) {
     extra.rig = R;
     body = R.hips;
     K.flash.push(...R.M.flashable);
-  } else if (type === 'devil') {
+  } else if (type === 'devil' || type === 'archdevil') {
     // Ďábel z pekla: postava v rudém obleku a ohnivém brnění, rohy, ocas s hrotem, trojzubec, oči svítí oranžově.
     kind = 'biped';
     const R = buildCharacter({ s: 'knight', c: 0, l: 0, v: 0, e: 0 }, { shadow: false });
@@ -255,6 +255,61 @@ export function buildMobModel(type) {
     extra.rig = R;
     body = R.hips;
     K.flash.push(...R.M.flashable);
+    if (type === 'archdevil') { // Arcidábel: netopýří křídla, ohnivá koruna, svítící žíly; celý je 2,4× větší (níž)
+      const membrane = new THREE.MeshStandardMaterial({ color: 0x3a0a0a, roughness: 0.6, side: THREE.DoubleSide, emissive: 0x5a0a00, emissiveIntensity: 0.4 });
+      const bone = new THREE.MeshStandardMaterial({ color: 0x1a1214, roughness: 0.4 });
+      const wingsArr = [];
+      for (const sx of [-1, 1]) {
+        const w = new THREE.Group();
+        w.position.set(sx * 0.12, 0.35, 0.16);
+        const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(1.1, 0.55), new THREE.Vector2(1.25, -0.1), new THREE.Vector2(0.95, -0.25), new THREE.Vector2(0.7, -0.1), new THREE.Vector2(0.45, -0.3), new THREE.Vector2(0.2, -0.15)]);
+        const skin = new THREE.Mesh(new THREE.ShapeGeometry(shape), membrane);
+        skin.scale.x = sx;
+        const spar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.25, 6), bone);
+        spar.rotation.z = -sx * 1.1; spar.position.set(sx * 0.55, 0.28, 0);
+        w.add(skin, spar);
+        w.rotation.y = sx * 0.5;
+        R.torso.add(w);
+        wingsArr.push(w);
+      }
+      const gold = new THREE.MeshStandardMaterial({ color: 0xffc040, metalness: 0.9, roughness: 0.25, emissive: 0xff7a10, emissiveIntensity: 0.6 });
+      for (let i = 0; i < 5; i++) { const sp = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.16, 5), gold); sp.position.set((i - 2) * 0.07, 0.5, -0.05 + Math.abs(i - 2) * 0.02); R.head.add(sp); }
+      const crownRing = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.025, 6, 18), gold);
+      crownRing.rotation.x = Math.PI / 2; crownRing.position.y = 0.44; R.head.add(crownRing);
+      g.userData.bossWings = wingsArr;
+      g.scale.setScalar(2.4);
+    }
+  } else if (type === 'ogre') { // zlobr: velký zelený hromotluk s kly, koženou zástěrou a kyjem
+    kind = 'biped';
+    const skin = mat({ color: 0x6a8a3a, roughness: 0.75 }, 'skin');
+    const leather = mat({ color: 0x5a3a20, roughness: 0.9 });
+    const tusk = new THREE.MeshStandardMaterial({ color: 0xf0e8d0, roughness: 0.4 });
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6a4a28, roughness: 0.85 });
+    body = pivot(g, 0, 1.45, 0);
+    box(body, 1.2, 1.1, 0.85, skin, 0, 0, 0, 0.2);
+    box(body, 1.1, 0.4, 0.9, leather, 0, -0.62, 0, 0.08); // zástěra
+    head = pivot(body, 0, 0.6, -0.12);
+    box(head, 0.6, 0.55, 0.55, skin, 0, 0.22, 0, 0.14);
+    box(head, 0.5, 0.12, 0.2, skin, 0, 0.36, -0.24, 0.04); // obočí
+    for (const sx of [-1, 1]) {
+      eye(head, sx * 0.14, 0.26, -0.28, 0.07, glowMat(0xffd040, 1.6));
+      const t = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 6), tusk); t.position.set(sx * 0.14, 0.05, -0.27); head.add(t);
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 6), skin); ear.position.set(sx * 0.34, 0.28, 0); ear.rotation.z = -sx * 1.2; head.add(ear);
+    }
+    const arms = [];
+    for (const sx of [-1, 1]) {
+      const a = pivot(body, sx * 0.78, 0.4, 0);
+      box(a, 0.42, 0.4, 0.45, skin, 0, -0.05, 0, 0.12);
+      box(a, 0.36, 1.0, 0.36, skin, 0, -0.65, 0, 0.12);
+      box(a, 0.42, 0.32, 0.42, skin, 0, -1.2, 0, 0.12); // pěst
+      if (sx === 1) { // kyj v pravé ruce
+        const club = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.07, 1.1, 8), wood);
+        club.position.set(0, -1.3, -0.5); club.rotation.x = Math.PI / 2.2; a.add(club);
+      }
+      arms.push(a);
+    }
+    for (const sx of [-1, 1]) leg(g, legs, skin, sx * 0.3, 0.85, 0, 0.85, 0.38);
+    extra.arms = arms;
   } else if (type === 'golem') {
     kind = 'biped';
     const stone = mat({ color: 0x8a86a8, emissive: 0x38e8ff, emissiveMap: crackTex(), emissiveIntensity: 0.6 }, 'stone');
@@ -308,7 +363,7 @@ export function buildMobModel(type) {
   if (kind === 'blob') mergeStatic(g); else if (!extra.rig) skinRig(g); // jedno kreslení na materiál
   if (type === 'golem') g.scale.setScalar(1.1);
   if (head && kind !== 'blob' && !extra.rig && type !== 'golem') head.scale.setScalar(type === 'chicken' ? 1.2 : 1.15); // větší hlava: roztomilejší poměry jako v Hytale
-  const shadow = blobShadow(type === 'golem' ? 1.25 : type === 'cow' ? 0.95 : type === 'chicken' ? 0.36 : type === 'markoman' ? 0.48 : 0.72);
-  return { group: g, body, head, legs, ears, wings, tail, eyes: K.eyes, flash: K.flash, kind, shadow, bodyY: body.position.y, arms: extra.arms || [], rig: extra.rig, crystal: extra.crystal, big: type === 'golem', headRest: head?.rotation.x || 0 };
+  const shadow = blobShadow(type === 'archdevil' ? 1.8 : type === 'ogre' ? 1.1 : type === 'golem' ? 1.25 : type === 'cow' ? 0.95 : type === 'chicken' ? 0.36 : type === 'markoman' ? 0.48 : 0.72);
+  return { group: g, body, head, legs, ears, wings, tail, eyes: K.eyes, flash: K.flash, kind, shadow, bodyY: body.position.y, arms: extra.arms || [], rig: extra.rig, crystal: extra.crystal, big: type === 'golem' || type === 'ogre' || type === 'archdevil', headRest: head?.rotation.x || 0 };
 }
 export { animateCharacter };

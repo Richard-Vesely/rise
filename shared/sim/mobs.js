@@ -20,6 +20,8 @@ import { armyPlan, updateArmy } from './army.js';
 import { HUNT, huntPlan, updateHunts } from './hunt.js';
 import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/prison.js';
 import { devilSpot, ensureHell, hellBuilt, inHell } from '../world/hell.js';
+import { updateArchdevil } from './archdevil.js';
+import { petPlan } from './pets.js';
 const HELL_DEVILS = 5; // kolik ďáblů najednou žije v pekle
 
 // Kořist z tvorů: [předmět, min, max, šance]
@@ -46,10 +48,17 @@ export const MOBS = {
   // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; zabít ho je jeden z úkolů vězně (server/prison-tasks.js).
   spider: { name: 'Obří pavouk', hp: 30, radius: 1.1, cy: 0.6, dmg: 12, drops: [['spider_eye', 1, 1]] },
   // Ďábel: žije jen v pekle (shared/world/hell.js); rychlý, silný, padá z něj ohnivá koule a vzácně ohnivý drahokam a hororový disk.
+  // Arcidábel: boss (shared/sim/archdevil.js), objeví se, kde zemřel hráč; z něj legendární ohnivá zbroj a Zlobří roh.
+  archdevil: {
+    name: 'Arcidábel', hp: 17000, radius: 1.6, cy: 2.3, dmg: 30, tall: true, swordsOnly: true, // zraní ho jen meč (client/src/mobs/mobs.js hitMob)
+    drops: [['legend_helmet', 1, 1], ['legend_chestplate', 1, 1], ['legend_leggings', 1, 1], ['legend_boots', 1, 1], ['ogre_horn', 1, 1], ['fire_gem', 16, 24], ['gold_ingot', 32, 64]],
+  },
+  // Zlobr: pomocník hráče ze Zlobřího rohu (shared/sim/pets.js), jde po tom, koho jeho pán praští.
+  ogre: { name: 'Zlobr', hp: 160, radius: 1.1, cy: 1.6, dmg: 20, tall: true, drops: [] },
   devil: { name: 'Ďábel', hp: 28, radius: 0.7, cy: 1.0, dmg: 11, tall: true, drops: [['fire_charge', 0, 2], ['fire_gem', 1, 1, 0.08], ['disc_horror', 1, 1, 0.05]] },
   golem: { name: 'Krystalový golem', hp: 60, radius: 1.2, cy: 1.5, dmg: 22, tall: true, drops: [['shard', 1, 3], ['markorite', 1, 1, 0.5], ['markapple', 1, 1, 0.25]] },
 };
-export const HOSTILE_SPEED = { devil: 5.4, boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
+export const HOSTILE_SPEED = { archdevil: 4.4, ogre: 5.6, devil: 5.4, boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
 export const mobs = []; // { nid, type, def, pos, vel, hp, ry, flash, dead, invT, … }
 // Jak dlouho zůstane mrtvý tvor vidět (převrátí se na bok a rozplyne v obláčku).
 export const DEATH_TIME = 0.8;
@@ -78,7 +87,7 @@ export function hurtMob(m, dmg, yaw, kb = 1) {
   const fx = -Math.sin(yaw), fz = -Math.cos(yaw);
   m.hp -= dmg;
   m.flash = 1;
-  const push = (m.type === 'dragon' ? 0.5 : m.type === 'golem' ? 2 : 8) * kb;
+  const push = (m.type === 'dragon' || m.type === 'archdevil' ? 0.4 : m.type === 'golem' || m.type === 'ogre' ? 2 : 8) * kb;
   m.vel.x += fx * push;
   m.vel.z += fz * push;
   emit('mobHit', m, !NET.killer, dmg); // jiskry a zvuk; !NET.killer = udeřil hráč u této obrazovky
@@ -131,11 +140,13 @@ export function updateMobs(dt, day) {
       if (m.deathT > DEATH_TIME) removeMob(m);
       continue;
     }
-    const A = m.army ? armyPlan(m, TG) : huntPlan(m, TG); // voják armády: cíl určuje velitel; štvanice: loví oběť (rudé oči)
+    const A = m.army ? armyPlan(m, TG) : m.pet ? petPlan(m, TG) : huntPlan(m, TG); // zlobr: za pánem a na toho, koho pán praštil (sim/pets.js)
+    if (m.dead) continue; // zlobr, jehož pán odešel
+    // voják armády: cíl určuje velitel; štvanice: loví oběť (rudé oči)
     const T = A ? A.T : nearestTarget(TG, m.pos), tp = T.pos;
     const dx = tp.x - m.pos.x, dz = tp.z - m.pos.z, dist = Math.hypot(dx, dz) || 0.01;
     const dyP = tp.y - m.pos.y;
-    if (dist > 120 && m.type !== 'dragon' && !m.army) { removeMob(m); continue; }
+    if (dist > 120 && m.type !== 'dragon' && m.type !== 'archdevil' && !m.army && !m.pet) { removeMob(m); continue; }
     m.tdist = dist;
     if (m.type === 'dragon') { updateDragon(m, T, dt); continue; }
     let dirX = 0, dirZ = 0, speed = 0;
@@ -144,12 +155,13 @@ export function updateMobs(dt, day) {
       if (m.moving) { dirX = Math.cos(m.wander); dirZ = Math.sin(m.wander); speed = sp; }
     };
     const night = day < 0.4;
-    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || m.type === 'devil' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
+    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || m.type === 'devil' || m.type === 'archdevil' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
     if (m.type === 'crawler' && T.set === 'shadow') hostile = false; // stínové brnění
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
     if (m.type === 'cow' && m.milkT > 0) m.milkT -= dt;
-    if (m.army || A) { // voják nebo štvanice: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
+    const busy = m.type === 'archdevil' && updateArchdevil(m, T, dt, mobs, spawnMob); // super útok: boss stojí
+    if (busy) { /* nabíjí útok */ } else if (m.army || A) { // voják nebo štvanice: jde k cíli (útok, k veliteli, ke stavbě / dolu), u cíle stojí
       if (A && dist > A.near) { dirX = dx / dist; dirZ = dz / dist; speed = A.attack ? HOSTILE_SPEED[m.type] || HUNT.speed : Math.min(5, dist); }
     } else if ((m.type === 'sheep' || m.type === 'deer' || m.type === 'chicken' || m.type === 'cow') && m.fleeT > 0) {
       m.fleeT -= dt; dirX = -dx / dist; dirZ = -dz / dist; speed = m.type === 'deer' ? 7 : 5.5;
@@ -215,14 +227,14 @@ export function updateMobs(dt, day) {
     m.flash = Math.max(0, m.flash - dt * 5);
     if (m.invT > 0) m.invT -= dt;
     m.cd -= dt;
-    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9, devil: 1.8 }[m.type] || 1.4;
+    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9, devil: 1.8, archdevil: 3.2, ogre: 2.4 }[m.type] || 1.4;
     if (hostile && dist < reach && Math.abs(dyP) < 2 && m.cd <= 0 && T.alive) {
-      m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : m.type === 'spider' ? 1.0 : 1.1;
+      m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : m.type === 'spider' ? 1.0 : m.type === 'archdevil' ? 1.4 : m.type === 'ogre' ? 1.3 : 1.1;
       m.atkT = 0.35;
       emit('mobAttack', m);
       const dmg = m.def.dmg || HUNT.dmg; // mírumilovné zvíře ve štvanici kousne za HUNT.dmg
-      if (T.mob) { // voják armády bije tvora, kterého praštil Marek
-        NET.killer = 'army';
+      if (T.mob?.def.swordsOnly) { /* Arcidábla zraní jen meč: armáda ani zlobr ne */ } else if (T.mob) { // voják armády bije tvora, kterého praštil Marek; zlobr tvora, kterého praštil jeho pán (kořist pánovi)
+        NET.killer = m.pet ? (m.owner === 'host' ? null : m.owner) : 'army';
         try { hurtMob(T.mob, dmg, Math.atan2(-dx, -dz)); } finally { NET.killer = null; }
       } else if (T.pid) NET.sendTo(T.pid, ['dmg', dmg, dx / dist, dz / dist]); else NET.hurtLocal?.(dmg, dx / dist, dz / dist);
       m.vel.x -= (dx / dist) * 4;

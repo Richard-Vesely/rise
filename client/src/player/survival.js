@@ -1,7 +1,8 @@
 // Přežití: zranění, smrt, hlad; sbírání úlomků.
 import '../dining/dining.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import { NET } from '../../../shared/net/net.js';
-import { mobs, removeMob } from '../../../shared/sim/mobs.js';
+import { mobs, removeMob, spawnMob } from '../../../shared/sim/mobs.js';
+import { bossOnDeath } from '../../../shared/sim/archdevil.js';
 import { bkey, blocks, removed } from '../../../shared/world/state.js';
 import { shrineOf, terrainH, volcanoDist } from '../../../shared/world/terrain.js';
 import { Sound } from '../audio/sound.js';
@@ -62,6 +63,7 @@ function die() {
   if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
+  if (!NET.client) bossOnDeath(player.pos.x, player.pos.y, player.pos.z, mobs, spawnMob); // na místě smrti se může objevit Arcidábel (sim/archdevil.js)
   const lost = NET.pvp ? 0 : dropEverything(); // batoh a brnění vypadnou na zem (v aréně je nová výbava)
   $('fade').style.opacity = 1;
   setTimeout(() => {
@@ -106,6 +108,7 @@ export function updateSurvival(dt) {
     if (player.hp <= 0) { die(); return; }
   }
   if (fullSet() === 'sky') player.hp = Math.min(100, player.hp + dt);
+  if (fullSet() === 'legend') player.hp = Math.min(100, player.hp + dt * 1.5); // legendární ohnivá zbroj (z Arcidábla)
   if (blocks.get(bkey(Math.floor(player.pos.x), Math.floor(player.pos.y + 0.1), Math.floor(player.pos.z))) === 'spikes') {
     player.hp -= 3 * dt; setVignette(Math.max(vignette, 0.5));
     if (player.hp <= 0) die();

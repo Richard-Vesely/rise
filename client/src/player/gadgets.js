@@ -11,6 +11,9 @@ import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
 import { heldStack, removeItem } from './inventory.js';
 import { lightning, shot } from './magic.js';
+import { NET } from '../../../shared/net/net.js';
+import { mobs, spawnMob } from '../../../shared/sim/mobs.js';
+import { summonOgre } from '../../../shared/sim/pets.js';
 import { drinkXpPotion } from './owner-wand.js';
 import { pickTarget } from './targeting.js';
 import { groundHeight } from '../../../shared/world/voxels.js';
@@ -18,7 +21,7 @@ import { camera } from '../render/renderer.js';
 import * as THREE from 'three';
 import { input, player } from './player.js';
 
-let prevRmb = false, cd = 0, flameT = 0;
+let prevRmb = false, cd = 0, flameT = 0, ogreAt = 0;
 
 /** Každý snímek (interaction.js): vrací true, když pravé tlačítko patří vychytávce v ruce. */
 export function updateGadgets(dt, special) {
@@ -26,7 +29,7 @@ export function updateGadgets(dt, special) {
   prevRmb = input.rmb;
   cd -= dt;
   const id = heldStack()?.id, d = ITEMS[id];
-  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion) || special) return false;
+  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion || d.ogre) || special) return false;
   if (d.throw && fresh && cd <= 0) { // trojzubec
     cd = d.throw.cd;
     shot({ color: 0x38c8e8, size: 0.8, speed: 42, ttl: 1.6, dmg: d.throw.dmg, trail: 1 });
@@ -105,6 +108,13 @@ export function updateGadgets(dt, special) {
   } else if (d.xpPotion && input.rmb && cd <= 0) { // lektvar nekonečných XP: držíš = pije se nejvýš jednou za sekundu
     cd = 1;
     drinkXpPotion();
+  } else if (d.ogre && fresh) { // Zlobří roh: přivolá tvého zlobra (shared/sim/pets.js)
+    if (performance.now() < ogreAt) { toast(`Zlobr přijde až za ${Math.ceil((ogreAt - performance.now()) / 1000)} s`); return true; }
+    ogreAt = performance.now() + 30000;
+    if (NET.client) NET.req(['ogre']);
+    else summonOgre('host', { x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw }, mobs, spawnMob);
+    Sound.burst({ buf: Sound.brown, dur: 1.4, f0: 300, f1: 120, q: 3, vol: 0.5, type: 'bandpass', attack: 0.1, vary: 0 }); // troubení
+    toast('Zlobr je tu! Jde za tebou, a koho praštíš, po tom jde.');
   } else if (d.medkit && fresh) {
     if (player.hp >= 100) { toast('Jsi zdravý, lékárnička počká'); return true; }
     player.hp = 100;
