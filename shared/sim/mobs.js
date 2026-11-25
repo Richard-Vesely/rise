@@ -22,6 +22,7 @@ import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/pris
 import { devilSpot, ensureHell, hellBuilt, inHell } from '../world/hell.js';
 import { updateArchdevil } from './archdevil.js';
 import { petPlan } from './pets.js';
+import { updateStrikes } from './strikes.js';
 const HELL_DEVILS = 5; // kolik ďáblů najednou žije v pekle
 
 // Kořist z tvorů: [předmět, min, max, šance]
@@ -134,6 +135,7 @@ export function updateMobs(dt, day) {
   if (!TG.length) { for (const m of [...mobs]) removeMob(m); return; } // na serveru nikdo není
   updateArmy(dt, mobs); // Markova armáda: stavba a kopání (sim/army.js)
   updateHunts(dt, TG); // štvanice z hole vlastníka (sim/hunt.js)
+  updateStrikes(dt, mobs); // atomovky z obchodu (sim/strikes.js)
   for (const m of [...mobs]) {
     if (m.dead) {
       m.deathT += dt;

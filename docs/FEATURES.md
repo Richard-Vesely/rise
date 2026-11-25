@@ -488,6 +488,13 @@ attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit
   Fire aura, flapping bat wings, a golden crown, a health bar at the top with what it is doing; a big explosion when it
   dies. Drops the **legendary fire armor** (*Legendární ohnivá zbroj*, 6/11/9/6, the strongest; full set: lava doesn't burn
   and you heal 1.5 HP/s), the **ogre horn**, 16–24 fire gems and 32–64 gold ingots.
+- **Atomic bomb from the shop** (*Atomovka*, 3000 coins, `nuke_item`): right-click throws it where you aim (up to 90 m).
+  Everyone sees the missile fall for 2.5 s, then flash, fireball, mushroom cloud and shock wave; the crater removes about
+  2000 blocks (underground and built blocks). Safety: never the unbreakable blocks (statue, prison, hell: `fixed`) or
+  bedrock, not within 45 m of a shrine (the spawn and the statue are there), and it hurts players (999 within 14 m) only
+  where fights are allowed (a `pvp` / `pvp-all` world, `pvp-mark` in Markova dimenze, or both with N on; yourself always).
+  Mobs in reach die (not the archdevil). Rules `shared/sim/strikes.js` (`canHurt` in `shared/net/room.js`), look
+  `client/src/world/boom.js`.
 - **Ogre** (*Zlobr*, from the ogre horn, right-click, once per 30 s): a big green brute with a club (160 HP, 20 damage)
   that follows its owner; when the owner hits a mob it goes after it, a player only with a valid hit (fights on with N,
   like Marek's army). One per player, it leaves when its owner leaves. Rules `shared/sim/archdevil.js`, `shared/sim/pets.js`,
@@ -632,6 +639,9 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   target and the host ignores the hit. It stays a normal world: no arena, no kit, your own backpack, normal respawn at the
   shrine, no score table. A knock-out by a player still gets the feed line (*⚔ Ája vyřadil(a) hráče Bára*); a death without a
   player hit is not announced. The world button says *Přežij a stav spolu, v Markově dimenzi se bojuje*.
+- **Fights in every dimension** (option `:pvp-all`, e.g. `svet:Hlavní svět:pvp-all`, the lektor decides in `WORLDS`): like
+  `pvp-mark`, but the fights count everywhere (normal world, Markova dimenze, hell, the dragon's land). No arena. The world
+  button says *Přežij a stav spolu, bojuje se ve všech dimenzích*. With the key N fights work in every dimension in any world.
   *Kód:* the same files; the check is in `hitPlayer` (host) and `pvpPlayers` (player).
 - **Arena** (every `:pvp` world): the server builds it once when the world starts, 40 m west of the shrine: a round brick floor
   (radius 13) with a 4-block wall, 8 cover pillars and torches; trees and boulders inside are gone. Joining and every respawn

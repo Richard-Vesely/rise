@@ -416,3 +416,55 @@ test('archdevil appears where a player died on the server; the ogre horn summons
     await a.close();
   } finally { await stop(srv); }
 });
+
+test('pvp-all world (option for the lektor): fights count in every dimension, no arena', { timeout: 60000 }, async () => {
+  const { MARK_X } = await import('../../shared/world/terrain.js');
+  assert.deepEqual(parseWorlds('svet:Hlavní svět:pvp-all'), [{ id: 'svet', name: 'Hlavní svět', creative: false, pvp: false, pvpMark: true, pvpAll: true }]);
+  assert.throws(() => parseWorlds('svet:Svět:pvp:pvp-all'), /vyber jedno/);
+  const srv = await startServer({ DATA_DIR: tmp('louka-pvpall-'), WORLDS: 'svet:Hlavní svět:pvp-all' });
+  try {
+    assert.deepEqual((await getJSON(srv.port, '/worlds')).map((w) => [w.id, w.pvp, w.pvpAll]), [['svet', false, true]]);
+    assert.doesNotMatch(srv.out(), /Postavena aréna/, 'no arena');
+    const a = player(srv.port, 'Ája', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    assert.equal(a.welcome.worldInfo.pvpAll, true);
+    const dmgs = () => b.msgs.filter((m) => m[0] === 'dmg').length;
+    const tryHit = async (ax, bx) => {
+      a.send(['pose', pose(ax, 14)]); b.send(['pose', pose(bx, 14)]);
+      await sleep(600);
+      const n = dmgs();
+      a.send(['phit', b.welcome.pid, 6, 0, 1, 0]);
+      await sleep(300);
+      return dmgs() > n;
+    };
+    assert.equal(await tryHit(0, 2), true, 'in the normal world');
+    assert.equal(await tryHit(MARK_X + 50, MARK_X + 52), true, 'in Markova dimenze');
+    for (const p of [a, b]) await p.close();
+  } finally { await stop(srv); }
+});
+
+test('shop nuke: thrown where you aim, crater of about 2000 blocks, keeps fixed blocks, not near the spawn, hurts only players who fight', { timeout: 60000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-nuke-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const a = player(srv.port, 'Adam', '', { v: 2, world: 'svet' }), b = player(srv.port, 'Bára', '', { v: 2, world: 'svet' });
+    for (const p of [a, b]) assert.ok(await p.waitFor((m) => m[0] === 'welcome'));
+    const { terrainH } = await import('../../shared/world/terrain.js');
+    const at = (x, z, extra = {}) => ({ ...pose(x, z), y: terrainH(x, z), ...extra });
+    a.send(['pose', at(10, 10)]); b.send(['pose', at(12, 12)]); await sleep(300);
+    a.send(['nuke', 12, terrainH(12, 12), 12]); // u spawnu: nic
+    await sleep(800);
+    assert.ok(!a.msgs.some((m) => m[0] === 'fx'), 'not near the spawn');
+    a.send(['pose', at(200, 200)]); b.send(['pose', at(205, 205)]); await sleep(300); // Bára má souboje vypnuté
+    a.send(['nuke', 205, terrainH(205, 205), 205]);
+    assert.ok(await b.waitFor((m) => m[0] === 'fx' && m[1] === 'nuke'), 'everyone sees it fall');
+    await b.waitFor((m) => m[0] === 'ops' && m[1].some((o) => o[0] === 'v' && Math.hypot(o[1] - 205, o[3] - 205) < 9), 5000);
+    await sleep(400);
+    const holes = b.msgs.filter((m) => m[0] === 'ops').flatMap((m) => m[1]).filter((o) => o[0] === 'v' && Math.hypot(o[1] - 205, o[3] - 205) < 9);
+    assert.ok(holes.length > 1500 && holes.length < 2600, `crater of about 2000 blocks (${holes.length})`);
+    assert.ok(!b.msgs.some((m) => m[0] === 'dmg'), 'Bára does not fight (N off): the bomb does not hurt her');
+    a.send(['pose', at(400, 400, { pv: 1 })]); b.send(['pose', at(404, 404, { pv: 1 })]); await sleep(300);
+    a.send(['nuke', 404, terrainH(404, 404), 404]);
+    assert.ok(await b.waitFor((m) => m[0] === 'dmg' && m[1] >= 999, 6000), 'with fights on (N) it does');
+    for (const p of [a, b]) await p.close();
+  } finally { await stop(srv); }
+});

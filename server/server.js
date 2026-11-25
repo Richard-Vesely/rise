@@ -52,7 +52,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   // ---------- vlákna světů
   function startWorld(w) {
     return new Promise((ok, fail) => {
-      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs, ownerId, ownerName: nameOf(ownerId) || '', armyPhrase, armyReturnPhrase, top: donations.top(undefined, nameOf) } });
+      const worker = new Worker(WORKER, { workerData: { id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, pvpAll: !!w.pvpAll, first: w.first, dir: dataDir && path.join(dataDir, w.id), maxPlayers, tickHz, saveEveryMs, ownerId, ownerName: nameOf(ownerId) || '', armyPhrase, armyReturnPhrase, top: donations.top(undefined, nameOf) } });
       w.worker = worker;
       worker.on('message', (m) => {
         switch (m.t) {
@@ -60,7 +60,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
           case 'close': w.sockets.get(m.cid)?.close(); break;
           case 'stats': w.stats = m; w.players = m.players; break;
           case 'log': log(`[${w.id}] ${m.text}`); break;
-          case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : w.pvpMark ? ' (souboje hráčů v Markově dimenzi)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
+          case 'ready': log(`[${w.id}] ${w.name}${w.creative ? ' (kreativní)' : ''}${w.pvp ? ' (souboje hráčů)' : w.pvpAll ? ' (souboje hráčů ve všech dimenzích)' : w.pvpMark ? ' (souboje hráčů v Markově dimenzi)' : ''}: ${m.loaded ? 'svět načten ze souboru' : 'nový svět'}.`); ok(); break;
           case 'stopped': w.onStopped?.(); break;
           case 'bonus': { // bonusy pro dárce: příkaz vlastníka ze světa (server/bonus.js, server/bonuses.js)
             const r = bonusQuery(bonuses, profiles, m);
@@ -94,7 +94,7 @@ export async function startServer({ port = 8787, password = '', dataDir = null, 
   await Promise.all(W.map(startWorld));
 
   // ---------- /health a /worlds
-  const list = () => W.map((w) => ({ id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, players: w.players, max: maxPlayers }));
+  const list = () => W.map((w) => ({ id: w.id, name: w.name, creative: w.creative, pvp: !!w.pvp, pvpMark: !!w.pvpMark, ...(w.pvpAll ? { pvpAll: true } : {}), players: w.players, max: maxPlayers }));
   const round = (v) => Math.round(v * 100) / 100;
   const health = () => {
     const mem = process.memoryUsage();

@@ -24,6 +24,7 @@ import { buildFoodInto } from '../dining/food-models.js';
 import { startCooking } from '../machines/kitchen.js';
 import { toggleSwitch } from '../machines/power.js';
 import { hitMob, viewOf } from '../mobs/mobs.js';
+import { boomFx } from '../world/boom.js';
 import { localBody, myPose, toggleView, updateAvatars, viewMode } from '../net/avatars.js';
 import { closePC, openApp, openPC, pc, pcPower } from '../pc/computer.js';
 import { closeDoc, openDoc } from '../pc/doc-view.js';
@@ -102,6 +103,7 @@ export const game = window.game = {
   lakeOf, nearestLake, toLake, // jezera: game.toLake() = na břeh nejbližšího jezera
   KINDS, BIKE, BOATS, windAt, windRel, sailEff, levelAt, spawnOnLake, nitro, useNitro, vehMeshes, seatWorld, toggleCarCam, // vozidla: game.spawnOnLake('sailboat')
   perks, applyBonus, ghost, toggleGhost, // bonusy pro dárce (player/bonus.js, player/ghost.js)
+  boomFx, // efekt atomovky (world/boom.js): game.boomFx('nuke', x, y, z, 2.5)
   Sound, soundEnv, materialAt, targetMaterial, // zvuky: game.Sound.music.start('night'), game.soundEnv, game.materialAt(x, y, z)
 };
 window.gameStarted = true;

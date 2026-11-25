@@ -14,6 +14,8 @@ import { lightning, shot } from './magic.js';
 import { NET } from '../../../shared/net/net.js';
 import { mobs, spawnMob } from '../../../shared/sim/mobs.js';
 import { summonOgre } from '../../../shared/sim/pets.js';
+import { NUKE, nukeAllowedAt } from '../../../shared/sim/strikes.js';
+import { nukeAt } from '../../../shared/net/room.js';
 import { drinkXpPotion } from './owner-wand.js';
 import { pickTarget } from './targeting.js';
 import { groundHeight } from '../../../shared/world/voxels.js';
@@ -29,7 +31,7 @@ export function updateGadgets(dt, special) {
   prevRmb = input.rmb;
   cd -= dt;
   const id = heldStack()?.id, d = ITEMS[id];
-  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion || d.ogre) || special) return false;
+  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion || d.ogre || d.nuke) || special) return false;
   if (d.throw && fresh && cd <= 0) { // trojzubec
     cd = d.throw.cd;
     shot({ color: 0x38c8e8, size: 0.8, speed: 42, ttl: 1.6, dmg: d.throw.dmg, trail: 1 });
@@ -108,6 +110,14 @@ export function updateGadgets(dt, special) {
   } else if (d.xpPotion && input.rmb && cd <= 0) { // lektvar nekonečných XP: držíš = pije se nejvýš jednou za sekundu
     cd = 1;
     drinkXpPotion();
+  } else if (d.nuke && fresh) { // atomovka: hodí se tam, kam míříš (shared/sim/strikes.js)
+    const t = pickTarget(NUKE.range);
+    if (!t?.point) { toast(`Namiř atomovku na zem nebo blok (do ${NUKE.range} m)`); return true; }
+    const [x, y, z] = t.point;
+    if (!nukeAllowedAt(x, z)) { toast('U svatyně a spawnu se atomovka odpálit nedá'); return true; }
+    removeItem(id, 1);
+    if (NET.client) NET.req(['nuke', x, y, z]); else nukeAt('host', x, y, z);
+    toast('☢ Atomovka letí! Uteč z dosahu (asi 14 m).');
   } else if (d.ogre && fresh) { // Zlobří roh: přivolá tvého zlobra (shared/sim/pets.js)
     if (performance.now() < ogreAt) { toast(`Zlobr přijde až za ${Math.ceil((ogreAt - performance.now()) / 1000)} s`); return true; }
     ogreAt = performance.now() + 30000;

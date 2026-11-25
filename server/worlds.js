@@ -9,7 +9,7 @@ import path from 'node:path';
 const ID = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
 /**
- * @typedef {{ id: string, name: string, creative: boolean, pvp: boolean, pvpMark: boolean }} WorldDef
+ * @typedef {{ id: string, name: string, creative: boolean, pvp: boolean, pvpMark: boolean, pvpAll?: boolean }} WorldDef
  */
 
 /**
@@ -28,11 +28,11 @@ export function parseWorlds(spec, allowCreative = false) {
     const id = rawId.toLowerCase();
     if (!ID.test(id) || id === 'backups') throw new Error(`WORLDS: neplatné id světa "${rawId}" (malá písmena, číslice, - a _; ne "backups")`);
     if (list.some((w) => w.id === id)) throw new Error(`WORLDS: svět "${id}" je tam dvakrát`);
-    const CREATIVE = /^(creative|kreativ|kreativni|kreativní)$/i, PVP = /^pvp$/i, MARK = /^pvp-mark$/i;
-    for (const flag of flags) if (flag && !CREATIVE.test(flag) && !PVP.test(flag) && !MARK.test(flag)) throw new Error(`WORLDS: u světa "${id}" je neznámá volba "${flag}" (povolené: creative, pvp, pvp-mark)`);
-    const pvp = flags.some((f) => PVP.test(f)), pvpMark = flags.some((f) => MARK.test(f));
-    if (pvp && pvpMark) throw new Error(`WORLDS: u světa "${id}" je pvp i pvp-mark (vyber jedno)`);
-    list.push({ id, name: (rawName || id).slice(0, 40), creative: flags.some((f) => CREATIVE.test(f)), pvp, pvpMark });
+    const CREATIVE = /^(creative|kreativ|kreativni|kreativní)$/i, PVP = /^pvp$/i, MARK = /^pvp-mark$/i, ALL = /^pvp-all$/i; // pvp-all = boj ve všech dimenzích bez arény
+    for (const flag of flags) if (flag && !CREATIVE.test(flag) && !PVP.test(flag) && !MARK.test(flag) && !ALL.test(flag)) throw new Error(`WORLDS: u světa "${id}" je neznámá volba "${flag}" (povolené: creative, pvp, pvp-mark, pvp-all)`);
+    const pvp = flags.some((f) => PVP.test(f)), pvpAll = flags.some((f) => ALL.test(f)), pvpMark = pvpAll || flags.some((f) => MARK.test(f));
+    if (pvp && pvpMark) throw new Error(`WORLDS: u světa "${id}" je pvp i pvp-mark / pvp-all (vyber jedno)`);
+    list.push({ id, name: (rawName || id).slice(0, 40), creative: flags.some((f) => CREATIVE.test(f)), pvp, pvpMark, ...(pvpAll ? { pvpAll } : {}) });
   }
   if (!list.length) throw new Error('WORLDS je prázdné');
   return list;
