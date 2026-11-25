@@ -58,6 +58,7 @@ import { updateHell, useAltar, usePortal as useHellPortal } from '../world/hell.
 import { updateBossFx } from '../mobs/boss-fx.js';
 import { addXp, updateXp } from './xp.js';
 import { XP_ORE } from '../../../shared/data/magic.js';
+import { updateFillHole } from '../world/fill-hole.js';
 
 // ============================================================ těžba, útok, pokládání
 export const outline = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004)), new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 }));
@@ -164,6 +165,12 @@ function renderAttackMeter(aimMob) {
 document.addEventListener('pointerlockchange', () => { if (!isLocked()) cancelDraw(); });
 export function updateInteraction(dt) {
   target = withPaper(pickTarget()); // papíry a rámečky ve světě (14e)
+  if (updateFillHole(target, input, player, toast)) {
+    mining.key = null; mining.p = 0;
+    showCracks(null, 0);
+    $('progress').style.opacity = 0;
+    return;
+  }
   const held = heldStack(), heldId = held?.id ?? null;
   let warn = '';
   const boxCell = target?.kind === 'block' || (target?.kind === 'vox' && !target.surface) ? target.cell : null;

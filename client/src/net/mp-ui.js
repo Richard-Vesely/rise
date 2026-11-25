@@ -9,6 +9,7 @@ import { saveGame } from '../game/save.js';
 import { lockPointer, unlockPointer } from '../player/player.js';
 import { $ } from '../ui/dom.js';
 import { shopCommand } from '../ui/shop.js';
+import { fillHoleCommand } from '../world/fill-hole.js';
 import { toHost } from './multiplayer.js';
 import { esc } from '../../../shared/util.js';
 
@@ -49,6 +50,7 @@ function closeChat(relock = true) {
 function sendChat(text) {
   text = text.trim().slice(0, 200);
   if (!text) return;
+  if (fillHoleCommand(text, sysLine)) return;
   if(flightPotionCommand(text)){
     if(NET.mode==='sp'||NET.host){if(!addItem(FLIGHT_POTION,1))chatLine('Lektvar','Lektvar máš v batohu. Vyber ho a klikni pravým tlačítkem.');}
     else toHost(['chat',text]);
