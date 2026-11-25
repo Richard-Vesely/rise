@@ -20,13 +20,14 @@ import { updateTorches } from '../shared/world/torch.js';
  * @param {boolean} o.allowCreative smí všichni hráči kreativní režim?
  * @param {boolean} [o.pvp] můžou se hráči navzájem zranit? (aréna)
  * @param {boolean} [o.pvpMark] můžou se zranit jen v Markově dimenzi? (bez arény)
+ * @param {boolean} [o.pvpAll] s pvpMark: zranit se můžou ve všech dimenzích (volba pvp-all)
  * @param {string} o.code jak se server jmenuje v menu hráčů (adresa)
  * @param {(msg: string) => void} o.log
  * @param {() => void} [o.onChange] změnil se seznam hráčů
  * @param {boolean} [o.statue] postavit u spawnu sochu darů s pokladničkou a daleko na nebi vězení (server kroužku, server/donation-box.js, server/prison.js)
  */
-export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, pvpMark = false, code, log, onChange = () => {}, statue = false }) {
-  Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp, pvpMark });
+export function setupWorld({ world, maxPlayers, allowCreative, pvp = false, pvpMark = false, pvpAll = false, code, log, onChange = () => {}, statue = false }) {
+  Object.assign(NET, { mode: 'server', host: false, client: false, name: '', perm: true, uidPrefix: 's', code, allowAll: allowCreative, pvp, pvpMark, pvpAll });
   loadWorld(world);
   if (pvp && NET.quiet(() => ensureArena())) log('Postavena aréna (svět se souboji hráčů).');
   const st = statue && NET.quiet(() => ensureStatue());

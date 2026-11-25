@@ -434,6 +434,20 @@ try {
     return { speed, potionGone, moved, up, boom, pulled };
   });
   check('gadgets: speed potion, teleport orb, jetpack, grenade and grappling hook work', r.speed > 29 && r.potionGone && r.moved > 5 && r.up > 1 && r.boom > 0 && r.pulled > 3, JSON.stringify(r));
+  r = await ev(() => { // atomovka z obchodu: hodí se kam míříš, za 2,5 s kráter; u spawnu nejde
+    const g = window.game; g.mobs.length = 0;
+    T.clearInv(); T.give('nuke_item', 1); T.hold('nuke_item');
+    T.tpg(5, 20); T.step(5); T.aim(5, g.groundHeight(5, 30), 30);
+    g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false; T.step(1, 0.016);
+    const nearSpawn = T.count('nuke_item');
+    T.tpg(-300, 300); T.step(10);
+    const gx = -300, gz = 330, gy = g.groundHeight(gx, gz);
+    T.aim(gx, gy, gz); g.player.hp = 100;
+    g.input.rmb = true; T.step(1, 0.016); g.input.rmb = false;
+    for (let i = 0; i < 80; i++) T.step(1, 0.05);
+    return { nearSpawn, used: T.count('nuke_item') === 0, crater: g.groundHeight(gx, gz) < gy - 4, alive: g.player.alive };
+  });
+  check('shop nuke: not near the spawn; elsewhere it falls and leaves a deep crater', r.nearSpawn === 1 && r.used && r.crater && r.alive, JSON.stringify(r));
   r = await ev(async () => { // přehrávač filmové hudby: vložený disk hraje (slyšet poblíž), vysunutý disk se vrátí do batohu
     const g = window.game, p = g.player.pos, k = `${Math.floor(p.x) + 2},${Math.floor(p.y)},${Math.floor(p.z)}`;
     g.Sound?.init?.();

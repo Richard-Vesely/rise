@@ -17,13 +17,13 @@ const hurtAt = new Map(); // pid -> kdy jsme ho naposledy zasáhli (ať se nepos
 
 /** Ostatní hráči, do kterých se dá v tomhle světě bojovat: { pid, name, x, y, z }. */
 export function pvpPlayers() {
-  const world = NET.pvp || (NET.pvpMark && isMark(player.pos.x));
+  const world = NET.pvp || (NET.pvpMark && (NET.pvpAll || isMark(player.pos.x))); // pvp-all: všude
   if (!world && !NET.pvpOn) return [];
   const list = [];
   for (const P of others.values()) {
     const q = P.pose;
     if (!q || q.alive === false || q.cr || q.veh) continue;
-    const ok = NET.pvp || (NET.pvpMark && isMark(player.pos.x) && isMark(q.x)) || (NET.pvpOn && q.pv);
+    const ok = NET.pvp || (NET.pvpMark && (NET.pvpAll || (isMark(player.pos.x) && isMark(q.x)))) || (NET.pvpOn && q.pv);
     if (!ok) continue;
     list.push({ pid: P.pid, name: P.name, x: q.x, y: q.y, z: q.z });
   }

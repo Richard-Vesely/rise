@@ -11,6 +11,25 @@ import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
 import { dragonNet } from '../sim/dragon.js';
 import { bossNet, bossOnDeath } from '../sim/archdevil.js';
 import { petHit, summonOgre } from '../sim/pets.js';
+import { NUKE, addNuke, strikeHooks } from '../sim/strikes.js';
+
+// Atomovka z obchodu (sim/strikes.js): efekt vidí všichni; hráče zraní jen tam, kde se smí bojovat (stejně jako hitPlayer).
+strikeHooks({
+  fx: (kind, x, y, z, t) => { broadcast(['fx', kind, x, y, z, t]); NET.onFx?.(kind, x, y, z, t); },
+  canHurt: (from, to) => {
+    if (from === to || NET.pvp || (NET.pvpMark && NET.pvpAll)) return true;
+    const a = playerOf(from)?.pose, t = playerOf(to)?.pose;
+    if (!a || !t) return !a && !others.size; // hra pro jednoho: jen ty sám
+    return (NET.pvpMark && isMark(a.x) && isMark(t.x)) || (!!a.pv && !!t.pv);
+  },
+});
+/** Hráč from hodil atomovku na (x, y, z): nejdál NUKE.range od sebe, ne u svatyní. Vrací true, když letí. */
+export function nukeAt(from, x, y, z) {
+  x = Number(x); y = Number(y); z = Number(z);
+  const me = playerOf(from)?.pose;
+  if (me && Math.hypot(me.x - x, me.y - y, me.z - z) > NUKE.range + 5) return false;
+  return addNuke(from, x, y, z);
+}
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
 import { Vec3 } from '../vec3.js';
@@ -150,6 +169,7 @@ function onClientMsg(P, msg) {
       break;
     }
     case 'pull': pullTarget(P.pid, String(msg[1]), msg[1] === 'm' ? msg[2] : String(msg[2]), msg[3], msg[4], msg[5]); break; // prut: přitáhnout hráče / tvora
+    case 'nuke': nukeAt(P.pid, msg[1], msg[2], msg[3]); break; // atomovka z obchodu (sim/strikes.js)
     case 'ogre': { // Zlobří roh: přivolat svého zlobra (nejvýš jednou za 30 s)
       const now = performance.now() / 1000;
       if (now < (P.ogreT || 0)) return;
@@ -225,7 +245,7 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
   if (from === to) return false;
   const A = playerOf(from), T = playerOf(to), a = A?.pose, t = T?.pose;
   if (!a || !t || a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
-  const world = NET.pvp || (NET.pvpMark && isMark(a.x) && isMark(t.x)); // aréna, nebo pvp-mark: oba v Markově dimenzi
+  const world = NET.pvp || (NET.pvpMark && (NET.pvpAll || (isMark(a.x) && isMark(t.x)))); // aréna, pvp-all všude, nebo pvp-mark: oba v Markově dimenzi
   if (!world && (kill || !(a.pv && t.pv))) return false; // jinde jen když mají souboje zapnuté oba (klávesa N)
   if (!kill && Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
   const now = performance.now() / 1000;
