@@ -532,11 +532,11 @@ try {
   });
   check('combat: full-charge sword hit, cooldown meter, invulnerability, sword wears by 1', r.hp0 - r.hp1 === 6 && r.charge < 0.3 && r.meter && r.hp2 === r.hp1 && r.w === 1, JSON.stringify(r));
   r = await ev(async () => { // Arcidábel: 17 000 životů, ukazatel zdraví, platí na něj jen meč (hůl ani axe ne)
-    const g = window.game; g.mobs.length = 0;
-    T.tpg(-30, 60); T.step(10);
+    const g = window.game, wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    for (let i = 0; i < 25 && !g.blocks.has(`${g.HELL.x},${g.HELL.y},${g.HELL.z}`); i++) { T.step(10); await wait(50); } // peklo se staví v updateSpawns
+    g.sendToHell(); T.step(10); g.mobs.length = 0; // Arcidábel žije jen v pekle
     const p = g.player.pos;
-    g.spawnMob('archdevil', p.x, p.z - 3);
-    const m = g.mobs.find((x) => x.type === 'archdevil'); m.bossCd = 99; T.step(2);
+    const m = g.spawnMob('archdevil', p.x, p.z - 3, p.y); m.under = true; m.bossCd = 99; T.step(2);
     const bar = !document.getElementById('bossHealth')?.hidden && /Arcidábel/.test(document.getElementById('bossHealth')?.textContent || '');
     const hp0 = m.hp;
     T.clearInv(); T.give('iron_axe', 1); T.hold('iron_axe'); T.aim(m.pos.x, m.pos.y + 2, m.pos.z);
@@ -547,10 +547,10 @@ try {
     T.clearInv(); T.give('iron_sword', 1); T.hold('iron_sword'); T.aim(m.pos.x, m.pos.y + 2, m.pos.z);
     g.input.lmb = true; T.step(1); g.input.lmb = false; T.step(1);
     const sword = hp0 - m.hp;
-    g.mobs.length = 0; T.step(2);
+    g.mobs.length = 0; T.tpg(-30, 60); T.step(2);
     return { hp0, bar, axe, spell, sword };
   });
-  check('boss: the archdevil has 17 000 HP and a health bar; an axe or a spell does nothing, a sword hurts it', r.hp0 === 17000 && r.bar && r.axe === 0 && r.spell === 0 && r.sword > 0, JSON.stringify(r));
+  check('boss: the archdevil (in hell) has 17 000 HP and a health bar; an axe or a spell does nothing, a sword hurts it', r.hp0 === 17000 && r.bar && r.axe === 0 && r.spell === 0 && r.sword > 0, JSON.stringify(r));
   r = await ev(() => {
     const g = window.game; g.armor[1] = { id: 'iron_chestplate', n: 1 }; const hp = g.player.hp;
     g.damagePlayer(20, 1, 0); T.step(1);

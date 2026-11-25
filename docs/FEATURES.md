@@ -479,8 +479,9 @@ Monsters stay away from the shrine; light blocks keep shadow-eaters away.
 *Kód:* behaviour, spawning, loot, invulnerability `shared/sim/mobs.js`; attack rules `shared/tools.js`; models `client/src/mobs/mob-models.js`; animation and life (`poseMob`, also for the client's puppets), sounds, hit effects `client/src/mobs/mobs.js`;
 attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit-stop, view bobbing `client/src/player/camera-feel.js`; hand and swings `client/src/render/held-item.js`; bow and arrows `client/src/player/bow.js` (models `client/src/render/bow-model.js`).
 
-- **Arcidábel** (boss): appears where a player died (at most one at a time, at the earliest 10 minutes after the last one,
-  never in a `pvp` arena world or in the prison), with a fire pillar, a roar and a toast. 17 000 HP, **only swords hurt it**
+- **Arcidábel** (boss): lives only in **hell**: it appears in the middle of hell (in front of the statue) when a player is
+  there, at most one at a time, the next one at the earliest 10 minutes after the last was killed; a boss outside hell
+  disappears (`hellBoss` in `shared/sim/archdevil.js`). It comes with a fire pillar, a roar and a toast. 17 000 HP, **only swords hurt it**
   (`swordsOnly`: spells, wands, the bow, shop gadgets, the ogre and the army do nothing; the owner's wand is Richard's and
   unchanged). Chases players like other monsters (30 damage) and every 3.5–6 s (a third faster below half HP, also
   stronger) does a super attack with a red warning circle: *fire wave* around itself (45 within 9 m), *leap* onto a

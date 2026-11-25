@@ -20,7 +20,7 @@ import { armyPlan, updateArmy } from './army.js';
 import { HUNT, huntPlan, updateHunts } from './hunt.js';
 import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/prison.js';
 import { devilSpot, ensureHell, hellBuilt, inHell } from '../world/hell.js';
-import { updateArchdevil } from './archdevil.js';
+import { bossKilled, hellBoss, updateArchdevil } from './archdevil.js';
 import { petPlan } from './pets.js';
 import { updateStrikes } from './strikes.js';
 const HELL_DEVILS = 5; // kolik ďáblů najednou žije v pekle
@@ -102,6 +102,7 @@ export function killMob(m, drops, trap = false) {
   if (m.dead) return;
   m.dead = true;
   emit('mobKilled', m);
+  if (m.type === 'archdevil') bossKilled(); // další Arcidábel v pekle nejdřív za 10 minut
   if (!drops) return;
   if (m.type === 'dragon') {
     ruinsOpened.add(DRAGON_DEN.key); // historie průzkumu; další souboj řídí čas, ne tento příznak
@@ -262,7 +263,8 @@ export function updateSpawns(dt, night) {
     const p = spiderSpot(jailed.pos.x, jailed.pos.z);
     if (p) spawnMob('spider', p[0], p[2], p[1]).under = true;
   }
-  if (inHell(c.x, c.y, c.z)) { // peklo: jen ďáblové, chodí po podlaze z bloků
+  hellBoss(mobs, spawnMob, NET.targets().some((t) => t.alive && inHell(t.pos.x, t.pos.y, t.pos.z))); // Arcidábel žije jen v pekle (sim/archdevil.js)
+  if (inHell(c.x, c.y, c.z)) { // peklo: ďáblové a Arcidábel, chodí po podlaze z bloků
     if (hellBuilt() && mobs.filter((m) => m.type === 'devil' && !m.dead).length < HELL_DEVILS) { const p = devilSpot(c.x, c.z); if (p) spawnMob('devil', p[0], p[2], p[1]).under = true; }
     return;
   }

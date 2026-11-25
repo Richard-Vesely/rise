@@ -111,7 +111,7 @@ export function updateBossFx(dt) {
   for (const m of mobs) {
     if (m.type !== 'archdevil') continue;
     let S = seen.get(m.nid);
-    if (!S) { seen.set(m.nid, (S = { atkId: 0, burst: false, dead: m.dead })); if (!m.dead) { firePillar(m.pos); toast('🔥 Arcidábel povstal z místa smrti! Zranit ho jde jen mečem.'); } }
+    if (!S) { seen.set(m.nid, (S = { atkId: 0, burst: false, dead: m.dead })); if (!m.dead) { firePillar(m.pos); toast('🔥 Arcidábel se probudil v pekle! Zranit ho jde jen mečem.'); } }
     if (m.dead) { if (!S.dead) { S.dead = true; death(m); } continue; }
     if (Math.hypot(m.pos.x - player.pos.x, m.pos.z - player.pos.z) < 70) shown = m;
     // ohnivá aura a mávání křídly
