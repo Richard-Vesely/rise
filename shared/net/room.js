@@ -8,6 +8,8 @@ import { claimGroundItem } from '../sim/ground-items.js';
 import { armyCommand, armyHit } from '../sim/army.js';
 import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
 import { dragonNet } from '../sim/dragon.js';
+import { bossNet, bossOnDeath } from '../sim/archdevil.js';
+import { petHit, summonOgre } from '../sim/pets.js';
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
 import { Vec3 } from '../vec3.js';
@@ -120,6 +122,7 @@ function onClientMsg(P, msg) {
       if (!q.pv && (P.pvLock || 0) > performance.now() / 1000) q.pv = 1; // po zásahu jdou souboje 20 s vypnout až potom (PVP.lock)
       P.pose = q;
       if ((NET.pvp || NET.pvpMark || P.lastHit) && wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl
+      if (wasAlive && q.alive === false) bossOnDeath(q.x, q.y, q.z, mobs, spawnMob); // na místě smrti se může objevit Arcidábel (sim/archdevil.js)
       if (typeof q.ui === 'string') {
         if (!isBusy(q.ui)) NET.kvT = 0; // hráč právě otevřel truhlu / stroj: hned mu poslat aktuální stav
         uiBusy.set(q.ui, performance.now() + 1200);
@@ -139,9 +142,17 @@ function onClientMsg(P, msg) {
       NET.killer = P.pid;
       try { hurtMob(m, clamp(Number(msg[2]) || 1, 0, 20), Number(msg[3]) || 0, clamp(Number(msg[4]) || 1, 0, 2)); } finally { NET.killer = null; }
       armyHit(P.pid, P.name, { mob: m }); // Markova armáda jde po tvorovi, kterého praštil
+      petHit(P.pid, { mob: m }, mobs); // zlobr hráče taky (sim/pets.js)
       break;
     }
     case 'pull': pullTarget(P.pid, String(msg[1]), msg[1] === 'm' ? msg[2] : String(msg[2]), msg[3], msg[4], msg[5]); break; // prut: přitáhnout hráče / tvora
+    case 'ogre': { // Zlobří roh: přivolat svého zlobra (nejvýš jednou za 30 s)
+      const now = performance.now() / 1000;
+      if (now < (P.ogreT || 0)) return;
+      P.ogreT = now + 30;
+      summonOgre(P.pid, P.pose, mobs, spawnMob);
+      break;
+    }
     case 'phit': hitPlayer(P.pid, String(msg[1]), msg[2], msg[3], msg[4], !!msg[5]); break; // souboj hráčů (svět s volbou pvp nebo pvp-mark)
     case 'mu': { // slepice (vejce) a kráva (mléko)
       const m = mobs.find((x) => x.nid === msg[1] && !x.dead);
@@ -225,6 +236,7 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
     if (pid === 'host') NET.onPvLock?.(PVP.lock); else sendTo(pid, ['pvlock', PVP.lock]);
   }
   armyHit(from, from === 'host' ? NET.name : A.name, { pid: to, name: to === 'host' ? NET.name : T.name }); // Markova armáda jde po zasaženém
+  petHit(from, { pid: to }, mobs); // zlobr útočníka taky (sim/pets.js)
   return true;
 }
 // ---------- aréna: body za vyřazení (počítají se od startu serveru; klíč = jméno hráče)
@@ -287,7 +299,7 @@ export function updateRoom(dt) {
   }
   if ((NET.mobT -= dt) <= 0) {
     NET.mobT = 0.2;
-    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0].concat(m.type === 'dragon' ? [dragonNet(m)] : []))]);
+    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0].concat(m.type === 'dragon' ? [dragonNet(m)] : m.type === 'archdevil' ? [bossNet(m)] : []))]);
   }
   if ((NET.kvT -= dt) <= 0) {
     NET.kvT = 0.5;
