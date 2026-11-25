@@ -6,13 +6,14 @@
 // 3. Vězení je bludiště (shared/world/prison.js) se čtyřmi branami. Při zavření dostane vězeň náhodně jednu bránu
 //    a jeden úkol (server/prison-tasks.js): zabít pavouky, najít runy, nebo u brány vyřešit příklady / hádanky.
 //    Hotový úkol + pravé tlačítko na svou bránu = volný, zpátky na spawn. Smrt: zpátky na start bludiště, úkol zůstává.
-// Ve vězení se nestaví ani nekope (guardPrisonerOps) a vězeň, který se dostane ven (let, podvod), se hned vrátí.
+// Ve vězení se nestaví ani nekope (guardPrisonerOps) a vězeň, který se dostane ven (let, podvod) nebo vyletí nad zdi
+// bludiště (křídla, raketový batoh, lektvar létání), se hned vrátí na start bludiště.
 // Kdo je ve vězení a jak daleko je s úkolem, se ukládá se světem (world.json → prison: { prisoners: { id profilu:
 // { name, exit, kind, need, done, runes } } }), takže to platí i po restartu a novém přihlášení. Otázka u brány se neukládá.
 //   hráč → server: ['vez', 'gate' | 'rune', x, y, z] pravé tlačítko na bránu / runu · ['vez', 'ans', text] odpověď
 //   server → hráč: ['vezeni', { on, at: [x, y, z], go?, exit: [x, z], ex, kind, need, done, text }] (go = přenést hned)
 //                  ['vezq', otázka | null] otevře (zavře) okno s otázkou u brány
-import { PRISON_EXITS, PRISON_SPOT, SPAWN_SPOT, exitAt, inPrison, prisonRunes, runeAt } from '../shared/world/prison.js';
+import { PRISON, PRISON_EXITS, PRISON_SPOT, SPAWN_SPOT, exitAt, inPrison, prisonRunes, runeAt } from '../shared/world/prison.js';
 import { isOwner } from './owner.js';
 import { TASK_KINDS, TASK_NEED, newTask, rightAnswer, taskQuestion, taskText } from './prison-tasks.js';
 
@@ -22,6 +23,7 @@ const REACH = 6; // m: na bránu a runu musí hráč dosáhnout
 const WRONG_WAIT_MS = 3000; // po špatné odpovědi chvíli nová otázka nepřijde (žádné hádání naslepo)
 /** Jméno nebo příkaz bez diakritiky a velkých písmen (porovnávání). */
 export const plainName = (s) => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('cs').trim();
+const ABOVE_WALLS = PRISON.y + PRISON.wall; // vězeň s nohama výš (3 bloky nad podlahou) letí nad bludištěm
 const KIND_SHORT = { monsters: 'pavouci', runes: 'runy', math: 'příklady', logic: 'hádanky' };
 
 /** Uložený vězeň → platný stav (starý formát s oky pavouka dostane nový úkol). */
@@ -195,7 +197,7 @@ export function createPrison({ ownerId, ownerName = '', saved, send, conns, look
     const p = prisoners.get(profile), last = seen.get(cid);
     if (p && last === undefined) { send(cid, state(p, true)); seen.set(cid, now()); tellTask(cid, p); return; } // první poloha po vstupu: do vězení
     if (q.alive === false || now() - (last ?? 0) < RESEND_MS) return;
-    const inside = inPrison(q.x, q.y, q.z);
+    const inside = inPrison(q.x, q.y, q.z) && !(p && q.y > ABOVE_WALLS); // nad zdmi vězeň nesmí: přeletěl by bludiště
     if (p && !inside) { send(cid, state(p, true)); seen.set(cid, now()); }
     else if (!p && inside && !isOwner(ownerId, profile)) { send(cid, free); seen.set(cid, now()); } // propuštěn, když tu nebyl
   }
