@@ -9,7 +9,7 @@ import { claimGroundItem } from '../sim/ground-items.js';
 import { armyCommand, armyHit } from '../sim/army.js';
 import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
 import { dragonNet } from '../sim/dragon.js';
-import { bossNet, bossOnDeath } from '../sim/archdevil.js';
+import { bossNet } from '../sim/archdevil.js';
 import { petHit, summonOgre } from '../sim/pets.js';
 import { NUKE, addNuke, strikeHooks } from '../sim/strikes.js';
 
@@ -145,7 +145,6 @@ function onClientMsg(P, msg) {
       if (!q.pv && (P.pvLock || 0) > performance.now() / 1000) q.pv = 1; // po zásahu jdou souboje 20 s vypnout až potom (PVP.lock)
       P.pose = q;
       if ((NET.pvp || NET.pvpMark || P.lastHit) && wasAlive && q.alive === false) arenaDeath(P); // hráč právě padl
-      if (wasAlive && q.alive === false) bossOnDeath(q.x, q.y, q.z, mobs, spawnMob); // na místě smrti se může objevit Arcidábel (sim/archdevil.js)
       if (typeof q.ui === 'string') {
         if (!isBusy(q.ui)) NET.kvT = 0; // hráč právě otevřel truhlu / stroj: hned mu poslat aktuální stav
         uiBusy.set(q.ui, performance.now() + 1200);

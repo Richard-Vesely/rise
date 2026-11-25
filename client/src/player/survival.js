@@ -2,7 +2,6 @@
 import '../dining/dining.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import { NET } from '../../../shared/net/net.js';
 import { mobs, removeMob, spawnMob } from '../../../shared/sim/mobs.js';
-import { bossOnDeath } from '../../../shared/sim/archdevil.js';
 import { bkey, blocks, removed } from '../../../shared/world/state.js';
 import { shrineOf, terrainH, volcanoDist } from '../../../shared/world/terrain.js';
 import { Sound } from '../audio/sound.js';
@@ -63,7 +62,6 @@ function die() {
   if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
-  if (!NET.client) bossOnDeath(player.pos.x, player.pos.y, player.pos.z, mobs, spawnMob); // na místě smrti se může objevit Arcidábel (sim/archdevil.js)
   const lost = NET.pvp ? 0 : dropEverything(); // batoh a brnění vypadnou na zem (v aréně je nová výbava)
   $('fade').style.opacity = 1;
   setTimeout(() => {

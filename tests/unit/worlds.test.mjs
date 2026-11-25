@@ -397,19 +397,23 @@ test('fishing rod: pulls a hooked player right in front of the one pulling, neve
   } finally { await stop(srv); }
 });
 
-test('archdevil appears where a player died on the server; the ogre horn summons the player\'s ogre', { timeout: 60000 }, async () => {
+test('archdevil lives in hell on the server (not where a player died); the ogre horn summons the ogre of the player', { timeout: 60000 }, async () => {
   const srv = await startServer({ DATA_DIR: tmp('louka-boss-'), WORLDS: 'svet:Hlavní svět' });
   try {
     const a = player(srv.port, 'Adam', '', { v: 2, world: 'svet' });
     assert.ok(await a.waitFor((m) => m[0] === 'welcome'));
     const { terrainH } = await import('../../shared/world/terrain.js');
+    const { HELL_SPOT, inHell } = await import('../../shared/world/hell.js');
     const at = { ...pose(60, 60), y: terrainH(60, 60) };
     a.send(['pose', at]); await sleep(300);
-    a.send(['pose', { ...at, alive: false }]); // Adam zemřel
-    const boss = await a.waitFor((m) => m[0] === 'mobs' && m[3].some((q) => q[1] === 'archdevil'), 5000);
-    assert.ok(boss, 'the archdevil appears');
+    a.send(['pose', { ...at, alive: false }]); // Adam zemřel ve světě
+    await sleep(3000);
+    assert.ok(!a.msgs.some((m) => m[0] === 'mobs' && m[3].some((q) => q[1] === 'archdevil')), 'no boss where he died');
+    a.send(['pose', { ...pose(HELL_SPOT[0], HELL_SPOT[2]), y: HELL_SPOT[1] }]); // Adam vešel do pekla
+    const boss = await a.waitFor((m) => m[0] === 'mobs' && m[3].some((q) => q[1] === 'archdevil'), 8000);
+    assert.ok(boss, 'the archdevil appears in hell');
     const q = boss[3].find((x) => x[1] === 'archdevil');
-    assert.ok(Math.hypot(q[2] - 60, q[4] - 60) < 3 && q[6] === 17000, 'at the death spot with 17 000 HP');
+    assert.ok(inHell(q[2], q[3], q[4]) && q[6] === 17000, 'in hell with 17 000 HP');
     a.send(['pose', { ...pose(200, 200), y: terrainH(200, 200) }]); await sleep(300);
     a.send(['ogre']);
     assert.ok(await a.waitFor((m) => m[0] === 'mobs' && m[3].some((x) => x[1] === 'ogre'), 5000), 'the ogre comes');

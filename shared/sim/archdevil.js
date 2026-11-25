@@ -1,12 +1,12 @@
-// Arcidábel: boss se 17 000 životy, zranit ho jde jen mečem (MOBS.archdevil.swordsOnly, client/src/mobs/mobs.js hitMob). Objeví se tam, kde zemřel hráč (nejvýš jeden najednou, nejdřív 10 minut po minulém,
-// ne v aréně). Chodí za hráči jako ostatní tvorové (shared/sim/mobs.js) a k tomu má tři super útoky s varováním
-// (rudý kruh na zemi, client/src/mobs/boss-fx.js): ohnivá vlna kolem sebe, skok s dopadem na hráče a vyvolání ďáblů.
-// Stav útoku jde hráčům v seznamu tvorů ('mobs', 13. pole = bossNet). Z bosse padá legendární ohnivá zbroj
-// a Zlobří roh (shared/sim/pets.js). Bez vedlejších účinků při načtení.
+// Arcidábel: boss se 17 000 životy, zranit ho jde jen mečem (MOBS.archdevil.swordsOnly, client/src/mobs/mobs.js hitMob).
+// Žije jen v pekle (shared/world/hell.js): objeví se tam, když v pekle je hráč (nejvýš jeden najednou, další nejdřív
+// 10 minut po zabití). Kdyby byl mimo peklo, zmizí. Chodí za hráči jako ostatní tvorové (shared/sim/mobs.js) a k tomu
+// má tři super útoky s varováním (rudý kruh na zemi, client/src/mobs/boss-fx.js): ohnivá vlna kolem sebe, skok
+// s dopadem na hráče a vyvolání ďáblů. Stav útoku jde hráčům v seznamu tvorů ('mobs', 13. pole = bossNet).
+// Z bosse padá legendární ohnivá zbroj a Zlobří roh (shared/sim/pets.js). Bez vedlejších účinků při načtení.
 import { emit } from '../events.js';
 import { NET } from '../net/net.js';
-import { terrainH } from '../world/terrain.js';
-import { inPrison } from '../world/prison.js';
+import { HELL, hellBuilt, inHell } from '../world/hell.js';
 
 export const BOSS = {
   cooldown: 10 * 60 * 1000, // ms mezi dvěma bossy
@@ -18,16 +18,28 @@ export const BOSS = {
 let nextAt = 0;
 const point = (x, y, z) => ({ x, y, z });
 
-/** Hráč zemřel na (x, y, z): může se tam objevit Arcidábel. Vrací nového bosse nebo null. */
-export function bossOnDeath(x, y, z, mobs, spawnMob, now = Date.now()) {
-  if (NET.pvp || now < nextAt || mobs.some((m) => m.type === 'archdevil' && !m.dead)) return null;
-  if (![x, y, z].every(Number.isFinite) || inPrison(x, y, z)) return null; // ve vězení (Richardovo) ne
-  nextAt = now + BOSS.cooldown;
+/** Kde se Arcidábel v pekle objeví: uprostřed, kousek před sochou (ne v lávě). */
+export const BOSS_SPOT = [HELL.x + 0.5, HELL.y + 1, HELL.z - 3.5];
+
+/**
+ * Peklo (volá updateSpawns): Arcidábel mimo peklo zmizí; je-li v pekle hráč a boss tam není, objeví se (nejdřív
+ * BOSS.cooldown po zabití minulého). Vrací nového bosse nebo null.
+ * @param {boolean} playerInHell je v pekle nějaký hráč?
+ */
+export function hellBoss(mobs, spawnMob, playerInHell, now = Date.now()) {
+  for (let i = mobs.length - 1; i >= 0; i--) {
+    const m = mobs[i];
+    if (m.type === 'archdevil' && !m.dead && !inHell(m.pos.x, m.pos.y, m.pos.z)) mobs.splice(i, 1); // patří jen do pekla
+  }
+  if (!playerInHell || !hellBuilt() || now < nextAt || mobs.some((m) => m.type === 'archdevil' && !m.dead)) return null;
+  const [x, y, z] = BOSS_SPOT;
   const m = spawnMob('archdevil', x, z, y);
-  if (y > terrainH(x, z) + 3 || y < terrainH(x, z) - 2) m.under = true; // zemřel v pekle / ve vězení / v jeskyni: chodí po blocích
+  m.under = true; // chodí po podlaze pekla (bloky)
   emit('mobSound', m);
   return m;
 }
+/** Arcidábel padl: další přijde nejdřív za BOSS.cooldown (volá killMob v shared/sim/mobs.js). */
+export function bossKilled(now = Date.now()) { nextAt = now + BOSS.cooldown; }
 /** Pro testy: dovolí dalšího bosse hned. */
 export const resetBossCooldown = () => { nextAt = 0; };
 

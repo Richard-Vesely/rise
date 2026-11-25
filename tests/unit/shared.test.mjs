@@ -149,27 +149,32 @@ test('hell: built once high up, closed (floor, walls, roof), lava on the floor, 
   assert.deepEqual(HELL_PRICE, { discs: 3, fire_gem: 24, lava_bucket: 1 });
 });
 
-test('archdevil boss: appears where a player died (one at a time, cooldown, not in the arena), only swords hurt it, super attacks; ogre follows its owner and attacks what the owner hits', async () => {
-  const { bossOnDeath, resetBossCooldown, updateArchdevil, BOSS } = await import('../../shared/sim/archdevil.js');
+test('archdevil boss: lives only in hell (one at a time, 10 min after a kill), only swords hurt it, super attacks; ogre follows its owner and attacks what the owner hits', async () => {
+  const { hellBoss, bossKilled, resetBossCooldown, updateArchdevil, BOSS, BOSS_SPOT } = await import('../../shared/sim/archdevil.js');
   const { summonOgre, petHit, petPlan } = await import('../../shared/sim/pets.js');
   const { mobs, spawnMob, MOBS } = await import('../../shared/sim/mobs.js');
-  const { NET } = await import('../../shared/net/net.js');
+  const { ensureHell, inHell } = await import('../../shared/world/hell.js');
   const { terrainH } = await import('../../shared/world/terrain.js');
   assert.equal(MOBS.archdevil.hp, 17000);
   assert.ok(MOBS.archdevil.swordsOnly, 'only swords hurt it (client/src/mobs/mobs.js hitMob)');
+  ensureHell();
   mobs.length = 0; resetBossCooldown();
+  assert.equal(hellBoss(mobs, spawnMob, false, 1000), null, 'nobody in hell: no boss');
+  const b = hellBoss(mobs, spawnMob, true, 1000);
+  assert.ok(b && b.type === 'archdevil' && inHell(b.pos.x, b.pos.y, b.pos.z) && b.under, 'appears in hell when a player is there');
+  assert.deepEqual([b.pos.x, b.pos.y, b.pos.z], BOSS_SPOT);
+  assert.equal(hellBoss(mobs, spawnMob, true, 2000), null, 'only one at a time');
+  b.dead = true; bossKilled(2000);
+  assert.equal(hellBoss(mobs, spawnMob, true, 3000), null, 'not again before the cooldown');
+  assert.ok(hellBoss(mobs, spawnMob, true, 2000 + BOSS.cooldown + 1), 'again 10 minutes after the kill');
+  mobs.length = 0;
   const y = terrainH(500, 500);
-  const b = bossOnDeath(500, y, 500, mobs, spawnMob, 1000);
-  assert.ok(b && b.type === 'archdevil', 'appears at the death spot');
-  assert.equal(bossOnDeath(510, y, 500, mobs, spawnMob, 2000), null, 'only one at a time');
-  b.dead = true;
-  assert.equal(bossOnDeath(510, y, 500, mobs, spawnMob, 2000), null, 'and not again before the cooldown');
-  assert.ok(bossOnDeath(510, y, 500, mobs, spawnMob, 1000 + BOSS.cooldown + 1), 'again after the cooldown');
-  NET.pvp = true; resetBossCooldown(); mobs.length = 0;
-  assert.equal(bossOnDeath(500, y, 500, mobs, spawnMob, 1), null, 'never in the arena');
-  NET.pvp = false;
+  spawnMob('archdevil', 500, 500, y); // stará verze: boss ve světě
+  hellBoss(mobs, spawnMob, false, 5);
+  assert.ok(!mobs.some((m) => m.type === 'archdevil'), 'a boss outside hell disappears');
+  resetBossCooldown();
   // super útok: vyvolání ďáblů
-  const boss = bossOnDeath(500, y, 500, mobs, spawnMob, 5);
+  const boss = spawnMob('archdevil', 500, 500, y);
   boss.bossCd = 0;
   const T = { pos: { x: 540, y, z: 500 }, alive: true }; // daleko: vyvolává
   updateArchdevil(boss, T, 0.05, mobs, spawnMob);
