@@ -772,6 +772,7 @@ under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hum
 `volume.js` (slider values). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
 
 ## 12. Controls (summary)
+- **Zasypání díry:** do chatu (T) napiš `zapln diru` (také `/zapln diru` nebo `zaplň díru`), pak klikni levým nebo pravým tlačítkem na dno či okraj. Souvislá vykopaná díra se zasype zeminou až k původnímu povrchu okolního terénu; stavby a přirozené jeskyně zůstanou zachované. Příkaz funguje i ve hře pro více hráčů, mimo vězení. Kliknutí mimo díru výběr zruší. Stejným příkazem se výběr také zruší; limit je 1024 sloupců a 8192 bloků.
 - **Body control with a webcam** (Settings → *Ovládání tělem*: *Chůze na místě*, *Náklon* or *Jen rukama (vsedě)*): MediaPipe Pose (Google; the library
   and the model are downloaded from the internet only when switched on) finds the body in the camera picture; the video stays in
   the computer. Walk: march on the spot (speed by the pace, fast = run) or lean forward / back; lean to the side = step aside; arm
