@@ -55,6 +55,7 @@ import { updateMagic, updateWand } from './magic.js';
 import { updateGadgets } from './gadgets.js';
 import { updateJukeboxes, useJukebox } from '../audio/film-music.js';
 import { updateHell, useAltar, usePortal as useHellPortal } from '../world/hell.js';
+import { updateBossFx } from '../mobs/boss-fx.js';
 import { addXp, updateXp } from './xp.js';
 import { XP_ORE } from '../../../shared/data/magic.js';
 
@@ -144,7 +145,7 @@ function attackMob(t, heldId) {
   atkSince = 0;
   wasCharged = false;
   startSwing(0.28, charge);
-  const hit = t.kind === 'player' ? hitPlayer(t.player, r.dmg, player.yaw, r.kb, false, charge) : hitMob(t.mob, r.dmg, player.yaw, r.kb, { crit: r.crit, charge });
+  const hit = t.kind === 'player' ? hitPlayer(t.player, r.dmg, player.yaw, r.kb, false, charge) : hitMob(t.mob, r.dmg, player.yaw, r.kb, { crit: r.crit, charge, melee: true });
   if (!hit) { toolSound('whoosh', charge * 0.5); return; } // tvor je ještě chvíli nezranitelný
   wearHeld(useCost(heldId, 'hit'));
   hitKick(0.35 + 0.65 * charge);
@@ -238,7 +239,7 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); updateHell(dt); // přehrávače hudby hrají (audio/film-music.js), láva v pekle pálí (world/hell.js)
+  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); updateHell(dt); updateBossFx(dt); // přehrávače hudby hrají (audio/film-music.js), láva v pekle pálí (world/hell.js)
   // kouzla a XP (magic.js, xp.js)
   const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
   const busy = special || target?.kind === 'mob'; // pravé tlačítko tu něco otevře nebo použije (štít ani blok z druhé ruky ne)

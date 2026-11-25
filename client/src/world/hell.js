@@ -114,7 +114,7 @@ export function updateHell(dt) {
   if (sign) sign.visible = here;
   if (!here || !player.alive) return;
   const inLava = ['', 0.5].some((h) => blocks.get(bkey(Math.floor(p.x), Math.floor(p.y + (h || 0.1)), Math.floor(p.z))) === 'hell_lava');
-  if (!inLava || fullSet() === 'fire') return;
+  if (!inLava || fullSet() === 'fire' || fullSet() === 'legend') return;
   if ((burnT -= dt) > 0) return;
   burnT = 0.5;
   game.damagePlayer?.(6, 0, 0);

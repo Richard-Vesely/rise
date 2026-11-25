@@ -396,3 +396,23 @@ test('fishing rod: pulls a hooked player right in front of the one pulling, neve
     for (const p of [a, b]) await p.close();
   } finally { await stop(srv); }
 });
+
+test('archdevil appears where a player died on the server; the ogre horn summons the player\'s ogre', { timeout: 60000 }, async () => {
+  const srv = await startServer({ DATA_DIR: tmp('louka-boss-'), WORLDS: 'svet:Hlavní svět' });
+  try {
+    const a = player(srv.port, 'Adam', '', { v: 2, world: 'svet' });
+    assert.ok(await a.waitFor((m) => m[0] === 'welcome'));
+    const { terrainH } = await import('../../shared/world/terrain.js');
+    const at = { ...pose(60, 60), y: terrainH(60, 60) };
+    a.send(['pose', at]); await sleep(300);
+    a.send(['pose', { ...at, alive: false }]); // Adam zemřel
+    const boss = await a.waitFor((m) => m[0] === 'mobs' && m[3].some((q) => q[1] === 'archdevil'), 5000);
+    assert.ok(boss, 'the archdevil appears');
+    const q = boss[3].find((x) => x[1] === 'archdevil');
+    assert.ok(Math.hypot(q[2] - 60, q[4] - 60) < 3 && q[6] === 17000, 'at the death spot with 17 000 HP');
+    a.send(['pose', { ...pose(200, 200), y: terrainH(200, 200) }]); await sleep(300);
+    a.send(['ogre']);
+    assert.ok(await a.waitFor((m) => m[0] === 'mobs' && m[3].some((x) => x[1] === 'ogre'), 5000), 'the ogre comes');
+    await a.close();
+  } finally { await stop(srv); }
+});

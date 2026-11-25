@@ -143,8 +143,13 @@ function syncPuppets(list) {
     }
     m.tgt.set(x, y, z);
     m.ry = ry; m.hp = hp; m.eggs = eggs; m.milkT = milk ? 1 : 0; m.hunt = hunt ? 1 : 0;
-    m.dragonCast = dragon?.cast ?? null; m.dragonRest = dragon?.rest || 0;
-    m.dragonStomp = dragon?.stomp ?? null;
+    if (type === 'archdevil') { // 13. pole je u Arcidábla stav super útoku (shared/sim/archdevil.js bossNet)
+      const a = dragon?.atk ?? null;
+      if (!a) m.bossAtk = null; else if (m.bossAtk?.id !== a.id) m.bossAtk = { ...a }; // čas útoku si klient dál počítá sám
+    } else {
+      m.dragonCast = dragon?.cast ?? null; m.dragonRest = dragon?.rest || 0;
+      m.dragonStomp = dragon?.stomp ?? null;
+    }
     m.flash = Math.max(m.flash, fl);
     if (dead && !m.dead) { m.dead = true; m.deathT = 0; }
   }

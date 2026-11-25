@@ -25,6 +25,13 @@ ARMOR_SETS.fire = { name: 'Ohniv', pts: [4, 8, 7, 4], bonus: 'láva tě nepálí
 const FIRE_NAMES = ['Ohnivá helma', 'Ohnivé brnění', 'Ohnivé kalhoty', 'Ohnivé boty'], FIRE_DUR = [550, 800, 750, 650];
 ARMOR_SLOTS.forEach((sl, i) => { ITEMS[`fire_${sl}`] = { name: FIRE_NAMES[i], armor: { slot: i, pts: ARMOR_SETS.fire.pts[i], set: 'fire' }, tier: 'fire', stack: 1, dur: FIRE_DUR[i] }; });
 
+// Legendární ohnivá zbroj: jen z Arcidábla (shared/sim/archdevil.js), nejsilnější ve hře. Celá sada: láva nepálí a léčíš se.
+ARMOR_SETS.legend = { name: 'Legendární ohniv', pts: [6, 11, 9, 6], bonus: 'láva tě nepálí a pomalu se léčíš' };
+const LEGEND_NAMES = ['Legendární ohnivá helma', 'Legendární ohnivé brnění', 'Legendární ohnivé kalhoty', 'Legendární ohnivé boty'], LEGEND_DUR = [1500, 2200, 2000, 1700];
+ARMOR_SLOTS.forEach((sl, i) => { ITEMS[`legend_${sl}`] = { name: LEGEND_NAMES[i], armor: { slot: i, pts: ARMOR_SETS.legend.pts[i], set: 'legend' }, tier: 'legend', stack: 1, dur: LEGEND_DUR[i] }; });
+// Zlobří roh: pravé tl. přivolá tvého zlobra (shared/sim/pets.js); neztrácí se, nový zlobr až za 30 s.
+ITEMS.ogre_horn = { name: 'Zlobří roh', ogre: true, stack: 1 };
+
 RECIPES.push(
   { out: 'hell_portal', n: 1, shape: ['OOO', 'OCO', 'OOO'], key: { O: 'obsidian', C: 'coal' }, cat: 'build' },
   { out: 'fire_helmet', n: 1, shape: ['MMM', 'M M'], key: { M: 'fire_gem' }, cat: 'tools' },

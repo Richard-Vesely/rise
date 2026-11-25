@@ -10,9 +10,9 @@ test('data tables are complete (counts from Marek\'s version 2778d1b)', () => {
   // + 5 futuristických bloků (technický a bílý panel, 3 neony; shared/data/tech.js) + luk a šíp (2 předměty, 2 recepty)
   // + 13 vozidel a dílů (kolo, lodě, hydroplán, garáž a vylepšení; shared/data/tech.js) + čarovná hůl
   // + hůl vlastníka (owner_wand) + oko obřího pavouka (vězení serveru kroužku) + obchod za zlato: zlaťák, 4 světelné meče, trojzubec, křídla, plamenomet, lékárnička, stíhačka
-  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6 + 10 + 10 + 1 + 1 + 1 + 7 + 1); // + štít (druhá ruka, client/src/player/offhand.js) + trezor (safe) // + lektvar nekonečných XP (xp_potion, jen vlastník) // + 10 vychytávek: zlatý meč, raketový batoh, teleportační koule, mrazicí paprsek, blaster, hromové kladivo, lektvar rychlosti, granát, ohňostroj, hák // + přehrávač filmové hudby a 5 hudebních disků; + peklo: portál, ohnivý drahokam, kbelík lávy, ohnivá koule, ohnivý meč, hororový disk, 4 kusy ohnivého brnění
-  assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1 + 6 + 1 + 1 + 7); // + štít + trezor // + peklo: portál, ohnivá sada (4), ohnivý meč
-  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1 + 6 + 2 + 1 + 6); // + trezor // + peklo: skála, láva, socha, oltář, ohnivá ruda, portál; // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok; + bludiště vězení: brána, runa
+  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6 + 10 + 10 + 1 + 1 + 1 + 5 + 7 + 1); // + Arcidábel: 4 kusy legendární ohnivé zbroje a Zlobří roh // + raketový systém (7) + lektvar nekonečného létání // + štít (druhá ruka, client/src/player/offhand.js) + trezor (safe) // + lektvar nekonečných XP (xp_potion, jen vlastník) // + 10 vychytávek: zlatý meč, raketový batoh, teleportační koule, mrazicí paprsek, blaster, hromové kladivo, lektvar rychlosti, granát, ohňostroj, hák // + přehrávač filmové hudby a 5 hudebních disků; + peklo: portál, ohnivý drahokam, kbelík lávy, ohnivá koule, ohnivý meč, hororový disk, 4 kusy ohnivého brnění
+  assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1 + 6 + 1 + 1 + 7); // + štít + trezor // + peklo: portál, ohnivá sada (4), ohnivý meč // + raketový systém (7)
+  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1 + 6 + 2 + 1 + 6); // + trezor // + peklo: skála, láva, socha, oltář, ohnivá ruda, portál; // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok; + bludiště vězení: brána, runa // + raketový systém (6)
   // Raketový systém: sedm předmětů/receptů a šest bloků.
   assert.equal(KITCHEN.length, 36);
   assert.equal(Object.keys(CROPS).length, 4);
@@ -147,4 +147,48 @@ test('hell: built once high up, closed (floor, walls, roof), lava on the floor, 
   const p = devilSpot(HELL_SPOT[0], HELL_SPOT[2]);
   assert.ok(p && inHell(...p) && !blocks.has(bkey(Math.floor(p[0]), p[1], Math.floor(p[2]))), 'devils spawn on a free spot of the floor');
   assert.deepEqual(HELL_PRICE, { discs: 3, fire_gem: 24, lava_bucket: 1 });
+});
+
+test('archdevil boss: appears where a player died (one at a time, cooldown, not in the arena), only swords hurt it, super attacks; ogre follows its owner and attacks what the owner hits', async () => {
+  const { bossOnDeath, resetBossCooldown, updateArchdevil, BOSS } = await import('../../shared/sim/archdevil.js');
+  const { summonOgre, petHit, petPlan } = await import('../../shared/sim/pets.js');
+  const { mobs, spawnMob, MOBS } = await import('../../shared/sim/mobs.js');
+  const { NET } = await import('../../shared/net/net.js');
+  const { terrainH } = await import('../../shared/world/terrain.js');
+  assert.equal(MOBS.archdevil.hp, 17000);
+  assert.ok(MOBS.archdevil.swordsOnly, 'only swords hurt it (client/src/mobs/mobs.js hitMob)');
+  mobs.length = 0; resetBossCooldown();
+  const y = terrainH(500, 500);
+  const b = bossOnDeath(500, y, 500, mobs, spawnMob, 1000);
+  assert.ok(b && b.type === 'archdevil', 'appears at the death spot');
+  assert.equal(bossOnDeath(510, y, 500, mobs, spawnMob, 2000), null, 'only one at a time');
+  b.dead = true;
+  assert.equal(bossOnDeath(510, y, 500, mobs, spawnMob, 2000), null, 'and not again before the cooldown');
+  assert.ok(bossOnDeath(510, y, 500, mobs, spawnMob, 1000 + BOSS.cooldown + 1), 'again after the cooldown');
+  NET.pvp = true; resetBossCooldown(); mobs.length = 0;
+  assert.equal(bossOnDeath(500, y, 500, mobs, spawnMob, 1), null, 'never in the arena');
+  NET.pvp = false;
+  // super útok: vyvolání ďáblů
+  const boss = bossOnDeath(500, y, 500, mobs, spawnMob, 5);
+  boss.bossCd = 0;
+  const T = { pos: { x: 540, y, z: 500 }, alive: true }; // daleko: vyvolává
+  updateArchdevil(boss, T, 0.05, mobs, spawnMob);
+  assert.equal(boss.bossAtk?.kind, 'summon');
+  for (let i = 0; i < 40; i++) updateArchdevil(boss, T, 0.05, mobs, spawnMob);
+  assert.ok(mobs.filter((m) => m.type === 'devil').length >= 3, 'devils appear');
+  // zlobr
+  const ogre = summonOgre('p1', { x: 520, y, z: 520, yaw: 0 }, mobs, spawnMob);
+  assert.ok(ogre.pet && ogre.owner === 'p1');
+  const TG = [{ pos: { x: 520, y, z: 524 }, alive: true, pid: 'p1' }, { pos: { x: 530, y, z: 530 }, alive: true, pid: 'p2' }];
+  assert.equal(petPlan(ogre, TG).attack, false, 'follows its owner');
+  const devil = mobs.find((m) => m.type === 'devil');
+  petHit('p1', { mob: devil }, mobs);
+  assert.equal(petPlan(ogre, TG).T.mob, devil, 'attacks the mob its owner hit');
+  petHit('p1', { pid: 'p2' }, mobs);
+  assert.equal(petPlan(ogre, TG).T.pid, 'p2', 'and a player its owner hit (only valid hits reach petHit)');
+  petHit('p2', { mob: devil }, mobs);
+  assert.equal(petPlan(ogre, TG).T.pid, 'p2', 'another player cannot command it');
+  assert.equal(petPlan(ogre, [TG[1]]), null, 'gone when its owner leaves');
+  assert.ok(ogre.dead);
+  mobs.length = 0;
 });

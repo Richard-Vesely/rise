@@ -346,6 +346,11 @@ function isoBoxes(top, side, boxes) {
     return x === 1 || x === 14 || y === 14 ? '#5a3a20' : '#8a5a2a';
   }));
   // peklo: kbelík lávy a ohnivá koule
+  icon('ogre_horn', face((x, y) => { // zakřivený roh se zlatým kováním
+    const d = Math.hypot(x - 3, y - 13);
+    if (d > 6.5 && d < 10.5 && x > 2 && y < 12) return Math.abs(d - 8.5) < 0.6 ? '#c8a040' : d < 8 ? '#f0e4c8' : '#c8b890';
+    return x >= 1 && x <= 3 && y >= 9 && y <= 13 ? '#c8a040' : null;
+  }));
   icon('lava_bucket', face((x, y) => {
     if (y < 4 || y > 14 || x < 3 || x > 12) return null;
     if (y < 6) return (x + y) % 3 ? '#ff7a1a' : '#ffd040'; // láva nahoře

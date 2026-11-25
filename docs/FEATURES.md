@@ -479,6 +479,20 @@ Monsters stay away from the shrine; light blocks keep shadow-eaters away.
 *Kód:* behaviour, spawning, loot, invulnerability `shared/sim/mobs.js`; attack rules `shared/tools.js`; models `client/src/mobs/mob-models.js`; animation and life (`poseMob`, also for the client's puppets), sounds, hit effects `client/src/mobs/mobs.js`;
 attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit-stop, view bobbing `client/src/player/camera-feel.js`; hand and swings `client/src/render/held-item.js`; bow and arrows `client/src/player/bow.js` (models `client/src/render/bow-model.js`).
 
+- **Arcidábel** (boss): appears where a player died (at most one at a time, at the earliest 10 minutes after the last one,
+  never in a `pvp` arena world or in the prison), with a fire pillar, a roar and a toast. 17 000 HP, **only swords hurt it**
+  (`swordsOnly`: spells, wands, the bow, shop gadgets, the ogre and the army do nothing; the owner's wand is Richard's and
+  unchanged). Chases players like other monsters (30 damage) and every 3.5–6 s (a third faster below half HP, also
+  stronger) does a super attack with a red warning circle: *fire wave* around itself (45 within 9 m), *leap* onto a
+  player (70 within 5 m, shock wave, camera shake) or *summoning* 3–4 devils through purple portals (at most 8 near).
+  Fire aura, flapping bat wings, a golden crown, a health bar at the top with what it is doing; a big explosion when it
+  dies. Drops the **legendary fire armor** (*Legendární ohnivá zbroj*, 6/11/9/6, the strongest; full set: lava doesn't burn
+  and you heal 1.5 HP/s), the **ogre horn**, 16–24 fire gems and 32–64 gold ingots.
+- **Ogre** (*Zlobr*, from the ogre horn, right-click, once per 30 s): a big green brute with a club (160 HP, 20 damage)
+  that follows its owner; when the owner hits a mob it goes after it, a player only with a valid hit (fights on with N,
+  like Marek's army). One per player, it leaves when its owner leaves. Rules `shared/sim/archdevil.js`, `shared/sim/pets.js`,
+  look `client/src/mobs/boss-fx.js` and `mob-models.js`.
+
 ## 7. Technology
 - **Furnace** (*Pec*): ores → ingots (iron, copper, gold), quartz → silicon, iron → steel, resin → rubber,
   glass → lens, logs → charcoal; needs fuel. Works like Minecraft's: the top slot takes only things that smelt and the
