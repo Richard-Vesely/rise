@@ -1,7 +1,9 @@
 // Hráč: ovládání, pohyb a kolize.
 import '../pc/editor.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
 import * as THREE from 'three';
+import { structuresAt } from '../../../shared/world/missile-structures.js';
 import { BLOCKS, shapeBoxes } from '../../../shared/data/index.js';
+import { flightTime } from '../../../shared/sim/flight-potion.js';
 import { NET } from '../../../shared/net/net.js';
 import { clamp } from '../../../shared/util.js';
 import { EYE, GRAVITY, JUMP, PH, PW, RUN, WALK } from '../../../shared/world/constants.js';
@@ -165,10 +167,15 @@ addEventListener('mousemove', (e) => {
 const hitBoxes = [];
 function overlapBoxes(p) {
   hitBoxes.length = 0;
+  const large=new Set();
   const x0 = p.x - PW, x1 = p.x + PW, y0 = p.y, y1 = p.y + PH, z0 = p.z - PW, z1 = p.z + PW;
   for (let y = Math.floor(y0); y <= Math.floor(y1 - 1e-3); y++)
     for (let z = Math.floor(z0); z <= Math.floor(z1); z++)
       for (let x = Math.floor(x0); x <= Math.floor(x1); x++) {
+        for(const entry of structuresAt(x,y,z)){
+          if(large.has(entry.k))continue;large.add(entry.k);const b=entry.box;
+          if(b[0]<x1&&b[3]>x0&&b[1]<y1&&b[4]>y0&&b[2]<z1&&b[5]>z0)hitBoxes.push(b);
+        }
         const k = bkey(x, y, z), t = blocks.get(k), B = t && BLOCKS[t];
         if (B?.solid && B.shape) {
           for (const b of shapeBoxes(B.shape, blockMeta.get(k) || 0))
@@ -226,7 +233,7 @@ export function updatePlayer(dt) {
   if (keys.has('KeyA') || keys.has('ArrowLeft')) s -= 1;
   if (input.joy) { f -= input.joy.y; s += input.joy.x; } // dotykový joystick
   const len = Math.max(1, Math.hypot(f, s));
-  if (player.flyT > 0) player.flyT = Math.max(0, player.flyT - dt);
+  if (player.flyT > 0) player.flyT = flightTime(player.flyT,dt);
   const set = fullSet();
   const flying = ((creative || hasPerk('let')) && player.flying) || player.flyT > 0;
   const shift = keys.has('ShiftLeft') || keys.has('ShiftRight');

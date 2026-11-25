@@ -6,6 +6,8 @@ import { BAT_CAP, BAT_RATE, CHARGE_TIME, DIRS6, EFURNACE_TIME, demandOf, elecOf,
 import { clamp } from '../../../shared/util.js';
 import { bkey, blocks, power } from '../../../shared/world/state.js';
 import { topY } from '../../../shared/world/voxels.js';
+import { structuresAt } from '../../../shared/world/missile-structures.js';
+import { isClayDevice } from '../../../shared/sim/clay-defense.js';
 import { Sound } from '../audio/sound.js';
 import { buildComputerModel, drawPCScreen } from '../pc/computer.js';
 import { buildPrinterModel, printerDev } from '../pc/printer.js';
@@ -15,6 +17,7 @@ import { U as UNI, camera, scene } from '../render/renderer.js';
 import { toast } from '../ui/hud.js';
 import { iconImg, slotHTML, ui } from '../ui/inventory-ui.js';
 import { TECH, addHolo, addStatus, addStrip, builder, drawHolo, glowMat, mergeStatic, setStatus, techMats, updateHolo } from './machine-models.js';
+import { buildClayModel, renderClayUI, updateClayVisuals } from './clay-defense.js';
 
 // ============================================================ elektrická síť
 // Pravidla sítě (výroba, spotřeba, baterie, vypínač, tiskárna) jsou v shared/sim/power.js; tady jsou modely a okno zařízení.
@@ -56,6 +59,8 @@ totalEmissiveRadiance += uMetal * 0.16;
   return m;
 }
 const cableMats = { copper: cableMat(0xd07a42, 0.34), gold: cableMat(0xffc63a, 0.26) };
+const dirtWireMat = cableMat(0x49bde3, 0.28);
+cableMats.dirt = dirtWireMat;
 const sheathMat = new THREE.MeshStandardMaterial({ color: 0x17191e, roughness: 0.7, metalness: 0.2 });
 // uzel: kulatá spojka v tmavé objímce; rameno: kovové jádro
 const cableGeos = {
@@ -78,9 +83,10 @@ export function rebuildCables() {
     dummy.rotation.set(0, 0, 0);
     dummy.updateMatrix();
     push(`${B.cable}|c`, [dummy.matrix.clone(), k]);
-    push('sheath|s', [dummy.matrix.clone(), k]);
+    push(`${B.cable === 'dirt' ? 'dirt' : 'sheath'}|s`, [dummy.matrix.clone(), k]);
     DIRS6.forEach(([dx, dy, dz], i) => {
-      if (!elecOf(blocks.get(bkey(x + dx, y + dy, z + dz)))) return;
+      const neighbor = elecOf(blocks.get(bkey(x + dx, y + dy, z + dz))||structuresAt(x+dx,y+dy,z+dz)[0]?.type);
+      if (!neighbor || !!neighbor.clay !== !!B.elec.clay) return;
       dummy.rotation.set(...ARM_ROT[i]);
       dummy.updateMatrix();
       push(`${B.cable}|a`, [dummy.matrix.clone(), k]);
@@ -93,6 +99,7 @@ export function rebuildCables() {
       const [mat, part] = key.split('|');
       const n = Math.max(64, Math.ceil(list.length * 1.5));
       m = new THREE.InstancedMesh(cableGeos[part].clone(), mat === 'sheath' ? sheathMat : cableMats[mat], n);
+      if (mat === 'dirt') m.name = 'clay-cable';
       m.geometry.setAttribute('aPow', new THREE.InstancedBufferAttribute(new Float32Array(n), 1));
       m.frustumCulled = false;
       scene.add(m);
@@ -122,6 +129,7 @@ function updateCablePulses(dt) {
 
 // ---------- modely zařízení (volá buildSpecial); přední strana je +z. Vzhled a materiály: machines/machine-models.js
 export function buildElecModel(type, g) {
+  if (isClayDevice(type)) { buildClayModel(type, g); return; }
   const T = techMats(), { box, cyl } = builder(g), U = g.userData;
   const red = () => new THREE.MeshStandardMaterial({ color: 0xd82a2a, roughness: 0.35 });
   if (type === 'coal_generator') {
@@ -257,10 +265,11 @@ function solarTex() {
 let wasOn = new Map();
 export function updatePowerVisuals(dt, time) {
   updateCablePulses(dt);
+  updateClayVisuals(dt, time);
   const cam = camera.position;
   for (const [k, s] of specials) {
     const e = elecOf(s.type);
-    if (!e) continue;
+    if (!e || e.clay) continue;
     const st = power.get(k), U = s.obj.userData;
     let on = !!st?.pw;
     if (e.solar) on = sunLevel > 0.05 && s.y >= topY(s.x, s.z) && netOf.has(k);
@@ -302,6 +311,7 @@ export function toggleSwitch(k) {
 // Okno zařízení: stav sítě (výroba, spotřeba, baterie, kapacita) a ovládání zařízení
 export function renderPowerUI(area) {
   const k = ui.fireKey, t = blocks.get(k);
+  if (renderClayUI(area, k)) return;
   if (!t) { area.innerHTML = ''; return; }
   const e = elecOf(t), st = e.cable ? null : powerOf(k), net = netOf.get(k), s = netStats(k);
   const kj = (j) => (j / 1000).toFixed(1);

@@ -3,6 +3,7 @@
 // - v prohlížeči hostitele ("Vytvořit server", spojení přes PeerJS; hostitel sám je hráč 'host'),
 // - na serveru v Node.js (server/, spojení přes WebSocket; místní hráč není).
 // Spojení (conn) má tvar jako PeerJS DataConnection: { peer: id, open, metadata: { name }, send(zpráva), on('data'|'close'|'error', fn), close() }.
+import { FLIGHT_POTION,flightPotionCommand } from '../sim/flight-potion.js';
 import { dayCount, dayTime } from '../sim/day.js';
 import { claimGroundItem } from '../sim/ground-items.js';
 import { armyCommand, armyHit } from '../sim/army.js';
@@ -111,7 +112,10 @@ function onClientMsg(P, msg) {
       broadcast(['ops', ops.filter((o) => Array.isArray(o) && o[0] !== 'gx')], P.pid);
       break;
     }
-    case 'kv': if (Array.isArray(msg[1])) for (const [m, k, v] of msg[1]) applyKV(m, k, v); break;
+    case 'kv': if (Array.isArray(msg[1])) for (const [m, k, v] of msg[1]) {
+      if(m==='power'&&blocks.get(k)==='missile_control'&&v?.launch) v.launch={pid:String(v.launch.pid),by:P.pid};
+      applyKV(m, k, v);
+    } break;
     case 'pose': {
       const q = msg[1];
       if (!q || typeof q !== 'object') return;
@@ -157,7 +161,7 @@ function onClientMsg(P, msg) {
       if (msg[1] === 'host') room.onGift(id, P.name); else if (others.has(msg[1])) sendTo(msg[1], ['gift', id, P.name]);
       break;
     }
-    case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; if (text.startsWith('/') && armyChat(P.pid, P.name, text)) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
+    case 'chat': { const text = String(msg[1] || '').slice(0, 200).trim(); if (!text) return; if(flightPotionCommand(text)){sendTo(P.pid,['give',FLIGHT_POTION,1]);sendTo(P.pid,['toast','Lektvar nekonečného létání máš v batohu']);break;} if (text.startsWith('/') && armyChat(P.pid, P.name, text)) return; room.onChat(P.name, text); broadcast(['chat', P.name, text], P.pid); break; }
   }
 }
 // ---------- souboje hráčů (svět s volbou pvp, pvp-mark = oba v Markově dimenzi, nebo kdekoli oba se zapnutými souboji – klávesa N,

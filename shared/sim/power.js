@@ -9,13 +9,16 @@ import { NET, isBusy } from '../net/net.js';
 import { clamp } from '../util.js';
 import { bkey, blocks, power } from '../world/state.js';
 import { topY } from '../world/voxels.js';
+import { rebuildMissileStructures,structurePorts } from '../world/missile-structures.js';
+import { blockMeta } from '../world/state.js';
+import { updateClayDefense } from './clay-defense.js';
 
 export const elecOf = (type) => BLOCKS[type]?.elec;
 export const BAT_CAP = 20000, BAT_RATE = 120, GEN_FUEL_MUL = 3, EFURNACE_TIME = 2, CHARGE_TIME = 10;
 export function powerOf(k) {
   if (!power.has(k)) {
     const t = blocks.get(k), e = elecOf(t) || {};
-    power.set(k, e.gen ? { slots: [null], burn: 0, burnMax: 0, pw: 0 } : e.store ? { e: 0, pw: 0 } : e.switch ? { on: true }
+    power.set(k, e.claySource ? { pw: 0, fuel: 0, burn: 0, burnMax: 60 } : e.gen ? { slots: [null], burn: 0, burnMax: 0, pw: 0 } : e.store ? { e: 0, pw: 0 } : e.switch ? { on: true }
       : t === 'electric_furnace' || t === 'charger' ? { slots: [null, null], t: 0, pw: 0 } : t === 'printer' ? { slots: [null, null, null, null], q: [], t: 0, pw: 0 } : { pw: 0 });
   }
   return power.get(k);
@@ -27,12 +30,20 @@ export function markPowerDirty() { powerDirty = true; }
 export const netOf = new Map(); // klíč bloku -> síť
 export function rebuildNets() {
   powerDirty = false;
+  rebuildMissileStructures();
   nets = [];
   netOf.clear();
   const nodes = new Map();
   for (const [k, t] of blocks) {
     const e = elecOf(t);
     if (e && !(e.switch && power.get(k)?.on === false)) nodes.set(k, e);
+  }
+  const links=new Map([...nodes.keys()].map(k=>[k,new Set()]));
+  const join=(a,b)=>{if(a!==b&&nodes.has(b)&&!!nodes.get(a).clay===!!nodes.get(b).clay){links.get(a).add(b);links.get(b).add(a);}};
+  for(const k of nodes.keys()){
+    const [x,y,z]=k.split(',').map(Number);
+    for(const [dx,dy,dz] of DIRS6)join(k,bkey(x+dx,y+dy,z+dz));
+    for(const p of structurePorts(blocks.get(k),x,y,z,blockMeta.get(k)||0)){const port=bkey(...p);if(nodes.get(port)?.cable)join(k,port);}
   }
   for (const k0 of nodes.keys()) {
     if (netOf.has(k0)) continue;
@@ -47,11 +58,7 @@ export function rebuildNets() {
       if (e.solar) net.solars.push(k);
       if (e.store) net.bats.push(k);
       if (e.use) net.users.push(k);
-      const [x, y, z] = k.split(',').map(Number);
-      for (const [dx, dy, dz] of DIRS6) {
-        const n = bkey(x + dx, y + dy, z + dz);
-        if (nodes.has(n) && !netOf.has(n)) { netOf.set(n, net); stack.push(n); }
-      }
+      for(const n of links.get(k))if(!netOf.has(n)){netOf.set(n,net);stack.push(n);}
     }
     if (!isFinite(net.cap)) net.cap = 1000; // zařízení spojená přímo, bez kabelu
     net.users.sort(); // pevné pořadí: při nedostatku se vypínají vždy stejná zařízení
@@ -76,6 +83,7 @@ export function updatePower(dt, sun) {
   const step = powerT;
   powerT = 0;
   if (!NET.client) for (const net of nets) simulateNet(net, step, sun); // energii počítá hostitel (ve hře pro jednoho hra sama)
+  if (!NET.client) updateClayDefense(nets, step);
   return true; // proběhl krok sítě (prohlížeč obnoví okno zařízení)
 }
 function simulateNet(net, step, sun) {
@@ -90,10 +98,18 @@ function simulateNet(net, step, sun) {
   let gen = 0;
   for (const g of net.gens) {
     const st = powerOf(g);
+    const device = elecOf(blocks.get(g));
+    if (device.claySource) {
+      st.fuel ??= 0; st.burn = Math.max(0, (st.burn || 0) - step); st.burnMax = 60;
+      if (!st.burn && wantGen && st.fuel > 0) { st.fuel--; st.burn = st.burnMax; }
+      st.pw = st.burn > 0 ? 1 : 0;
+      if (st.pw) gen += device.gen;
+      continue;
+    }
     if (st.burn > 0) st.burn = Math.max(0, st.burn - step);
     if (st.burn <= 0 && wantGen && !isBusy(g)) { const f = st.slots[0]; if (f && FUEL[f.id]) { st.burn = st.burnMax = FUEL[f.id] * GEN_FUEL_MUL; if (!--f.n) st.slots[0] = null; } }
     st.pw = st.burn > 0 ? 1 : 0;
-    if (st.pw) gen += elecOf('coal_generator').gen;
+    if (st.pw) gen += device.gen;
   }
   const supply = Math.min(gen + solar, net.cap);
   const batOut = Math.min(BAT_RATE * net.bats.length, stored / step, net.cap);

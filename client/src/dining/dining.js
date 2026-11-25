@@ -76,7 +76,7 @@ export function takeBite() {
   else if (dining.style === 'twirl') st.main.scale.setScalar(0.35 + 0.65 * frac);
   else if (dining.style === 'spoon') { st.main.position.y = 0.085 - (1 - frac) * 0.07; st.main.scale.setScalar(0.6 + 0.4 * frac); }
   if (dining.left <= 0) {
-    if (d.fly) player.flyT = d.fly;
+    if (d.fly) player.flyT = Math.max(player.flyT||0,d.fly);
     endDining(bonus > 1 ? `Dojedeno! Stolování +${Math.round((bonus - 1) * 100)} %` : 'Dojedeno!');
   }
 }

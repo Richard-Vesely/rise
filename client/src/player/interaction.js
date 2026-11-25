@@ -6,6 +6,7 @@ import { NET } from '../../../shared/net/net.js';
 import { others } from '../../../shared/net/room.js';
 import { randInt } from '../../../shared/util.js';
 import { BREAK_PAUSE, INSTANT, attackCharge, attackResult, attackSpeed, breakTime, lacksTool, useCost } from '../../../shared/tools.js';
+import { MISSILE_SIZE,structureBox,structureCells,structuresAt } from '../../../shared/world/missile-structures.js';
 import { solidAt } from '../../../shared/world/collision.js';
 import { nearPond, waterAt } from '../../../shared/world/nature.js';
 import { bkey, blockMeta, blocks, chairRot, chests, crops, fires, furnaces, pcDisks, power, removed, ruinsOpened, spawners, stoves, tableItems, vehicles } from '../../../shared/world/state.js';
@@ -43,7 +44,7 @@ import { usePortal } from '../world/shrine.js';
 import { placedAny } from '../world/world-state.js';
 import { cancelDraw, updateArrows, updateBow } from './bow.js';
 import { hitPlayer } from './pvp.js';
-import { placesFromOff, stopGuard, updateShield, withOffInHand } from './offhand.js';
+import { offStack, placesFromOff, stopGuard, updateShield, withOffInHand } from './offhand.js';
 import { sitOn, startEating, useTable } from './eating.js';
 import { hitKick, hitStop } from './camera-feel.js';
 import { wearHeld } from './durability.js';
@@ -75,12 +76,13 @@ export function resetUseCd() { useCd = 0; }
 function placementCell(t) {
   if (!t) return null;
   if (t.surface || t.kind === 'grass' || t.kind === 'ground') { const [x, y, z] = t.point; return [Math.floor(x), Math.floor(y + 0.2), Math.floor(z)]; }
+  if(t.kind==='block'&&MISSILE_SIZE[t.type])return t.point.map((v,i)=>Math.floor(v+t.normal[i]*.01));
   if (t.kind === 'block' || t.kind === 'vox') return t.cell.map((v, i) => v + t.normal[i]);
   return null;
 }
 // Je buňka volná pro nový blok? (nic tam není položené ani to není plná zemina pod povrchem)
 export function cellFree(x, y, z) {
-  if (blocks.has(bkey(x, y, z))) return false;
+  if (blocks.has(bkey(x, y, z))||structuresAt(x,y,z).length) return false;
   const top = topY(x, z);
   if (y > top) return true;
   if (y === top && !columnDug(x, z)) return true; // horní blok je schovaný pod terénem
@@ -165,15 +167,24 @@ export function updateInteraction(dt) {
   let warn = '';
   const boxCell = target?.kind === 'block' || (target?.kind === 'vox' && !target.surface) ? target.cell : null;
   outline.visible = !!boxCell;
-  if (boxCell) outline.position.set(boxCell[0] + 0.5, boxCell[1] + 0.5, boxCell[2] + 0.5);
+  if (boxCell){
+    const b=structureBox(target.type,blockMeta.get(bkey(...boxCell))||0)||[0,0,0,1,1,1];
+    outline.scale.set(b[3]-b[0],b[4]-b[1],b[5]-b[2]);
+    outline.position.set(boxCell[0]+(b[0]+b[3])/2,boxCell[1]+(b[1]+b[4])/2,boxCell[2]+(b[2]+b[5])/2);
+  }
   groundRing.visible = !!target?.point && (target.kind === 'ground' || target.kind === 'grass' || !!target.surface);
   if (groundRing.visible) {
     groundRing.position.set(target.point[0], target.point[1] + 0.04, target.point[2]);
     groundRing.material.color.set(target.breakable === false ? 0x999999 : target.kind === 'grass' ? 0xffffff : 0xffd27a);
   }
-  const cell = (held && ITEMS[held.id].block) || placesFromOff() ? placementCell(target) : null; // i blok ze druhé ruky (offhand.js)
-  preview.visible = !!cell && cellFree(...cell);
-  if (preview.visible) preview.position.set(cell[0] + 0.5, cell[1] + 0.5, cell[2] + 0.5);
+  const cell = (held && ITEMS[held.id].block) || placesFromOff() ? placementCell(target) : null;
+  const type=placesFromOff()?ITEMS[offStack()?.id]?.block:held&&ITEMS[held.id].block;
+  preview.visible = !!cell && cellFree(...cell)&&(!MISSILE_SIZE[type]||structureCells(type,...cell,placeMeta()).every(c=>cellFree(...c)&&!playerIntersects(...c)));
+  if(preview.visible){
+    const b=structureBox(type,placeMeta())||[0,0,0,1,1,1];
+    preview.scale.set(b[3]-b[0],b[4]-b[1],b[5]-b[2]);
+    preview.position.set(cell[0]+(b[0]+b[3])/2,cell[1]+(b[1]+b[4])/2,cell[2]+(b[2]+b[5])/2);
+  }
 
   swingCd -= dt;
   useCd -= dt;
@@ -524,6 +535,10 @@ function placeMeta(shape) {
 export function placeBlock(d, [x, y, z]) {
   if (NET.jail) { toast('Ve vězení se nedá stavět'); return false; } // vězení serveru kroužku (player/prison.js)
   if (BLOCKS[d.block].solid && playerIntersects(x, y, z)) return false;
+  if(MISSILE_SIZE[d.block]){
+    const cells=structureCells(d.block,x,y,z,placeMeta());
+    if(cells.some(c=>!cellFree(...c)||playerIntersects(...c))){toast('Velký stroj potřebuje volné místo a rovný podklad');return false;}
+  }
   // Pochodeň jako v Minecraftu: na zem nebo na zeď, nikdy na strop (shared/world/torch.js)
   const tm = d.block === 'torch' ? torchPlacement(x, y, z, target?.normal, camera.getWorldDirection(new THREE.Vector3()).toArray()) : 0;
   if (tm === null) { toast(waterAt(x + 0.5, y + 0.5, z + 0.5) !== null ? 'Pod vodou pochodeň nehoří' : 'Pochodeň potřebuje pevný blok pod sebou nebo vedle sebe'); return false; }

@@ -91,7 +91,7 @@ export function updateEating(dt) {
   else { const t = tableItems.get(e.tableKey); if (t) { t.food = null; refreshSpecial(e.tableKey); } }
   player.hunger = Math.min(100, player.hunger + d.food * bonus);
   if (d.heal) player.hp = Math.min(100, player.hp + d.heal * bonus);
-  if (d.fly) { player.flyT = d.fly; toast('Markové jablko: 10 s létání! Mezerník = nahoru, Shift = dolů'); }
+  if (d.fly) { player.flyT = Math.max(player.flyT||0,d.fly); toast('Markové jablko: 10 s létání! Mezerník = nahoru, Shift = dolů'); }
   else if (bonus > 1) toast(`Stolování: jídlo dalo +${Math.round((bonus - 1) * 100)} %`);
   Sound.eat();
   player.eating = null;

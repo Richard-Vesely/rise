@@ -3,10 +3,13 @@
 //   lékárnička = vyléčí do plna · lektvar nekonečných XP (jen vlastník serveru, owner-wand.js) = další úroveň.
 //   Světelné meče jsou obyčejné meče (silné), svítí v ruce (render/held-item.js).
 // Bez vedlejších účinků při načtení.
+import { INFINITE_FLIGHT } from '../../../shared/sim/flight-potion.js';
+import { NET } from '../../../shared/net/net.js';
 import { ITEMS } from '../../../shared/data/index.js';
 import { toolSound } from '../audio/tool-sounds.js';
 import { Sound } from '../audio/sound.js';
 import { sparks } from '../render/particles.js';
+import { renderHotbar } from '../ui/inventory-ui.js';
 import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
 import { heldStack, removeItem } from './inventory.js';
@@ -26,7 +29,7 @@ export function updateGadgets(dt, special) {
   prevRmb = input.rmb;
   cd -= dt;
   const id = heldStack()?.id, d = ITEMS[id];
-  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion) || special) return false;
+  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion || d.infiniteFlight) || special) return false;
   if (d.throw && fresh && cd <= 0) { // trojzubec
     cd = d.throw.cd;
     shot({ color: 0x38c8e8, size: 0.8, speed: 42, ttl: 1.6, dmg: d.throw.dmg, trail: 1 });
@@ -37,6 +40,10 @@ export function updateGadgets(dt, special) {
     shot({ color: 0xff7a2a, size: 0.9, speed: 30, ttl: 2, dmg: d.fireball.dmg, trail: 1 });
     removeItem(id, 1);
     toolSound('whoosh', 1);
+  } else if(d.infiniteFlight&&fresh){
+    if(NET.jail){toast('Ve vězení se létat nedá');return true;}
+    player.flyT=INFINITE_FLIGHT;removeItem(id,1);renderHotbar();toolSound('whoosh',1);
+    toast('Nekonečné létání! Mezerník = nahoru, Shift = dolů');
   } else if (d.wings && fresh) {
     player.flyT = Math.max(player.flyT || 0, d.wings);
     sparks.emit(player.pos.x, player.pos.y + 1.2, player.pos.z, [1, 1, 1], 24, 2, 2);

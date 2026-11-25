@@ -10,9 +10,10 @@ test('data tables are complete (counts from Marek\'s version 2778d1b)', () => {
   // + 5 futuristických bloků (technický a bílý panel, 3 neony; shared/data/tech.js) + luk a šíp (2 předměty, 2 recepty)
   // + 13 vozidel a dílů (kolo, lodě, hydroplán, garáž a vylepšení; shared/data/tech.js) + čarovná hůl
   // + hůl vlastníka (owner_wand) + oko obřího pavouka (vězení serveru kroužku) + obchod za zlato: zlaťák, 4 světelné meče, trojzubec, křídla, plamenomet, lékárnička, stíhačka
-  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6 + 10 + 10 + 1 + 1 + 1); // + štít (druhá ruka, client/src/player/offhand.js) + trezor (safe) // + lektvar nekonečných XP (xp_potion, jen vlastník) // + 10 vychytávek: zlatý meč, raketový batoh, teleportační koule, mrazicí paprsek, blaster, hromové kladivo, lektvar rychlosti, granát, ohňostroj, hák // + přehrávač filmové hudby a 5 hudebních disků; + peklo: portál, ohnivý drahokam, kbelík lávy, ohnivá koule, ohnivý meč, hororový disk, 4 kusy ohnivého brnění
-  assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1 + 6 + 1 + 1); // + štít + trezor // + peklo: portál, ohnivá sada (4), ohnivý meč
-  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1 + 6 + 2 + 1); // + trezor // + peklo: skála, láva, socha, oltář, ohnivá ruda, portál; // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok; + bludiště vězení: brána, runa
+  assert.equal(Object.keys(ITEMS).length, 360 + 5 + 2 + 13 + 1 + 1 + 1 + 10 + 6 + 10 + 10 + 1 + 1 + 1 + 7 + 1); // + štít (druhá ruka, client/src/player/offhand.js) + trezor (safe) // + lektvar nekonečných XP (xp_potion, jen vlastník) // + 10 vychytávek: zlatý meč, raketový batoh, teleportační koule, mrazicí paprsek, blaster, hromové kladivo, lektvar rychlosti, granát, ohňostroj, hák // + přehrávač filmové hudby a 5 hudebních disků; + peklo: portál, ohnivý drahokam, kbelík lávy, ohnivá koule, ohnivý meč, hororový disk, 4 kusy ohnivého brnění
+  assert.equal(RECIPES.length, 262 + 5 + 2 + 13 + 1 + 6 + 1 + 1 + 7); // + štít + trezor // + peklo: portál, ohnivá sada (4), ohnivý meč
+  assert.equal(Object.keys(BLOCKS).length, 112 + 5 + 1 + 3 + 1 + 1 + 6 + 2 + 1 + 6); // + trezor // + peklo: skála, láva, socha, oltář, ohnivá ruda, portál; // + přehrávač filmové hudby; + socha darů: podstavec, zlato, pokladnička; + vězeňský blok; + bludiště vězení: brána, runa
+  // Raketový systém: sedm předmětů/receptů a šest bloků.
   assert.equal(KITCHEN.length, 36);
   assert.equal(Object.keys(CROPS).length, 4);
 });

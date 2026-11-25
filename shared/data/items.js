@@ -59,6 +59,8 @@ ITEMS.wand = { name: 'Čarovná hůl', wand: true, stack: 1 };
 // Hůl vlastníka serveru (jen server kroužku, server/owner-wand.js): má ji vždycky jen vlastník, nejde vyrobit, zahodit ani dát
 // do truhly; umí kouzlo Avada Kedavra. hidden = není v nabídce kreativního režimu, owner = patří jen vlastníkovi.
 ITEMS.owner_wand = { name: 'Hůl vlastníka', wand: true, owner: true, hidden: true, stack: 1 };
+// Lektvar letu: herní chat potion, vypití pravým tlačítkem (player/gadgets.js).
+ITEMS.flight_potion = { name: 'Lektvar nekonečného létání', infiniteFlight: true, stack: 1, cat: 'basic', art: ['bottle', '#6ad8ff', '#d9f7ff'] };
 // Lektvar nekonečných XP (jen vlastník serveru, stejná pravidla jako hůl vlastníka): pravé tlačítko = vypít, dá přesně tolik XP,
 // kolik chybí do další úrovně; nikdy se nevypije (client/src/player/owner-wand.js).
 ITEMS.xp_potion = { name: 'Lektvar nekonečných XP', xpPotion: true, owner: true, hidden: true, stack: 1 };

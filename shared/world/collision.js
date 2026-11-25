@@ -1,9 +1,10 @@
 // Co je pevné: položené bloky a podzemí. Používají to tvorové, předměty na zemi, auta i stavby.
+import { structuresAt } from './missile-structures.js';
 import { BLOCKS } from '../data/index.js';
 import { bkey, blocks, lights } from './state.js';
 import { VMIN, solidVox } from './voxels.js';
 
-export const solidAt = (x, y, z) => { const t = blocks.get(bkey(x, y, z)); return !!t && BLOCKS[t].solid; };
+export const solidAt = (x, y, z) => { const t = blocks.get(bkey(x, y, z)); return (!!t && BLOCKS[t].solid)||structuresAt(x,y,z).length>0; };
 export const solidAny = (x, y, z) => solidAt(x, y, z) || solidVox(x, y, z);
 // Podlaha pod tvorem v podzemí: nejvyšší pevný blok do 1 bloku nad jeho nohama.
 export function voxFloor(x, y, z) {

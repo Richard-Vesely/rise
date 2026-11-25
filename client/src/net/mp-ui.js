@@ -1,5 +1,7 @@
 // Chat, menu Esc se seznamem hráčů, informační okénko.
 import './avatars.js'; // pořadí spouštění: nejdřív předchozí modul (viz client/src/main.js)
+import { FLIGHT_POTION,flightPotionCommand } from '../../../shared/sim/flight-potion.js';
+import { addItem } from '../player/inventory.js';
 import { NET } from '../../../shared/net/net.js';
 import { broadcast, kick, others, setPerm, armyChat } from '../../../shared/net/room.js';
 import { BOOT } from '../game/boot.js';
@@ -47,6 +49,11 @@ function closeChat(relock = true) {
 function sendChat(text) {
   text = text.trim().slice(0, 200);
   if (!text) return;
+  if(flightPotionCommand(text)){
+    if(NET.mode==='sp'||NET.host){if(!addItem(FLIGHT_POTION,1))chatLine('Lektvar','Lektvar máš v batohu. Vyber ho a klikni pravým tlačítkem.');}
+    else toHost(['chat',text]);
+    return;
+  }
   if (text.startsWith('/') && shopCommand(text)) return; // obchod za zlato: /sell, /shop (ui/shop.js), pro každého
   if (NET.host && text.startsWith('/') && armyChat('host', NET.name, text)) return; // příkaz armády (jen hostitel jménem Marek)
   chatLine(NET.name, text);

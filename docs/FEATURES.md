@@ -492,6 +492,33 @@ attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit
 - **Electricity** (*Elektrická síť*): copper and gold cables, coal generator, solar panel, battery block, switch;
   devices: electric lamp, bulb, motor, electric furnace, charger (charges car batteries), computer, printer.
   Cable capacity limits the power; devices switch off when there is not enough.
+- **Full-size missile equipment**: radar and interceptor launcher are static 3 × 7 × 5 block trucks,
+  control cabin 7 × 3 × 4, silo/bunker 5 × 5 × 5, dirt generator retains its original compact 1 × 1 × 1 size (width × length × height).
+  Models include cabs, six wheels, stabilizers, radar panel, launcher tubes, control desks/screens and concrete silo walls.
+  Flying missiles are three times the original size; launches start above the 5-block silo. Machines are stationary.
+  The placement preview and selection outline show their footprint; occupied space rejects new blocks and player overlap.
+  Collision and targeting use an indexed footprint while saves keep the original anchor block. Rotation swaps width/depth.
+  Datový kabel connects at the center of each side at ground level; legacy anchor connections remain valid.
+  Previously cramped layouts need moving to provide enough room. Geometry: client/src/machines/clay-defense.js;
+  bounds/ports: shared/world/missile-structures.js.
+- **Missile defense system**: olive metal models inspired by radar vehicles, an angled six-tube launcher,
+  a control cabin with blue screens and a silo with an opening hatch. Datový kabel connects a dedicated
+  120 W dirt-burning generator, 12 W radar, 10 W control center, 18 W launcher and 8 W silo. Recipes use steel plates,
+  copper wire and circuit boards in the backpack; no dirt. Both powered radar and control center must
+  share the launcher's data network for automatic interception within 28 blocks. Removing either or
+  cutting a cable disables interception. Load rockets into the silo with the right-click UI, then launch
+  one along a 24-block arc. A visible counter-rocket and bright explosion mark interception; impacts
+  have effects without terrain damage. Untargeted test launches do not hurt players. Four-second silo reload, 16-round storage. State is saved
+  and synchronized by the host in all modes. Existing dirt_* IDs remain for saved-world compatibility;
+  their displayed names, recipes, sounds and materials are now metal. The generator accepts up to 64 dirt via its right-click window; one dirt burns for 60 seconds. New fuel ignites only when power is demanded. With no fuel, the network switches off; stored fuel and burn time survive saves. Models/UI:
+  client/src/machines/clay-defense.js; rules: shared/sim/clay-defense.js. Browser check: npm run playtest:clay.
+  The control center has a live player/animal map (80-block radius), target selection and a targeted launch button. Green markers represent living sheep, boars, chickens, cows, deer and wolves. Animals can be targeted in single player and non-PvP worlds too; a hit deals 20 damage through hurtMob, with normal loot and kill credit. Dead and out-of-range animals disappear; moving away or interception prevents damage.
+  A powered radar and a loaded, powered silo must share its network. Targeted missiles fly to the player's
+  position at launch; moving 3.5 blocks away or interception prevents the hit. Impacts use existing PvP
+  rules (30 damage before armor, creative/dead/self protection, PvP-Mark dimension checks, invulnerability,
+  kill credit); normal worlds do not allow player attacks. Server reception in shared/net/room.js stamps
+  the firing player's ID on control commands; the shared simulation validates launches and applies one hit.
+  Rules: shared/sim/missile-targeting.js; map: client/src/machines/missile-map.js.
 - **Futuristic machines**: graphite metal housings with panel seams and screws, white trim, one glowing strip in the
   colour of its job (cyan = electricity, amber = heat), and a **status light** (green = working, amber blinking = no
   power). The generator has a spinning side fan and an amber firebox, solar cells glow cyan at their edges in
@@ -775,3 +802,7 @@ Scaffolding only: aggregate PostHog events for a few inventory window actions. I
 and **collects nothing**. Activation is prohibited until a privacy review; see [ANALYTICS.md](ANALYTICS.md).
 
 *Kód:* `client/src/ui/analytics.js`, calls in `client/src/ui/inventory-ui.js`, tests `tests/unit/analytics.test.mjs`.
+
+### Flight potion chat shortcut
+
+Type exactly potion in the in-game chat (T, Enter; whitespace/case ignored) to receive one Lektvar nekonečného létání. Available in solo, browser-hosted and Node games through the existing give message; ordinary chat is unchanged. Right-click the bottle to consume it and enable flight without a countdown (Space up, Shift down). flyT=100000 is a reserved, finite JSON-safe value, preserved by existing saves and server cleanMe; movement never decrements it and the HUD displays ∞. Apples and wings cannot shorten it. Prison still clears/blocks flight under existing rules. A full solo backpack reports that it is full. The item is separate from owner-only XP potions and donor bonuses.
