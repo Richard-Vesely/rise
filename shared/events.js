@@ -1,5 +1,5 @@
 // Události z herních pravidel pro prohlížeč (zvuky, jiskry, překreslení). Pravidla v shared/ nic nekreslí,
-// jen ohlásí, co se stalo: emit('mobHit', m). Prohlížeč poslouchá: on('mobHit', (m) => …). Server neposlouchá nic.
+// jen ohlásí, co se stalo: emit('mobHit', m). Prohlížeč poslouchá: on('mobHit', (m) => …). Server poslouchá jen mobKilled (vězení, server/world-worker.js).
 const handlers = new Map();
 
 /** Přihlásí se k odběru události. */

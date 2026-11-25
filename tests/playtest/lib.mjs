@@ -108,7 +108,7 @@ export async function waitGame(page, timeout = 120000) {
       hold(id) { const i = g.inv.slots.findIndex((s) => s && s.id === id); if (i < 0) return false; const t = g.inv.slots[0]; g.inv.slots[0] = g.inv.slots[i]; g.inv.slots[i] = t; g.inv.sel = 0; return true; },
       holdNothing() { const i = g.inv.slots.findIndex((s, k) => !s && k < 9); g.inv.sel = i < 0 ? 8 : i; },
       count: (id) => g.countItem(id),
-      clearInv() { g.inv.slots.fill(null); g.inv.cursor = null; },
+      clearInv() { g.inv.slots.fill(null); g.inv.cursor = null; if (g.inv.off) g.inv.off[0] = null; },
       mineUntil(fn, max = 600) { g.input.lmb = true; let n = 0; while (!fn() && n < max) { this.step(1); n++; } g.input.lmb = false; this.step(1, 0.0001); return n; },
       // Vytěžené bloky vyskočí jako předměty: dojdi (teleportem) ke každému do 8 m, počkej na sebrání a vrať se.
       collect(max = 160) {

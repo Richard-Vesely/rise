@@ -10,6 +10,7 @@ import { TOUCH, lookSens, prefNum } from '../game/prefs.js';
 import { saveGame } from '../game/save.js';
 import { toggleView } from '../net/avatars.js';
 import { chatOpen, openChat, pauseOpen } from '../net/mp-ui.js';
+import { askOpen } from '../player/prison.js';
 import { resetUseCd, target } from '../player/interaction.js';
 import { heldStack, inv } from '../player/inventory.js';
 import { creative, guideOpen, input, isLocked, keys, lockPointer, player, setResetting, toggleGuide, unlockPointer } from '../player/player.js';
@@ -161,7 +162,7 @@ export const touchUI = (() => {
   const label = (b, icon, text) => { const h = `<span>${icon}</span><small>${text}</small>`; if (b.innerHTML !== h) b.innerHTML = h; };
   return {
     update(dt) {
-      const ui = invOpen || guideOpen || (MP && (chatOpen || pauseOpen));
+      const ui = invOpen || guideOpen || (MP && (chatOpen || pauseOpen || askOpen));
       root.classList.toggle('hidden', ui);
       document.body.classList.toggle('inv-open', invOpen);
       root.classList.toggle('paused', !ui && !isLocked());
@@ -188,7 +189,7 @@ export const touchUI = (() => {
       const s = heldStack(), d = s && ITEMS[s.id];
       label(el('tLmb'), target?.kind === 'mob' ? '⚔' : '⛏', target?.kind === 'mob' ? 'Útok' : 'Těžit');
       if (dining) label(el('tRmb'), '🍴', 'Krájet');
-      else if (target?.kind === 'block' && ['workbench', 'campfire', 'chest', 'stove', 'table', 'chair', 'well', 'donation_box'].includes(target.type)) label(el('tRmb'), '✋', 'Použít');
+      else if (target?.kind === 'block' && ['workbench', 'campfire', 'chest', 'safe', 'stove', 'table', 'chair', 'well', 'donation_box'].includes(target.type)) label(el('tRmb'), '✋', 'Použít');
       else if (d?.food) label(el('tRmb'), '🍖', 'Jíst');
       else if (d?.block) label(el('tRmb'), '🧱', 'Položit');
       else label(el('tRmb'), '✋', 'Použít');

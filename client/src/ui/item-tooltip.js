@@ -3,6 +3,7 @@
 import { ARMOR_SETS, ARMOR_SLOT_NAMES, COOKING, FUEL, FURNACE_ONLY, ITEMS, KITCHEN, RECIPES, RECIPE_CATS, TOOL_SPEED } from '../../../shared/data/index.js';
 import { RARITY_NAMES, itemKind, rarityOf } from '../../../shared/inventory.js';
 import { attackSpeed, repairMatName } from '../../../shared/tools.js';
+import { esc } from '../../../shared/util.js';
 
 const PICK_REACH = { 1: 'kámen a uhlí', 2: 'kámen, uhlí, železo, měď a křemen', 3: '…a navíc krystal a zlato', 4: '…a navíc obsidián a markorit', 5: 'všechno' };
 
@@ -19,7 +20,7 @@ const TOOL_DESC = {
 const DESC = {
   log: 'Z kmene uděláš prkna (4 kusy).', planks: 'Základ skoro všeho ze dřeva.', stick: 'Rukojeť nástrojů a pochodní.',
   fiber: 'Z trávy. Na pochodně, provázky a luky.', coal: 'Palivo a pochodně. Najdeš ho v kameni.', torch: 'Svítí ve tmě a odhání stínožrouty. Postav ji na blok nebo pověs na stěnu (na strop ne).',
-  campfire: 'Peče maso a taví rudu. Světlo odhání stínožrouty.', workbench: 'Výroba v mřížce 3×3.', chest: 'Uschová 27 hromádek předmětů.',
+  campfire: 'Peče maso a taví rudu. Světlo odhání stínožrouty.', workbench: 'Výroba v mřížce 3×3.', chest: 'Uschová 27 hromádek předmětů.', safe: 'Truhla na kód: poprvé si kód vymyslíš, pak se otevře jen s ním. Nedá se vytěžit.',
   shard: 'Tři úlomky probudí portál ve svatyni.', essence: 'Z ní se vyrábí stínové brnění.', iron_ore: 'Přetav ji v táboráku nebo v peci.',
   iron: 'Na nástroje, brnění a stroje.', markorite: 'Nejlepší kov Říše.', markapple: 'Po snězení můžeš chvíli létat!',
   hoe: 'Pravé tl. na trávu nebo hlínu = zorat pole.', spikes: 'Zraňují příšery, které na ně šlápnou.',
@@ -28,10 +29,17 @@ const DESC = {
   saber_blue: 'Světelný meč z obchodu: nejsilnější meč, svítí.', saber_green: 'Světelný meč z obchodu: nejsilnější meč, svítí.',
   saber_red: 'Světelný meč z obchodu: nejsilnější meč, svítí.', saber_purple: 'Světelný meč z obchodu: nejsilnější meč, svítí.',
   trident: 'Bodá jako meč. Pravé tl. = hod (zraní na dálku, zůstane ti v ruce).', wings: 'Pravé tl. = 30 s létání (Mezerník nahoru, Shift dolů).',
-  flamethrower: 'Drž pravé tl. = proud ohně (asi 9 m).', medkit: 'Pravé tl. = zdraví do plna.',
+  flamethrower: 'Drž pravé tl. = proud ohně (asi 9 m).',
+  saber_gold: 'Nejsilnější světelný meč, svítí zlatě.', jetpack: 'Drž pravé tl. = letíš nahoru.', teleport_orb: 'Pravé tl. = přeneseš se, kam se díváš (do 40 m). Spotřebuje se.',
+  freeze_ray: 'Pravé tl. = ledový paprsek: zraní a zpomalí tvora.', blaster: 'Drž pravé tl. = rychlá palba laserem.',
+  thunder_hammer: 'Bije jako meč. Pravé tl. = blesk z nebe, kam míříš (každé 3 s).', speed_potion: 'Pravé tl. = vypiješ: 30 s běháš o 60 % rychleji.',
+  grenade: 'Pravé tl. = hodíš granát: letí obloukem a vybuchne (4 m).', firework: 'Pravé tl. = ohňostroj v náhodné barvě.',
+  grapple: 'Pravé tl. = hák se chytí bloku nebo země (do 35 m) a přitáhne tě tam.', medkit: 'Pravé tl. = zdraví do plna.',
   jet: 'Stíhačka: létá jako dvouplošník, ale s 3× silnějším motorem. Postav ji na zem a nastup (F).',
-  owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
-  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku. Zabodnutý šíp můžeš zase sebrat.',
+  xp_potion: 'Jen pro vlastníka serveru. Pravé tl. = vypiješ: dá přesně tolik XP, kolik chybí do další úrovně (a vybereš si kouzlo). Nikdy nedojde.',
+  owner_wand: 'Jen pro vlastníka serveru. Pravé tl. = kouzlo: Avada Kedavra (zabije tvora kdekoli, hráče jen kde jsou souboje) nebo Štvanice (tvorové loví hráče). R = další kouzlo.',
+  bow: 'Drž pravé tlačítko = natáhnout, pusť = vystřelit. Plně natažený šíp zraní víc než meč.', arrow: 'Střílí se z luku (nejdřív bere šípy ze druhé ruky). Zabodnutý šíp můžeš zase sebrat.',
+  shield: 'Dej ho do druhé ruky (F). Drž pravé tlačítko a zastaví útok zepředu.',
 };
 // V kolika receptech je předmět surovinou
 const USED_IN = new Map();
@@ -49,7 +57,6 @@ export function durOf(s) {
 export const durColor = (f) => `hsl(${Math.round(Math.max(0, Math.min(1, f)) * 120)}, 95%, 52%)`;
 
 const fmt = (x) => String(Math.round(x * 10) / 10).replace('.', ',');
-const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 
 /**
  * HTML tooltipu. stack = konkrétní hromádka (kvůli počtu a odolnosti) nebo null; el = políčko (recept, kuchařka…).

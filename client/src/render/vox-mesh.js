@@ -223,6 +223,7 @@ function buildVoxGeometry(cx, cz, relight = false) {
   if (fire) geo.setAttribute('aFire', new THREE.Float32BufferAttribute(fire, 1));
   geo.setIndex(idx);
   geo.computeBoundingSphere();
+  geo.userData.dug = dug.includes(1); // je v chunku (nebo hned vedle) díra z povrchu?
   return geo;
 }
 
@@ -251,6 +252,8 @@ function buildVoxChunk(k, relight = false) {
   let mesh = null;
   if (geo) {
     mesh = new THREE.Mesh(geo, voxMat);
+    // Jeskyně bez díry z povrchu slunce nevidí: do mapy stínů se nekreslí (ušetří až 49 velkých modelů v každém překreslení stínů).
+    mesh.userData.noCast = !geo.userData.dug;
     mesh.position.set(cx * 16, 0, cz * 16);
     scene.add(mesh);
   }

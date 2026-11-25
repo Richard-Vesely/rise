@@ -14,7 +14,7 @@ import { Sound } from '../audio/sound.js';
 import { dining } from '../dining/dining.js';
 import { BOOT } from '../game/boot.js';
 import { loadCostume, saveCostume } from '../menu/costume.js';
-import { heldStack } from '../player/inventory.js';
+import { heldStack, inv } from '../player/inventory.js';
 import { creative, input, isLocked, player } from '../player/player.js';
 import { animateCharacter, buildCharacter, disposeCharacter, setCharacterArmor } from '../render/character.js';
 import { buildHeld, holder, swingT } from '../render/held-item.js';
@@ -25,6 +25,8 @@ import { toast } from '../ui/hud.js';
 import { armor, fullSet, invOpen, ui } from '../ui/inventory-ui.js';
 import { carCam, hornN, seatWorld, vehMeshes, vehPose } from '../vehicles/car.js';
 import { kindOf } from '../vehicles/kinds.js';
+import { ghost } from '../player/ghost.js';
+import { guardHand } from '../player/offhand.js';
 
 // ---------- můj oblek: z prohlížeče (podle jména), na serveru kroužku novější verze z profilu
 let myCostume = loadCostume(NET.name);
@@ -94,6 +96,23 @@ function setHeld(R, id) {
   m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   R.hand.add(m);
 }
+// druhá ruka postavičky (levá, pose.oh) a krytí štítem (pose.bl: 1 hlavní, 2 druhá ruka): ruka se štítem zvednutá před tělem
+function setOffHeld(R, id) {
+  R.offHeld = id;
+  const hand = R.armL.hand;
+  hand.clear();
+  if (!id || !ITEMS[id] || !ICONS[id]) return;
+  const m = buildHeld(id);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(0, -0.02, -0.02);
+  m.scale.multiplyScalar(0.95);
+  m.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  hand.add(m);
+}
+function guardPose(R, which) {
+  const a = which === 2 ? R.armL : R.armR, sx = which === 2 ? 1 : -1;
+  a.sh.rotation.x = 1.25; a.sh.rotation.z = sx * 0.55; a.elbow.rotation.x = 0.7;
+}
 // průměrná barva ikony předmětu (drobky při jídle)
 const iconCol = {};
 function iconColor(id) {
@@ -156,6 +175,8 @@ export function updateAvatars(dt) {
       else pos.lerp(new THREE.Vector3(tx, ty, tz), k);
     }
     if (q.held !== A.held) setHeld(A, q.held);
+    const oh = typeof q.oh === 'string' ? q.oh : null;
+    if (oh !== (A.offHeld ?? null)) setOffHeld(A, oh);
     const ar = (q.ar || []).map((id) => (id && ITEMS[id]?.armor ? id : null));
     if (ar.join('|') !== A.armorKey) setCharacterArmor(A, ar);
     const hp = typeof q.hp === 'number' ? q.hp : 100, hurt = hp < (A.lastHp ?? hp) - 0.5;
@@ -167,7 +188,7 @@ export function updateAvatars(dt) {
     A.tag.material.opacity = clamp((48 - d) / 16, 0, 1);
     const s = { speed: inVeh ? 0 : Math.min(q.mv || 0, 12), yaw: inVeh ? A.anim.bodyYaw : q.yaw, pitch: q.pitch || 0, run: !inVeh && (q.mv || 0) > 6, sneak: !!q.sn, fly: !inVeh && (!!q.fly || !!q.flyT), sit: !!q.sit || inVeh,
       swing: !!q.sw, eat: !!q.eat, held: q.held, y: q.y, hurt };
-    if (A.group.visible) { animateCharacter(A, s, dt); effects(A, s, pos, dt); }
+    if (A.group.visible) { animateCharacter(A, s, dt); effects(A, s, pos, dt); if (q.bl === 1 || q.bl === 2) guardPose(A, q.bl); }
   }
 }
 
@@ -179,7 +200,7 @@ export function toggleView() {
   toast(VIEW_NAMES[viewMode] + ' (V)');
   Sound.ui?.(viewMode ? 'open' : 'close');
 }
-let me = null, myArmorKey = null, myHeld;
+let me = null, myArmorKey = null, myHeld, myOff;
 /** Vlastní postava (jen když už byla vidět ze třetí osoby). */
 export const localBody = () => me;
 const seatPos = new THREE.Vector3(), eye = new THREE.Vector3(), applied = new THREE.Vector3(), dir = new THREE.Vector3();
@@ -191,7 +212,7 @@ function blocked(x, y, z) {
   return y < terrainH(x, z) + 0.15 && y > topY(fx, fz) - 0.5 && !columnDug(fx, fz);
 }
 function thirdPersonCamera() {
-  if (!(viewMode > 0 && me?.group.visible) || player.vehicle) { camDist = 0; return; } // ve vozidle má kameru vozidlo
+  if (!(viewMode > 0 && me?.group.visible) || player.vehicle || ghost.on) { camDist = 0; return; } // ve vozidle má kameru vozidlo
   if (camera.position.distanceToSquared(applied) < 1e-8) return; // v tomhle snímku už posunutá (scéna se kreslí víckrát)
   eye.copy(camera.position); // hra kameru každý snímek vrací do očí
   dir.set(0, 0, viewMode === 1 ? 1 : -1).applyQuaternion(camera.quaternion);
@@ -219,14 +240,16 @@ export function updateLocalBody(dt, moving) {
   myArmorKey = key;
   // na kole, v lodi a v kokpitu je vidět i vlastní postava, když je kamera vozidla zezadu (V)
   const veh = vehicles.get(player.vehicle), onSeat = !!veh && carCam === 1 && kindOf(veh.type).open && player.alive;
-  const show = (viewMode > 0 && player.alive && !player.vehicle && !player.riding) || onSeat;
+  const show = ((viewMode > 0 || ghost.on) && player.alive && !player.vehicle && !player.riding) || onSeat; // duch vidí svoje tělo (player/ghost.js)
   holder.visible = !show && !player.vehicle && !player.riding && !dining; // ve vozidle a u jídla u stolu ruka není vidět
   if (!show) { if (me) me.group.visible = false; return; }
-  if (!me) { me = buildCharacter(myCostume); scene.add(me.group); me.anim.bodyYaw = player.yaw; myHeld = undefined; me.armorKey = null; }
+  if (!me) { me = buildCharacter(myCostume); scene.add(me.group); me.anim.bodyYaw = player.yaw; myHeld = myOff = undefined; me.armorKey = null; }
   me.group.visible = true;
   if (me.armorKey !== key) setCharacterArmor(me, ids);
   const held = player.eating?.id || heldStack()?.id || null;
   if (held !== myHeld) { myHeld = held; setHeld(me, held); }
+  const off = inv.off[0]?.id || null;
+  if (off !== myOff) { myOff = off; setOffHeld(me, off); }
   if (onSeat && seatWorld(player.vehicle, 0, seatPos)) me.group.position.set(seatPos.x, seatPos.y - 0.42, seatPos.z);
   else me.group.position.set(player.pos.x, player.pos.y - (player.sitting ? 0.42 : 0), player.pos.z);
   const s = { speed: onSeat ? 0 : moving, yaw: onSeat ? (vehMeshes.get(player.vehicle)?.yaw ?? veh.yaw) : player.yaw, pitch: onSeat ? 0 : player.pitch, run: !onSeat && !!player.sprinting, sneak: !!player.sneaking, fly: !onSeat && (!!player.flying || player.flyT > 0), sit: !!player.sitting || onSeat,
@@ -234,6 +257,7 @@ export function updateLocalBody(dt, moving) {
   me.anim.hurtSeen = player.lastHurt;
   animateCharacter(me, s, dt);
   effects(me, s, me.group.position, dt);
+  if (guardHand()) guardPose(me, guardHand() === 'off' ? 2 : 1);
 }
 
 export function myPose() {
@@ -244,5 +268,6 @@ export function myPose() {
     veh: vehPose(), hn: hornN, ...(player.riding ? { rd: { id: player.riding.id, s: player.riding.s } } : {}),
     ar: armor.map((a) => a?.id || null), sit: player.sitting ? 1 : 0, fly: player.flying ? 1 : 0, flyT: player.flyT > 0 ? 1 : 0, alive: player.alive, cr: creative ? 1 : 0, set: fullSet(), hp: Math.round(player.hp),
     lk: myLk, ...(player.sneaking ? { sn: 1 } : {}), ...(NET.pvpOn ? { pv: 1 } : {}), // pv = zapnuté souboje (klávesa N)
+    ...(inv.off[0] ? { oh: inv.off[0].id } : {}), ...(guardHand() ? { bl: guardHand() === 'off' ? 2 : 1 } : {}), // druhá ruka a krytí štítem (1 hlavní, 2 druhá ruka)
   };
 }

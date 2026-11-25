@@ -9,11 +9,13 @@ import { ensureDoc } from './papers.js';
 import { blockMeta, blocks, chairRot, chests, crops, fires, furnaces, paperSpots, papers, pcDisks, portalActive, power, removed, ruinsBuilt, ruinsOpened, setPortalActive, spawners, stoves, tableItems, vehicles } from './state.js';
 import { setVox, voxEdits } from './voxels.js';
 import { WORLD_GEN } from './terrain.js';
+import { dragonCycle, loadDragonCycle } from './dragon-cycle.js';
 
 const fill = (map, obj) => { for (const [k, v] of Object.entries(obj || {})) map.set(k, v); };
 
 /** Načte uložený svět (nebo svět od hostitele). save = výsledek worldState() (může obsahovat i data hráče). */
 export function loadWorld(save) {
+  loadDragonCycle(save?.dragonRespawnAt);
   WORLD_GEN.oceans = save ? !!save.oceans : true; // nový svět má oceány, uložený svět tak, jak vznikl
   NET.quiet(() => {
     fill(papers, save?.papers);
@@ -52,6 +54,7 @@ export function loadWorld(save) {
 /** Stav světa (ukládá se a hostitel ho posílá novým hráčům). */
 export function worldState() {
   return {
+    dragonRespawnAt: dragonCycle.respawnAt,
     dayTime, day: dayCount, blocks: [...blocks], blockMeta: [...blockMeta], removed: [...removed], fires: Object.fromEntries(fires),
     vox: [...voxEdits.values()].flatMap((m) => [...m]),
     ground: groundItems.filter((g) => g.n > 0).map((g) => ({ gid: g.gid, id: g.id, n: g.n, x: g.pos.x, y: g.pos.y, z: g.pos.z, age: Math.round(g.age), ...(g.w ? { w: g.w } : {}) })),

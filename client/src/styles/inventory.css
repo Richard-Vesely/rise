@@ -48,6 +48,12 @@ body.gfx-low #inventory .mc-panel { background: linear-gradient(160deg, rgb(30, 
   background: linear-gradient(currentColor, currentColor) 0 0 / 100% 2px no-repeat, linear-gradient(currentColor, currentColor) 0 50% / 70% 2px no-repeat, linear-gradient(currentColor, currentColor) 0 100% / 40% 2px no-repeat; }
 #inventory .cat-tabs .mc-btn { padding: 3px 8px; font-size: 11.5px; border-radius: 7px; }
 #inventory .cat-tabs { gap: 4px; }
+/* trezor: zadání kódu */
+#inventory .safe-ui { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
+#inventory .safe-code { width: 120px; padding: 6px 10px; border-radius: 9px; border: 0; outline: none; font: 600 16px var(--ui-font); letter-spacing: 3px;
+  color: var(--inv-text); background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px rgba(130, 210, 255, 0.28); }
+#inventory .safe-code:focus { box-shadow: inset 0 0 0 1px var(--inv-glow), 0 0 10px rgba(70, 224, 255, 0.35); }
+#inventory .safe-code::placeholder { letter-spacing: 0; font-weight: 400; font-size: 13px; color: rgba(201, 220, 239, 0.55); }
 /* lupa nad knihou receptů */
 #inventory .book-search { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; padding: 4px 10px; border-radius: 9px;
   background: rgba(0, 0, 0, 0.32); box-shadow: inset 0 0 0 1px rgba(130, 210, 255, 0.28); font-size: 13px; cursor: text; }
@@ -205,3 +211,4 @@ body.inv-open #hotName, #inventory[style*="grid"] ~ #hotName { opacity: 0; }
   border: 2px solid var(--inv-glow); box-shadow: 0 0 10px var(--inv-glow-soft); }
 #settings input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #e8f9ff; border: 2px solid var(--inv-glow); }
 body.gfx-low #menu .mc-panel, body.gfx-low #settings .mc-panel, body.gfx-low #pause .mc-panel, body.gfx-low #settings { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.armor-col .offhand { margin-top: 6px; } /* druhá ruka pod brněním (player/offhand.js) */

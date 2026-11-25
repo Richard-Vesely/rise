@@ -26,7 +26,7 @@ import { updateEating } from '../player/eating.js';
 import { updateInteraction } from '../player/interaction.js';
 import { guideOpen, isLocked, player, updatePlayer } from '../player/player.js';
 import { updateShards, updateSurvival } from '../player/survival.js';
-import { rebuildBlocks, updateLights } from '../render/blocks.js';
+import { flushBlocks, rebuildBlocks, updateLights } from '../render/blocks.js';
 import { applyUnderground, underground, updateDay } from '../render/daylight.js';
 import { applyDimension } from '../render/dimension.js';
 import { rebuildForest } from '../render/forest.js';
@@ -53,6 +53,7 @@ import { updateFishing } from '../world/fishing.js';
 import { syncGroundItemViews, tickGroundItems } from '../world/ground-items.js';
 import { checkPortal, updatePortals } from '../world/shrine.js';
 import { updateRuins } from '../world/structures.js';
+import { ghost, updateGhost } from '../player/ghost.js';
 import { MP } from './boot.js';
 import { game } from './debug.js';
 import { GFX } from './prefs.js';
@@ -88,9 +89,9 @@ export function tick(realDt) {
 
   let moving = 0;
   // spolujezdec se nehýbe sám: sedí v modelu vozidla (updateVehicles → vehicles/passengers.js)
-  if (playing && player.alive) { moving = player.vehicle ? driveVehicle(dt) : player.riding ? 0 : updatePlayer(dt); if (!player.vehicle && !player.riding && !player.sitting) applyCameraFeel(realDt, moving); }
+  if (playing && player.alive) { moving = player.vehicle ? driveVehicle(dt) : player.riding ? 0 : ghost.on ? updateGhost(realDt) : updatePlayer(dt); if (!player.vehicle && !player.riding && !player.sitting && !ghost.on) applyCameraFeel(realDt, moving); } // ghost = teleport duchem (player/ghost.js)
   else if (player.vehicle && vehicles.has(player.vehicle)) { placeCarCamera(vehicles.get(player.vehicle)); Sound.engine(false, 0); }
-  else if (!player.riding) { camera.rotation.set(player.pitch, player.yaw, 0); camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z); }
+  else if (!player.riding && !ghost.on) { camera.rotation.set(player.pitch, player.yaw, 0); camera.position.set(player.pos.x, player.pos.y + EYE, player.pos.z); }
   updateVehicles(realDt);
   updateHeldModel();
   updateSwing(dt, moving);
@@ -99,14 +100,15 @@ export function tick(realDt) {
   const W = MP ? realDt : dt;
   updateWeather(realDt, gameClock, underground); // počasí podle dne a času (stejné u všech hráčů)
   const { night, day } = updateDay(W);
-  rebuildForest(player.pos.x, player.pos.z);
-  updateVoxChunks(player.pos.x, player.pos.z);
+  const here = ghost.on ? ghost.pos : player.pos; // duch: okolí se načítá kolem něj
+  rebuildForest(here.x, here.z);
+  updateVoxChunks(here.x, here.z);
   applyDimension(realDt);
   applyUnderground(realDt);
   updateRuins(realDt);
   if ((playing || MP) && !NET.client) updateSpawners(realDt);
   if (playing) {
-    if (player.alive && !dining && !player.vehicle && !player.riding) updateInteraction(dt); // z vozidla se netěží
+    if (player.alive && !dining && !player.vehicle && !player.riding && !ghost.on) updateInteraction(dt); // z vozidla se netěží
     updateDining(dt);
     updateSurvival(dt);
     if (!MP) { updateMobs(dt, day); animateMobs(dt); updateSpawns(dt, night); }
@@ -135,6 +137,7 @@ export function tick(realDt) {
   if (!NET.client) updateTorches(realDt); // pochodeň bez opory odpadne (rozhoduje ten, kdo drží svět)
   updatePortals(realDt);
   regrowGrass(realDt);
+  flushBlocks(); // změny bloků z pravidel (pochodeň odpadla, zřícenina…) jednou za snímek
   updateLights(gameClock);
   updateAmbientFx(realDt, underground); // jiskry a kouř nad ohněm, prach v jeskyni, světélka v Markově dimenzi
   sparks.update(realDt);
@@ -150,8 +153,8 @@ export function tick(realDt) {
   stars.position.copy(camera.position);
   updateClouds();
   updateRidge(FOG.color, underground);
-  // odlesky oblohy (drahé, ~10 ms) jen když se znatelně posunul čas dne, nejpozději po 12 s
-  if ((envTimer += realDt) > 3 && (Math.abs(dayTime - envDay) > 0.012 || envTimer > 12)) { envTimer = 0; envDay = dayTime; updateEnvironment(); }
+  // odlesky oblohy (drahé, několik ms) jen když se znatelně posunul čas dne (za soumraku a svítání častěji), nejpozději po 20 s
+  if ((envTimer += realDt) > 3 && (Math.abs(dayTime - envDay) > (U.twilight.value > 0.02 ? 0.012 : 0.03) || envTimer > 20)) { envTimer = 0; envDay = dayTime; updateEnvironment(); }
   cullFar(realDt);
 
   frames++;

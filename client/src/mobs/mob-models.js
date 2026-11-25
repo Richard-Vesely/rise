@@ -3,6 +3,7 @@
 // hlava na kloubu (sleduje hráče, pase se), uši, ocas, křídla. Nepřátelé mají svítící oči.
 // Bez vedlejších účinků při načtení (textury se vyrobí až při prvním tvorovi).
 import * as THREE from 'three';
+import { rng } from '../../../shared/util.js';
 import { buildDragonModel } from './dragon-model.js';
 import { buildSpiderModel } from './spider-model.js';
 import { RIM, addRim, animateCharacter, armorMat, blobShadow, buildCharacter, crackTex, mergeStatic, rbox, setCharacterArmor, skinRig } from '../render/character.js';
@@ -17,8 +18,7 @@ const BUMP = { wool: 1, fur: 0.7, hide: 0.3, feather: 0.45, skin: 0.6, stone: 1 
 function furTextures(kind) {
   if (texCache[kind]) return texCache[kind];
   const N = 64, h = new Float32Array(N * N);
-  let s = { wool: 3, fur: 7, hide: 11, feather: 13, skin: 17, stone: 19 }[kind] || 1;
-  const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  const r = rng({ wool: 3, fur: 7, hide: 11, feather: 13, skin: 17, stone: 19 }[kind] || 1);
   const add = (x, y, v) => { x = ((x % N) + N) % N; y = ((y % N) + N) % N; h[y * N + x] = Math.max(h[y * N + x], v); };
   if (kind === 'wool') { // kudrlinky
     for (let k = 0; k < 140; k++) { const cx = r() * N, cy = r() * N, rad = 3 + r() * 4; for (let y = -8; y <= 8; y++) for (let x = -8; x <= 8; x++) { const d = Math.hypot(x, y) / rad; if (d < 1) add(Math.round(cx + x), Math.round(cy + y), Math.sqrt(1 - d * d) * (0.6 + r() * 0.1)); } }
@@ -219,6 +219,38 @@ export function buildMobModel(type) {
     sw.rotation.x = -Math.PI / 2;
     R.hand.add(sw);
     for (const e of R.eyes) e.scale.set(1.3, 1.2, 1);
+    g.add(R.group);
+    extra.rig = R;
+    body = R.hips;
+    K.flash.push(...R.M.flashable);
+  } else if (type === 'devil') {
+    // Ďábel z pekla: postava v rudém obleku a ohnivém brnění, rohy, ocas s hrotem, trojzubec, oči svítí oranžově.
+    kind = 'biped';
+    const R = buildCharacter({ s: 'knight', c: 0, l: 0, v: 0, e: 0 }, { shadow: false });
+    setCharacterArmor(R, [null, 'fire_chestplate', 'fire_leggings', 'fire_boots']);
+    const horn = new THREE.MeshStandardMaterial({ color: 0x1a1214, roughness: 0.4 });
+    for (const sx of [-1, 1]) {
+      const h = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.32, 8), horn);
+      h.position.set(sx * 0.14, 0.42, -0.02); h.rotation.z = -sx * 0.45;
+      R.head.add(h);
+    }
+    const red = new THREE.MeshStandardMaterial({ color: 0xa81a14, roughness: 0.5 });
+    const tl = new THREE.Group();
+    tl.position.set(0, -0.05, 0.16);
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.7, 6), red);
+    rope.position.set(0, -0.25, 0.25); rope.rotation.x = 1.0;
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 4), red);
+    tip.position.set(0, -0.5, 0.55); tip.rotation.x = 2.2;
+    tl.add(rope, tip);
+    R.hips.add(tl);
+    const fork = new THREE.Group(), gold = new THREE.MeshStandardMaterial({ color: 0x2a2a30, metalness: 0.8, roughness: 0.35 });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.2, 6), gold);
+    shaft.position.y = 0.3;
+    fork.add(shaft);
+    for (const x of [-0.08, 0, 0.08]) { const t = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.18, 6), gold); t.position.set(x, 0.95, 0); fork.add(t); }
+    fork.rotation.x = -Math.PI / 2;
+    R.hand.add(fork);
+    for (const e of R.eyes) { e.material = glowMat(0xff6a1a, 2.4); e.scale.set(1.3, 1.2, 1); }
     g.add(R.group);
     extra.rig = R;
     body = R.hips;

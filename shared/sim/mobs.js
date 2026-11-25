@@ -13,19 +13,22 @@ import { bkey, blocks, chests, lights, spawners } from '../world/state.js';
 import { SEA, biomeAt, forest, inLake, isMark, oceanK, shrineDist, shrineOf, terrainH } from '../world/terrain.js';
 import { groundHeight, topY } from '../world/voxels.js';
 import { DRAGON_DEN, isDragon } from '../world/dragon-land.js';
+import { dragonCycle, DRAGON_RESPAWN_MS, DRAGON_VICTORY } from '../world/dragon-cycle.js';
 import { ruinsBuilt, ruinsOpened } from '../world/state.js';
 import { updateDragon } from './dragon.js';
 import { armyPlan, updateArmy } from './army.js';
 import { HUNT, huntPlan, updateHunts } from './hunt.js';
 import { PRISON_SPIDERS, inPrison, prisonBuilt, spiderSpot } from '../world/prison.js';
+import { devilSpot, ensureHell, hellBuilt, inHell } from '../world/hell.js';
+const HELL_DEVILS = 5; // kolik ďáblů najednou žije v pekle
 
 // Kořist z tvorů: [předmět, min, max, šance]
 export const MOBS = {
   dragon: {
-    name: 'Drak Země draka', hp: 500, radius: 2.4, cy: 2, dmg: 75, tall: true,
+    name: 'Drak Země draka', hp: 1200, radius: 2.4, cy: 2, dmg: 44, tall: true,
     drops: [['sky_helmet', 1, 1], ['sky_chestplate', 1, 1], ['sky_leggings', 1, 1], ['sky_boots', 1, 1],
-      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 16, 16], ['gold_ingot', 16, 16],
-      ['shard', 12, 12], ['markapple', 5, 5]],
+      ['markorite_sword', 1, 1], ['markorite_pick', 1, 1], ['markorite', 128, 128], ['gold_ingot', 32, 32],
+      ['shard', 24, 24], ['markapple', 10, 10]],
   },
   sheep: { name: 'Ovce', hp: 5, radius: 0.75, cy: 0.75, drops: [['raw_mutton', 1, 2], ['wool', 1, 2]] },
   boar: { name: 'Kanec', hp: 12, radius: 0.8, cy: 0.7, dmg: 10, drops: [['raw_pork', 2, 3], ['bone', 0, 1]] },
@@ -40,11 +43,13 @@ export const MOBS = {
     drops: [['markapple', 1, 1, 0.3], ['iron', 1, 2, 0.4], ['markwood', 1, 2, 0.5], ['markorite_raw', 1, 1, 0.3], ['iron_sword', 1, 1, 0.08],
       ['iron_helmet', 1, 1, 0.04], ['iron_chestplate', 1, 1, 0.03], ['iron_leggings', 1, 1, 0.03], ['iron_boots', 1, 1, 0.04]],
   },
-  // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; oko z něj je výkupné z vězení.
+  // Obří pavouk: žije jen ve vězení serveru kroužku (shared/world/prison.js), rychlý a silný; zabít ho je jeden z úkolů vězně (server/prison-tasks.js).
   spider: { name: 'Obří pavouk', hp: 30, radius: 1.1, cy: 0.6, dmg: 12, drops: [['spider_eye', 1, 1]] },
+  // Ďábel: žije jen v pekle (shared/world/hell.js); rychlý, silný, padá z něj ohnivá koule a vzácně ohnivý drahokam a hororový disk.
+  devil: { name: 'Ďábel', hp: 28, radius: 0.7, cy: 1.0, dmg: 11, tall: true, drops: [['fire_charge', 0, 2], ['fire_gem', 1, 1, 0.08], ['disc_horror', 1, 1, 0.05]] },
   golem: { name: 'Krystalový golem', hp: 60, radius: 1.2, cy: 1.5, dmg: 22, tall: true, drops: [['shard', 1, 3], ['markorite', 1, 1, 0.5], ['markapple', 1, 1, 0.25]] },
 };
-export const HOSTILE_SPEED = { boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
+export const HOSTILE_SPEED = { devil: 5.4, boar: 5.2, crawler: 4.7, markoman: 4.4, wolf: 6.2, golem: 2.4, spider: 6.6 };
 export const mobs = []; // { nid, type, def, pos, vel, hp, ry, flash, dead, invT, … }
 // Jak dlouho zůstane mrtvý tvor vidět (převrátí se na bok a rozplyne v obláčku).
 export const DEATH_TIME = 0.8;
@@ -84,10 +89,14 @@ export function hurtMob(m, dmg, yaw, kb = 1) {
 }
 // Kořist: ze zabití hráčem jde do batohu; z pasti (hroty) do nejbližší truhly do 5 bloků – základ farmy.
 export function killMob(m, drops, trap = false) {
+  if (m.dead) return;
   m.dead = true;
   emit('mobKilled', m);
   if (!drops) return;
-  if (m.type === 'dragon') ruinsOpened.add(DRAGON_DEN.key);
+  if (m.type === 'dragon') {
+    ruinsOpened.add(DRAGON_DEN.key); // historie průzkumu; další souboj řídí čas, ne tento příznak
+    dragonCycle.respawnAt = Date.now() + DRAGON_RESPAWN_MS;
+  }
   let chest = null;
   if (trap) {
     let best = 26;
@@ -105,6 +114,10 @@ export function killMob(m, drops, trap = false) {
     else NET.localLoot?.(m, id, n); // hráč u této obrazovky (je-li blízko)
   }
   if (chest) emit('chestLoot', chest);
+  if (m.type === 'dragon') {
+    if (NET.killer) NET.sendTo(NET.killer, ['toast', DRAGON_VICTORY]);
+    else emit('dragonVictory', DRAGON_VICTORY);
+  }
 }
 
 export function updateMobs(dt, day) {
@@ -131,7 +144,7 @@ export function updateMobs(dt, day) {
       if (m.moving) { dirX = Math.cos(m.wander); dirZ = Math.sin(m.wander); speed = sp; }
     };
     const night = day < 0.4;
-    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
+    let hostile = A ? A.attack : !T.creative && (m.type === 'crawler' || m.type === 'markoman' || m.type === 'golem' || m.type === 'spider' || m.type === 'devil' || ((m.type === 'boar' || m.type === 'wolf') && m.aggro) || (m.type === 'wolf' && night));
     if (m.type === 'crawler' && T.set === 'shadow') hostile = false; // stínové brnění
     if (m.type === 'deer' && dist < 7 && !T.creative) m.fleeT = Math.max(m.fleeT, 2); // plachý
     if (m.type === 'chicken' && (m.eggT = (m.eggT ?? 20 + Math.random() * 30) - dt) <= 0) { m.eggT = 35 + Math.random() * 30; m.eggs = Math.min(2, (m.eggs || 0) + 1); }
@@ -202,7 +215,7 @@ export function updateMobs(dt, day) {
     m.flash = Math.max(0, m.flash - dt * 5);
     if (m.invT > 0) m.invT -= dt;
     m.cd -= dt;
-    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9 }[m.type] || 1.4;
+    const reach = { markoman: 1.7, golem: 2.4, spider: 1.9, devil: 1.8 }[m.type] || 1.4;
     if (hostile && dist < reach && Math.abs(dyP) < 2 && m.cd <= 0 && T.alive) {
       m.cd = m.type === 'golem' ? 1.6 : m.type === 'wolf' ? 0.8 : m.type === 'spider' ? 1.0 : 1.1;
       m.atkT = 0.35;
@@ -226,10 +239,21 @@ let spawnT = 3;
 export function updateSpawns(dt, night) {
   if ((spawnT -= dt) > 0) return;
   spawnT = 2;
+  ensureHell(); // peklo (shared/world/hell.js) se postaví jednou, ať je kam vejít portálem
   const c = NET.spawnCenter(); // tvorové se rodí kolem některého z hráčů
   if (!c) return; // na serveru nikdo není
+  // vězení (jen server kroužku): pavouci kolem vězně v každém kroku, ne jen když náhoda vybere jeho (na plném serveru by jich bylo málo)
+  const jailed = NET.targets().find((t) => t.alive && inPrison(t.pos.x, t.pos.y, t.pos.z));
+  if (jailed && prisonBuilt() && mobs.filter((m) => m.type === 'spider' && !m.dead).length < PRISON_SPIDERS) {
+    const p = spiderSpot(jailed.pos.x, jailed.pos.z);
+    if (p) spawnMob('spider', p[0], p[2], p[1]).under = true;
+  }
+  if (inHell(c.x, c.y, c.z)) { // peklo: jen ďáblové, chodí po podlaze z bloků
+    if (hellBuilt() && mobs.filter((m) => m.type === 'devil' && !m.dead).length < HELL_DEVILS) { const p = devilSpot(c.x, c.z); if (p) spawnMob('devil', p[0], p[2], p[1]).under = true; }
+    return;
+  }
   if (isDragon(c.x)) {
-    if (ruinsBuilt.has(DRAGON_DEN.key) && !ruinsOpened.has(DRAGON_DEN.key) &&
+    if (ruinsBuilt.has(DRAGON_DEN.key) && Date.now() >= dragonCycle.respawnAt &&
       Math.hypot(c.x - DRAGON_DEN.x, c.z - DRAGON_DEN.z) < 80 && !mobs.some((m) => m.type === 'dragon')) {
       spawnMob('dragon', DRAGON_DEN.x, DRAGON_DEN.z);
     }
@@ -243,10 +267,7 @@ export function updateSpawns(dt, night) {
     const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
     return shrineDist(x, z) < 35 || nearLight(x, z, 12) || inLake(x, z) || (oceanK(x, z) > 0.02 && terrainH(x, z) < SEA + 0.3) ? null : [x, z]; // ne v jezeře ani v moři
   };
-  if (inPrison(c.x, c.y, c.z)) { // vězení (jen server kroužku): jen obří pavouci, chodí po podlaze z bloků jako v podzemí
-    if (prisonBuilt() && count('spider') < PRISON_SPIDERS) { const p = spiderSpot(c.x, c.z); if (p) spawnMob('spider', p[0], p[2], p[1]).under = true; }
-    return;
-  }
+  if (inPrison(c.x, c.y, c.z)) return; // vězení: jen obří pavouci (výše), chodí po podlaze z bloků jako v podzemí
   if (isMark(c.x)) { // Markova dimenze: Markomani a krystaloví golemové
     if (count('markoman') < (night > 0.5 ? 8 : 5)) { const p = spot(); if (p) spawnMob('markoman', ...p); }
     if (count('golem') < 2) { const p = spot(); if (p) spawnMob('golem', ...p); }

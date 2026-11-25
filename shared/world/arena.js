@@ -59,5 +59,3 @@ export function arenaSpawn(rnd = Math.random) {
   }
   return [ARENA.x + 0.5, F + 1, ARENA.z + 0.5];
 }
-/** Je místo uvnitř arény? */
-export const inArena = (x, z) => Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 1;

@@ -84,10 +84,16 @@ export function shot(o) {
       const m = mobOn(from, pos) || playerOn(from, pos);
       if (m || solid(pos.x, pos.y, pos.z) || t > o.ttl) {
         s.removeFromParent();
-        if (m) { strike(m, o.dmg, v); sparks.emit(pos.x, pos.y, pos.z, col, 10, 2.5, 1); }
+        if (o.boom) { // granát: výbuch zraní všechny v poloměru
+          sparks.emit(pos.x, pos.y, pos.z, [1, 0.6, 0.2], 50, 6, 3);
+          debris.emit(pos.x, pos.y, pos.z, [0.3, 0.28, 0.25], 25, 4, 3);
+          toolSound('hit', 1);
+          for (const x of [...around(pos, o.boom.r), ...(m && m.pid ? [m] : [])]) strike(x, o.boom.dmg, v);
+        } else if (m) { strike(m, o.dmg, v); if (o.slow && !m.pid) m.slowT = 4; sparks.emit(pos.x, pos.y, pos.z, col, 10, 2.5, 1); }
         return false;
       }
     }
+    if (o.gravity) v.y -= o.gravity * dt; // granát padá obloukem
     s.position.copy(pos);
     s.scale.setScalar(o.size * (o.grow ? 1 + t * o.grow : 1));
     if (Math.random() < (o.trail ?? 0.6)) sparks.emit(pos.x, pos.y, pos.z, col, 1, 0.5, 0.1);
@@ -107,7 +113,7 @@ function impact(id, pos, m, v) {
 }
 
 // ---------- blesk: udeří z nebe tam, kam míříš (až 40 m)
-function lightning() {
+export function lightning() {
   const t = pickTarget(40);
   const p = t?.mob ? t.mob.pos.clone().setY(t.mob.pos.y + 0.5) : t?.point ? new THREE.Vector3(...t.point) : camera.position.clone().addScaledVector(aim(), 25);
   const geo = new THREE.BufferGeometry().setFromPoints(Array.from({ length: 9 }, (_, i) => new THREE.Vector3(p.x + (i && i < 8 ? (Math.random() - 0.5) * 1.6 : 0), p.y + 40 - i * 5, p.z + (i && i < 8 ? (Math.random() - 0.5) * 1.6 : 0))));

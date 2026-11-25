@@ -5,6 +5,7 @@
 import { BLOCKS, ITEMS } from '../../../shared/data/index.js';
 import { mobs } from '../../../shared/sim/mobs.js';
 import { spawnGroundItem } from '../../../shared/sim/ground-items.js';
+import { segHitsSphere } from '../../../shared/util.js';
 import { solidAt } from '../../../shared/world/collision.js';
 import { solidVox } from '../../../shared/world/voxels.js';
 import { toolSound } from '../audio/tool-sounds.js';
@@ -16,6 +17,7 @@ import { toast } from '../ui/hud.js';
 import { wearHeld } from './durability.js';
 import { hitPlayer, playerOn } from './pvp.js';
 import { countItem, heldStack, removeItem } from './inventory.js';
+import { offArrows, takeOffArrow } from './offhand.js';
 import { creative, input, player } from './player.js';
 
 const GRAVITY = 15, LIFE = 6, STUCK = 4; // m/s², s letu, s zabodnutý (pak z něj je šíp na zemi)
@@ -37,7 +39,7 @@ export function updateBow(dt, target) {
   if (!drawing) {
     if (!input.rmb) return true;
     if (target?.kind === 'block' && BLOCKS[target.type]?.special) return false; // stoly, truhly, pec… se otevřou normálně
-    if (!creative && !countItem('arrow')) { if (!updateBow.told) toast('Nemáš šípy (vyrob je z kamene, klacku a vlákna)'); updateBow.told = true; return true; }
+    if (!creative && !countItem('arrow') && !offArrows()) { if (!updateBow.told) toast('Nemáš šípy (vyrob je z kamene, klacku a vlákna)'); updateBow.told = true; return true; }
     updateBow.told = false;
     drawing = true; drawT = 0; wasFull = false;
     toolSound('bowDraw');
@@ -55,7 +57,7 @@ export function updateBow(dt, target) {
 
 function shoot(B, k) {
   if (k < 0.1) return; // jen cuknutí: šíp zůstane v toulci
-  if (!creative) { if (!countItem('arrow')) return; removeItem('arrow', 1); }
+  if (!creative && !takeOffArrow()) { if (!countItem('arrow')) return; removeItem('arrow', 1); } // nejdřív šípy ze druhé ruky
   const dir = camera.getWorldDirection(camera.position.clone().set(0, 0, 0));
   const pos = camera.position.clone().addScaledVector(dir, 0.4);
   pos.y -= 0.08;
@@ -70,14 +72,7 @@ function shoot(B, k) {
 export const solid = (x, y, z) => { const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z); return solidAt(X, Y, Z) || solidVox(X, Y, Z); };
 /** Tvor, kterého úsečka a→b protne (koule kolem těla tvora). */
 export function mobOn(a, b) {
-  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L2 = dx * dx + dy * dy + dz * dz || 1;
-  for (const m of mobs) {
-    if (m.dead) continue;
-    const cx = m.pos.x, cy = m.pos.y + m.def.cy, cz = m.pos.z;
-    const t = Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - a.y) * dy + (cz - a.z) * dz) / L2));
-    const ex = a.x + dx * t - cx, ey = a.y + dy * t - cy, ez = a.z + dz * t - cz;
-    if (ex * ex + ey * ey + ez * ez < (m.def.radius + 0.1) ** 2) return m;
-  }
+  for (const m of mobs) if (!m.dead && segHitsSphere(a, b, m.pos.x, m.pos.y + m.def.cy, m.pos.z, m.def.radius + 0.1)) return m;
   return null;
 }
 
@@ -118,5 +113,3 @@ export function updateArrows(dt) {
   }
 }
 function remove(i) { scene.remove(arrows[i].mesh); arrows.splice(i, 1); }
-/** Pro testy (window.game): kolik šípů letí nebo je zabodnutých. */
-export const arrowCount = () => arrows.length;

@@ -4,7 +4,7 @@
 // (v prohlížeči i na serveru). Bez vedlejších účinků při načtení (okna a pruhy se vytvoří až při prvním použití).
 import { ITEMS } from '../../../shared/data/index.js';
 import { OWNER_SPELLS, SPELLS, XP_MOB, cleanMagic, levelOf, manaMax, MANA_REGEN, offerSpells } from '../../../shared/data/magic.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { save } from '../game/save-load.js';
 import { toast } from '../ui/hud.js';
 import { heldStack } from './inventory.js';
@@ -17,7 +17,7 @@ export const magicState = () => ({ xp: M.xp, learned: M.learned, sel: M.sel, pic
 export const level = () => levelOf(M.xp).level;
 export const holdingWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.wand;
 /** Hůl vlastníka serveru v ruce: umí navíc jeho kouzla (OWNER_SPELLS); jestli platí, rozhoduje server. */
-export const holdingOwnerWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.owner;
+export const holdingOwnerWand = () => !!heldStack() && !!ITEMS[heldStack().id]?.wand && !!ITEMS[heldStack().id]?.owner;
 let ownerSel = OWNER_SPELLS[0]; // vybrané kouzlo hole vlastníka (null = naučené kouzlo M.sel); neukládá se
 /** Kouzlo, které teď hůl v ruce sešle. */
 export const activeSpell = () => (holdingOwnerWand() && ownerSel ? ownerSel : M.sel);
@@ -127,4 +127,3 @@ export function nextSpell() {
   toast(`✦ ${SPELLS[activeSpell()].name}`);
   renderBars();
 }
-export const bookOpen = () => !!win;

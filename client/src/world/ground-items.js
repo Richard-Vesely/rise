@@ -9,7 +9,7 @@ import { NET } from '../../../shared/net/net.js';
 import { THROW_DELAY, groundItems, popGroundItem, spawnGroundItem, updateGroundItems } from '../../../shared/sim/ground-items.js';
 import { PH } from '../../../shared/world/constants.js';
 import { Sound } from '../audio/sound.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { iconVoxels } from '../dining/food-models.js';
 import { addItem, heldStack, inv } from '../player/inventory.js';
 import { creative, player } from '../player/player.js';
@@ -99,7 +99,7 @@ export function dropHeld(all) {
 }
 // w = opotřebení nástroje (letí s ním na zem)
 export function throwItem(id, n, w = 0) {
-  if (ownerItem(id)) { addItem(id, n, true, w); toast('Hůl vlastníka nejde zahodit'); return; } // zpátky do batohu (server ji na zem stejně nepustí)
+  if (ownerItem(id)) { addItem(id, n, true, w); toast(`${ITEMS[id].name} nejde zahodit`); return; } // předmět vlastníka: zpátky do batohu (server ho na zem stejně nepustí)
   const dir = new THREE.Vector3();
   camera.getWorldDirection(dir);
   const pos = camera.position.clone().addScaledVector(dir, 0.5).add(new THREE.Vector3(0, -0.3, 0));

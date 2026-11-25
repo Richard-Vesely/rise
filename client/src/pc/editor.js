@@ -3,11 +3,11 @@ import './doc-view.js'; // pořadí spouštění: nejdřív předchozí modul (v
 import { NET } from '../../../shared/net/net.js';
 import { dayCount } from '../../../shared/sim/day.js';
 import { PRINT_QUEUE, netOf } from '../../../shared/sim/power.js';
-import { clamp } from '../../../shared/util.js';
+import { clamp, esc } from '../../../shared/util.js';
 import { blocks, pcDisks, power } from '../../../shared/world/state.js';
 import { Sound } from '../audio/sound.js';
 import { PC_APPS, pc } from './computer.js';
-import { DISK_MAX, DOC_TEXT_MAX, escH, kvPend, newPaper, printJob } from './printer.js';
+import { DISK_MAX, DOC_TEXT_MAX, kvPend, newPaper, printJob } from './printer.js';
 
 // ---------- textový editor v počítači
 const diskOf = (k) => pcDisks.get(k)?.docs || [];
@@ -40,7 +40,7 @@ function edList(w, force) {
   const docs = diskOf(pc.k), sig = JSON.stringify(docs.map((d) => [d.id, d.name, d.day])) + w.ed.cur;
   if (!force && sig === w.ed.sig) return;
   w.ed.sig = sig;
-  edQ(w, '.ed-list').innerHTML = docs.length ? docs.map((d) => `<button data-open="${d.id}" class="${d.id === w.ed.cur ? 'on' : ''}">📄 ${escH(d.name)}<small>den ${d.day}</small></button>`).join('')
+  edQ(w, '.ed-list').innerHTML = docs.length ? docs.map((d) => `<button data-open="${d.id}" class="${d.id === w.ed.cur ? 'on' : ''}">📄 ${esc(d.name)}<small>den ${d.day}</small></button>`).join('')
     : '<div class="ed-empty">Zatím žádné dokumenty.</div>';
   edQ(w, '.ed-disk').textContent = `Disk: ${docs.length} / ${DISK_MAX} dokumentů`;
 }
@@ -50,7 +50,7 @@ function edLoad(w, d) {
   edQ(w, '.ed-name').value = d?.name || '';
   edQ(w, '.ed-text').value = d?.text || '';
   edQ(w, '.ed-print').hidden = true;
-  edStatus(w, d ? `Otevřeno: „${escH(d.name)}“` : 'Nový dokument – napiš název a text, pak Uložit.');
+  edStatus(w, d ? `Otevřeno: „${esc(d.name)}“` : 'Nový dokument – napiš název a text, pak Uložit.');
   edList(w, true);
 }
 function edClick(w, e) {
@@ -70,14 +70,14 @@ function edClick(w, e) {
     w.ed.cur = doc.id;
     w.ed.dirty = false;
     edList(w, true);
-    edStatus(w, `Uloženo: „${escH(name)}“`);
+    edStatus(w, `Uloženo: „${esc(name)}“`);
     Sound.pop();
   } else if (b.dataset.ed === 'del') {
     if (!cur) { if (!w.ed.dirty || confirm('Zahodit rozepsaný dokument?')) edLoad(w, null); return; }
     if (!confirm(`Smazat dokument „${cur.name}“? Smazání nejde vrátit.`)) return;
     diskSave(k, docs.filter((d) => d.id !== cur.id));
     edLoad(w, null);
-    edStatus(w, `Smazáno: „${escH(cur.name)}“`);
+    edStatus(w, `Smazáno: „${esc(cur.name)}“`);
   } else if (b.dataset.ed === 'print') {
     const prs = printersOf(k), box = edQ(w, '.ed-print');
     if (!prs.length) { box.hidden = true; return edStatus(w, '<b class="bad">V elektrické síti počítače není tiskárna – připoj ji kabelem.</b>'); }
@@ -91,7 +91,7 @@ function edClick(w, e) {
     if (!NET.client && (st.q?.length || 0) >= PRINT_QUEUE) return edStatus(w, '<b class="bad">Fronta tiskárny je plná.</b>');
     printJob(prn, newPaper(name, text), n);
     edQ(w, '.ed-print').hidden = true;
-    edStatus(w, `Odesláno do tiskárny: „${escH(name)}“, ${n}× · ${st.slots?.[0]?.id === 'paper' ? 'tiskne se' : 'tiskárna potřebuje papír'}`);
+    edStatus(w, `Odesláno do tiskárny: „${esc(name)}“, ${n}× · ${st.slots?.[0]?.id === 'paper' ? 'tiskne se' : 'tiskárna potřebuje papír'}`);
     Sound.tone(880, 0.08, 0.06, 'square');
   }
 }

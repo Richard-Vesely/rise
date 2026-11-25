@@ -43,6 +43,7 @@ import { usePortal } from '../world/shrine.js';
 import { placedAny } from '../world/world-state.js';
 import { cancelDraw, updateArrows, updateBow } from './bow.js';
 import { hitPlayer } from './pvp.js';
+import { placesFromOff, stopGuard, updateShield, withOffInHand } from './offhand.js';
 import { sitOn, startEating, useTable } from './eating.js';
 import { hitKick, hitStop } from './camera-feel.js';
 import { wearHeld } from './durability.js';
@@ -51,6 +52,8 @@ import { creative, input, isLocked, player, playerIntersects } from './player.js
 import { pickTarget } from './targeting.js';
 import { updateMagic, updateWand } from './magic.js';
 import { updateGadgets } from './gadgets.js';
+import { updateJukeboxes, useJukebox } from '../audio/film-music.js';
+import { updateHell, useAltar, usePortal as useHellPortal } from '../world/hell.js';
 import { addXp, updateXp } from './xp.js';
 import { XP_ORE } from '../../../shared/data/magic.js';
 
@@ -168,7 +171,7 @@ export function updateInteraction(dt) {
     groundRing.position.set(target.point[0], target.point[1] + 0.04, target.point[2]);
     groundRing.material.color.set(target.breakable === false ? 0x999999 : target.kind === 'grass' ? 0xffffff : 0xffd27a);
   }
-  const cell = held && ITEMS[held.id].block ? placementCell(target) : null;
+  const cell = (held && ITEMS[held.id].block) || placesFromOff() ? placementCell(target) : null; // i blok ze druhé ruky (offhand.js)
   preview.visible = !!cell && cellFree(...cell);
   if (preview.visible) preview.position.set(cell[0] + 0.5, cell[1] + 0.5, cell[2] + 0.5);
 
@@ -224,14 +227,18 @@ export function updateInteraction(dt) {
     mining.p = 0;
   }
   updateArrows(dt);
-  updateMagic(dt); updateXp(dt, player); // kouzla a XP (magic.js, xp.js)
+  updateMagic(dt); updateXp(dt, player); updateJukeboxes(dt); updateHell(dt); // přehrávače hudby hrají (audio/film-music.js), láva v pekle pálí (world/hell.js)
+  // kouzla a XP (magic.js, xp.js)
   const special = (target?.kind === 'block' && BLOCKS[target.type]?.special) || target?.kind === 'vehicle';
-  if (updateGadgets(dt, special)) { /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */ }
-  else if (updateWand(target, breakTarget, special)) { /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */ }
-  else if (updateBow(dt, target)) { /* luk v ruce: pravé tlačítko natahuje (bow.js) */ }
+  const busy = special || target?.kind === 'mob'; // pravé tlačítko tu něco otevře nebo použije (štít ani blok z druhé ruky ne)
+  if (updateGadgets(dt, special)) stopGuard(); /* vychytávka z obchodu: trojzubec, křídla, plamenomet, lékárnička (gadgets.js) */
+  else if (updateWand(target, breakTarget, special)) stopGuard(); /* čarovná hůl: pravé tlačítko kouzlí (magic.js) */
+  else if (updateBow(dt, target)) stopGuard(); /* luk v ruce: pravé tlačítko natahuje (bow.js) */
+  else if (updateShield(busy)) { /* štít v kterékoli ruce: pravé tlačítko kryje (offhand.js) */ }
   else {
-    if (input.rmb && useCd <= 0) { useCd = ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; useItem(); }
-    if (input.rmb) pillarPlace();
+    const off = !busy && placesFromOff(); // blok ve druhé ruce se položí, když hlavní ruka nemá co dělat (offhand.js)
+    if (input.rmb && useCd <= 0) { useCd = off || ITEMS[heldStack()?.id]?.block ? 0.15 : 0.25; if (off) withOffInHand(useItem); else useItem(); }
+    if (input.rmb) { if (off) withOffInHand(pillarPlace); else pillarPlace(); }
   }
 
   const label = $('targetLabel');
@@ -293,9 +300,11 @@ export function breakTarget(t) {
   } else if (t.kind === 'block') {
     const k = bkey(...t.cell);
     if (MP && [...others.values()].some((P) => P.pose?.ui === k)) { toast('Tohle teď používá jiný hráč'); return; } // otevřená truhla nebo stroj
+    const disc = t.type === 'jukebox' ? blockMeta.get(k) : null; // disk v přehrávači vypadne s ním
     blocks.delete(k);
     blockMeta.delete(k);
     const { drop, contents } = dropper(t.cell[0] + 0.5, t.cell[1] + 0.5, t.cell[2] + 0.5);
+    if (typeof disc === 'string' && ITEMS[disc]?.disc) drop(disc, 1);
     if (CROPS[t.type]) harvestCrop(t.type, k, drop);
     if (BLOCKS[t.type].drop) drop(BLOCKS[t.type].drop, 1);
     if (tableItems.has(k)) { const t = tableItems.get(k); if (t.food) contents({ id: t.food, n: 1 }); if (t.cutlery) contents({ id: 'cutlery', n: 1 }); tableItems.delete(k); }
@@ -391,11 +400,22 @@ export function useItem() {
     return;
   }
   // Pravé tlačítko na pracovní stůl nebo táborák otevře jeho okno.
-  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
+  const STATION_UI = { workbench: 'bench', campfire: 'fire', chest: 'chest', safe: 'safe', stove: 'kitchen', furnace: 'furnace', adv_bench: 'adv', garage: 'garage' };
   const held0 = heldStack();
   if (target?.kind === 'block' && target.type === 'table') { useTable(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && (target.type === 'prison_gate' || target.type === 'prison_rune')) { // bludiště vězení (player/prison.js)
+    if (NET.jail) NET.req(['vez', target.type === 'prison_gate' ? 'gate' : 'rune', ...target.cell]); else toast(target.type === 'prison_gate' ? 'Brána z vězení: otevře se jen vězňovi s hotovým úkolem' : 'Runa tiše září');
+    return;
+  }
   if (target?.kind === 'block' && target.type === 'donation_box') { openInventory('dar'); NET.req(['dary']); return; } // pokladnička darů u sochy (ui/donation-ui.js)
   if (target?.kind === 'block' && target.type === 'chair' && !player.sitting) { sitOn(bkey(...target.cell)); return; }
+  if (target?.kind === 'block' && target.type === 'hell_portal') { useHellPortal(); return; } // portál do pekla (world/hell.js)
+  if (target?.kind === 'block' && target.type === 'hell_altar') { useAltar(); return; } // oltář Marka boha všemohoucího: cesta z pekla
+  if (target?.kind === 'block' && target.type === 'hell_lava') { // láva: prázdný kbelík = kbelík lávy (láva neubývá)
+    if (held0?.id === 'bucket') { swapHeld('lava_bucket'); Sound.pour?.(); toast('Nabral jsi lávu'); } else toast('Na lávu potřebuješ prázdný kbelík');
+    return;
+  }
+  if (target?.kind === 'block' && target.type === 'jukebox') { useJukebox(bkey(...target.cell), target.cell); return; } // přehrávač filmové hudby
   if (held0?.id === 'fishing_rod') { useRod(); return; }
   // Studna: prázdný kbelík naplníš vodou
   if (target?.kind === 'block' && target.type === 'well') {

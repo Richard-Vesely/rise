@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { BLOCKS, shapeBoxes } from '../../../shared/data/index.js';
 import { blockMeta, bkey } from '../../../shared/world/state.js';
+import { rng } from '../../../shared/util.js';
 import { terrainH } from '../../../shared/world/terrain.js';
 import { QUALITY } from '../game/prefs.js';
 import { scene } from './renderer.js';
@@ -14,8 +15,7 @@ const shapeGeo = new Map();
 // Praskliny rostou od středu: každý stupeň přidá další úsečky (stejné náhodné číslo = stejný vzor pro všechny stupně).
 function makeTextures() {
   const N = QUALITY === 'low' ? 64 : 128, s = N / 64;
-  let seed = 7;
-  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const rand = rng(7);
   // větve: [x, y, úhel, tloušťka]; každý krok prodlouží živé větve, občas se některá rozdvojí
   const segs = [], a0 = rand() * 6.28;
   let tips = [[32, 32, a0, 1.5], [32, 32, a0 + 2.3, 1.3], [32, 32, a0 + 4.2, 1.2]];

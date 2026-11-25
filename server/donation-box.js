@@ -48,7 +48,7 @@ export function createDonationBox({ ownerId, ownerName = '', saved, send, onDona
     if (!known(id) || !Number.isInteger(n) || n < 1 || n > Math.max(1, ITEMS[id].stack || 64)) return; // nesmysl: nic se nevrací
     const wear = wearOf(id, w);
     const back = () => send(cid, wear ? ['give', id, n, wear] : ['give', id, n]);
-    if (ownerItem(id)) { if (isOwner(ownerId, profile)) back(); send(cid, ['toast', 'Hůl vlastníka se darovat nedá']); return; } // jen vlastník ji dostane zpátky
+    if (ownerItem(id)) { if (isOwner(ownerId, profile)) back(); send(cid, ['toast', `${ITEMS[id].name} se darovat nedá`]); return; } // předmět vlastníka: jen vlastník ho dostane zpátky
     if (!profile) { back(); send(cid, ['toast', 'Darovat jde jen na serveru kroužku s přihlášeným hráčem']); return; }
     const same = box.find((s) => s.id === id && (s.w || 0) === wear);
     if (!same && box.length >= BOX_MAX) { back(); send(cid, ['toast', 'Pokladnička je plná, zkus to jindy']); return; }
@@ -94,7 +94,7 @@ export function createDonationBox({ ownerId, ownerName = '', saved, send, onDona
     sendState,
     /** Nový žebříček dárců z hlavního vlákna. */
     setTop(t) { top = Array.isArray(t) ? t : []; },
-    /** Předměty do pokladničky bez zápisu do knihy darů (výkupné z vězení, server/prison.js). */
+    /** Předměty do pokladničky bez zápisu do knihy darů (dnes je nic nevolá; dřív výkupné z vězení). */
     put(id, n) {
       if (!known(id) || !Number.isInteger(n) || n < 1) return;
       const same = box.find((s) => s.id === id && !s.w);

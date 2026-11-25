@@ -3,7 +3,7 @@
 // Usage: node tests/playtest/peer.mjs [dir-or-url]   (default dist)
 import path from 'node:path';
 import fs from 'node:fs';
-import { launch, serveDir, checker, openPage, waitGame, sleep } from './lib.mjs';
+import { launch, serveDir, checker, openPage, waitGame } from './lib.mjs';
 
 const target = process.argv[2] || 'dist';
 const out = process.argv[3] || 'playtest-peer';

@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EMBLEMS, HAIR_COLORS, LIGHT_COLORS, SKIN_TONES, SUITS, SUIT_COLORS, SUIT_IDS, VISOR_COLORS, cleanCostume, isHero } from '../../../shared/data/costumes.js';
 import { animateCharacter, buildCharacter, disposeCharacter, emblemTex } from '../render/character.js';
+import { esc } from '../../../shared/util.js';
 
 const KEY = 'rise-obleky';
 const readAll = () => { try { const o = JSON.parse(localStorage.getItem(KEY)); return o && typeof o === 'object' ? o : {}; } catch { return {}; } };
@@ -175,5 +176,4 @@ function open(opts) {
   };
 }
 function close() { stop?.(); stop = null; box?.remove(); box = null; }
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 window.RiseCostume = { open, close, get isOpen() { return !!box; } };

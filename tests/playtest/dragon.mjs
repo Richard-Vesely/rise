@@ -70,43 +70,25 @@ try {
   console.log('PASS dragon always faces the player, including in creative mode');
   await page.evaluate(() => { T.tp(-40000, -44, 0); T.aim(-40000, 3, -72); T.step(10); });
   await shot(page, 'test-results/dragon-cave.png');
-  const fight = await page.evaluate(() => {
+  const ranged = await page.evaluate(() => {
     const m = game.mobs.find(m => m.type === 'dragon');
-    T.tp(m.pos.x, m.pos.z + 12, 0); T.aim(m.pos.x, 2, m.pos.z); game.setCreative(false); game.player.hp = 200;
-    const z0 = m.pos.z; T.step(75); T.tp(m.pos.x, m.pos.z + 3, 0); T.step(24);
-    const hp = game.player.hp; game.setCreative(true);
-    return { hp, moved: m.pos.z > z0, kind: game.mobView(m).kind, bar: T.text('dragonHealth') };
-  });
-  assert.ok(fight.moved); assert.ok(fight.hp < 200, JSON.stringify(fight)); assert.equal(fight.kind, 'dragon'); assert.match(fight.bar, /Drak Země draka/);
-  console.log('PASS dragon model, pursuit, bite and health bar');
-  await page.evaluate(() => { T.tp(-39993, -65, 0); T.step(80); const m = game.mobs.find(m => m.type === 'dragon'); T.aim(m.pos.x, 2.5, m.pos.z); });
-  await shot(page, 'test-results/dragon-close.png');
-  const sword = await page.evaluate(() => {
-    const m = game.mobs.find(m => m.type === 'dragon');
-    T.give('iron_sword', 1); T.hold('iron_sword'); game.setCreative(false); game.player.hp = 100;
-    T.tp(m.pos.x, m.pos.z + 4.2, 0); T.aim(m.pos.x, 2, m.pos.z);
-    const hp = m.hp; game.input.lmb = true; T.step(30); game.input.lmb = false;
-    game.setCreative(true); return { hp, after: m.hp };
-  });
-  assert.ok(sword.after < sword.hp, 'normal sword input damages the dragon');
-  console.log('PASS dragon can be fought with an ordinary sword');
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const kill = await page.evaluate((attempt) => {
-      const m = game.mobs.find(m => m.type === 'dragon');
-      game.setCreative(false); T.tp(-40000, attempt === 0 ? -3 : -72, 0.45); game.player.hp = 1;
-      m.pos.set(game.player.pos.x, game.player.pos.y + 5, game.player.pos.z);
-      m.vel.set(0, 0, 0); m.hp = 120; m.cd = 0; m.windup = 0;
-      T.step(20);
-      return { alive: game.player.alive, dragonHP: m.hp };
-    }, attempt);
-    assert.deepEqual(kill, { alive: false, dragonHP: 500 }, 'bite from above kills and fully heals dragon every time');
-    await page.waitForFunction(() => game.player.alive, null, { timeout: 10000 });
-  }
-  await page.evaluate(() => {
+    T.tp(m.pos.x, m.pos.z + 20, 0); game.setCreative(false); game.player.hp = 100;
+    T.step(2);
+    const warning = !!game.mobView(m).dragonFire?.root.visible;
+    const locked = m.dragonCast?.to.z;
+    T.step(50);
+    const hp = game.player.hp;
     game.setCreative(true);
-    const m = game.mobs.find(m => m.type === 'dragon'); T.tp(m.pos.x + 3, m.pos.z, 0);
+    return { warning, locked, hp, bar: T.text('dragonHealth') };
   });
-  console.log('PASS attacks directly underneath and full healing after two player kills');
+  assert.equal(ranged.warning, true); assert.ok(ranged.hp < 100 && ranged.hp > 0);
+  assert.ok(ranged.bar.length > 0);
+  console.log('PASS visible warning and real ranged fireball damage');
+  await page.evaluate(() => {
+    const m = game.mobs.find(m => m.type === 'dragon');
+    game.setCreative(true); T.tp(m.pos.x + 3, m.pos.z, 0); T.aim(m.pos.x, m.pos.y + 2, m.pos.z);
+  });
+  await shot(page, 'test-results/dragon-close.png');
   const death = await page.evaluate(() => {
     T.clearInv();
     const m = game.mobs.find(m => m.type === 'dragon'); m.invT = 0; game.hitMob(m, m.hp); T.step(20);
@@ -116,11 +98,11 @@ try {
   });
   assert.equal(death.flag, true);
   assert.deepEqual(death.loot, { sky_helmet: 1, sky_chestplate: 1, sky_leggings: 1, sky_boots: 1,
-    markorite_sword: 1, markorite_pick: 1, markorite: 16, gold_ingot: 16, shard: 12, markapple: 5 });
+    markorite_sword: 1, markorite_pick: 1, markorite: 128, gold_ingot: 32, shard: 24, markapple: 10 });
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.click('#mSolo'); await waitGame(page);
   const restored = await page.evaluate(() => { T.step(90); return { dragon: game.mobs.some(m => m.type === 'dragon'), cleared: game.worldState().ruinsOpened.includes('dragon-den-v1'), cave: game.blocks.has('-40000,12,-72') }; });
   assert.deepEqual(restored, { dragon: false, cleared: true, cave: true });
-  console.log('PASS dragon loot and permanent defeat after reload');
+  console.log('PASS dragon loot and safe escape period after reload');
   const home = await page.evaluate(() => {
     game.setCreative(true); T.tp(-40000, -1.5, 0.45); game.player.yaw = Math.PI;
     game.keys.add('KeyW'); T.step(18); game.keys.delete('KeyW'); T.step(80);

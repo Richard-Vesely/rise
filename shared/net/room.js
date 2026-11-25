@@ -7,6 +7,7 @@ import { dayCount, dayTime } from '../sim/day.js';
 import { claimGroundItem } from '../sim/ground-items.js';
 import { armyCommand, armyHit } from '../sim/army.js';
 import { hurtMob, mobs, spawnMob } from '../sim/mobs.js';
+import { dragonNet } from '../sim/dragon.js';
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
 import { Vec3 } from '../vec3.js';
@@ -179,7 +180,7 @@ export function pullTarget(from, kind, id, x, y, z) {
   x = Number(x); y = Number(y); z = Number(z);
   if (![x, y, z].every(Number.isFinite)) return false;
   const me = playerOf(from)?.pose;
-  if (me && Math.hypot(me.x - x, me.y - y, me.z - z) > 5) return false;
+  if (me ? Math.hypot(me.x - x, me.y - y, me.z - z) > 5 : from !== 'host') return false; // hráč bez polohy nepřitahuje nic (hostitel bez polohy = hra pro jednoho)
   if (kind === 'm') {
     const m = mobs.find((q) => (q === id || q.nid === id) && !q.dead);
     if (!m) return false;
@@ -202,7 +203,8 @@ export function pullTarget(from, kind, id, x, y, z) {
  * @param {number} kb síla odhodu 0–2
  * @param {boolean} ranged šíp (větší dosah) nebo úder zblízka
  * @param {number} [kill] zranění, které zabije (jen server: Avada Kedavra hole vlastníka, server/owner-wand.js); platí jen ve světě
- *   se souboji (pvp, nebo pvp-mark a oba v Markově dimenzi), ne v souboji na klávesu N; bez odhodu, brnění ho netlumí
+ *   se souboji (pvp, nebo pvp-mark a oba v Markově dimenzi), ne v souboji na klávesu N; na jakoukoli vzdálenost (dosah hlídá
+ *   hůl), bez odhodu, brnění ho netlumí
  */
 export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
   if (from === to) return false;
@@ -210,9 +212,9 @@ export function hitPlayer(from, to, dmg, yaw, kb, ranged, kill = 0) {
   if (!a || !t || a.alive === false || t.alive === false || t.cr || a.cr) return false; // mrtví a hráči v kreativním režimu nebojují
   const world = NET.pvp || (NET.pvpMark && isMark(a.x) && isMark(t.x)); // aréna, nebo pvp-mark: oba v Markově dimenzi
   if (!world && (kill || !(a.pv && t.pv))) return false; // jinde jen když mají souboje zapnuté oba (klávesa N)
-  if (Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
+  if (!kill && Math.hypot(a.x - t.x, a.y - t.y, a.z - t.z) > (ranged ? PVP.range : PVP.reach)) return false;
   const now = performance.now() / 1000;
-  if (now - (T.hurtAt || -9) < PVP.invuln) return false;
+  if (!kill && now - (T.hurtAt || -9) < PVP.invuln) return false;
   T.hurtAt = now;
   T.lastHit = { by: from === 'host' ? NET.name : A.name, pid: from, t: now }; // komu připsat bod, když zraněný padne
   const n = kill || clamp(Number(dmg) || 1, 0, 20) * PVP.mult, k = kill ? 0 : clamp(Number(kb) || 1, 0, 2) * 0.7, y = Number(yaw) || 0;
@@ -257,18 +259,6 @@ export function armyChat(pid, name, text, leader = undefined) {
     give: (id, n) => { if (pid === 'host') NET.localLoot?.({ pos: room.local.pose() }, id, n); else sendTo(pid, ['give', id, n]); },
     reply: (t) => { if (pid === 'host') room.onChat('⚔ Armáda', t); else sendTo(pid, ['chat', '⚔ Armáda', t]); },
     goto: pid === 'host' ? null : (w) => sendTo(pid, ['goto', w]), // jen server kroužku: prohlížeč se přepojí (client/src/net/multiplayer.js)
-    poseOf: (id) => playerOf(id)?.pose,
-    fx: (kind, x, y, z, t) => { broadcast(['fx', kind, x, y, z, t]); NET.onFx?.(kind, x, y, z, t); }, // atomovka / meteor: všichni vidí pád a výbuch
-    hurt: (x, y, z, r, dmg, spare) => { // úder z nebe zraní všechny v dosahu (kromě spare)
-      for (const id of ['host', ...others.keys()]) {
-        const q = playerOf(id)?.pose;
-        if (!q || id === spare || q.alive === false) continue;
-        const d = Math.hypot(q.x - x, q.y - y, q.z - z);
-        if (d >= r) continue;
-        const dx = (q.x - x) / (d || 1), dz = (q.z - z) / (d || 1);
-        if (id === 'host') NET.hurtLocal?.(dmg, dx, dz); else sendTo(id, ['dmg', dmg, dx, dz]);
-      }
-    },
   });
 }
 export function setPerm(P, on) {
@@ -297,7 +287,7 @@ export function updateRoom(dt) {
   }
   if ((NET.mobT -= dt) <= 0) {
     NET.mobT = 0.2;
-    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0])]); // poslední = rudé oči (štvanice, sim/hunt.js)
+    if (others.size) broadcast(['mobs', dayTime, dayCount, mobs.map((m) => [m.nid, m.type, r2(m.pos.x), r2(m.pos.y), r2(m.pos.z), r2(m.ry), Math.round(m.hp), r2(m.flash), m.dead ? 1 : 0, m.eggs || 0, m.milkT > 0 ? 1 : 0, m.hunt ? 1 : 0].concat(m.type === 'dragon' ? [dragonNet(m)] : []))]);
   }
   if ((NET.kvT -= dt) <= 0) {
     NET.kvT = 0.5;

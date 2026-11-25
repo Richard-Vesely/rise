@@ -121,7 +121,10 @@ When you add or change a feature, update this file in the same pull request.
   black (nights and caves are dark but readable). All look numbers can be tuned live in the console (`game.LK`).
   - **Grafika Automaticky** picks the tier from the graphics card (`client/src/game/gpu.js`): separate card → *vysoká*,
     integrated (Intel, AMD Radeon Graphics, Apple) → *střední*, software WebGL (CI) or touch device → *nízká*.
-    The Settings window shows what Automaticky chose.
+    The Settings window shows what Automaticky chose. On a **weak integrated GPU** (plain Intel UHD/HD Graphics, not
+    Iris Xe or Arc; `gpuWeak`) *střední* is trimmed so it stays smooth: about 45 % fewer grass blades with 3 segments,
+    leaf clusters only up to 25 m and detailed crowns up to 30 m, fewer rain drops and particles, and dynamic
+    resolution may go down to 55 %.
   - **Day and night**: golden hour with long warm shadows, a **sunset** with an orange-to-pink horizon and violet sky
     (about 17:00–19:30), stars only after dusk, a moon that lights the land in cool blue and casts shadows, fireflies
     that pulse gently. Sky light fills shadows (about a third of the sun) so shadows are never black.
@@ -152,8 +155,9 @@ When you add or change a feature, update this file in the same pull request.
     beyond ~250 m (no wall of lines on the horizon; the compass still shows shards), at night all of them shine.
   - **Powered cables** show their metal (copper, gold) and carry **cyan pulses**; faster pulses = more power used.
   - **Grafika: střední / vysoká** draw through a post-processing chain (`client/src/render/post.js`, `postprocessing`
-    + `n8ao`): HDR; sun/moon **shadows** (`shadows.js`: one map that follows the player, 20–30 updates per second; near
-    trees cast shadows through invisible copies); **height fog coloured by the sky** in the view direction (bluer away
+    + `n8ao`): HDR; sun/moon **shadows** (`shadows.js`: one map that follows the player, 15–30 updates per second
+    (15 on integrated graphics with *střední*); near trees cast shadows through invisible copies; caves without a hole
+    from the surface are left out of the shadow map); **height fog coloured by the sky** in the view direction (bluer away
     from the sun, warmer toward it) plus a distant lighter mountain ridge; **bloom** on lights, lava, crystals and neon;
     AgX tone mapping with hue protection (no orange-to-red shift), cool shadows and warm highlights, moonlit blue
     nights; **eye adaptation** (up to +0.8 EV at night, +1.2 EV in caves, over ~1.5 s); **clouds** lit by the sun with
@@ -161,10 +165,16 @@ When you add or change a feature, update this file in the same pull request.
     - *vysoká*: MSAA 2×, sun **shafts** (16 steps, only when looking toward the sun), 2048 px shadows and **ambient
       occlusion** (N8AO, half resolution) on a separate graphics card; 1024 px shadows and no AO on integrated graphics.
     - *střední* (the club laptops): 1024 px shadows, no AO or shafts, FXAA instead of MSAA.
-    - **Dynamic resolution** drops to 60–70 % when a frame takes over ~18 ms and comes back when there is headroom.
+    - **Dynamic resolution** drops to 60–70 % (55 % on a weak integrated GPU) when a frame takes over ~18 ms and comes back when there is headroom.
       With a window open (backpack, computer, guide, *Můj oblek*) the world behind it renders at half resolution without AO.
   - **Grafika: nízká** stays as cheap as before (no composer, no shadows, ACES); it still gets the warm-white fire light,
     wind, weather, dusk sky, simple water, reeds, embers, cave edges and ore light. CI renders with it.
+  - **Smoothness** (no stutters): sky reflections are redrawn into the same buffers (every ~15 s, more often at dusk and
+    dawn), the forest uploads only the trees it uses, block changes from the rules (a torch falls, a ruin appears) and
+    from other players are merged into one rebuild per frame (other players: at most 5× a second; your own building shows
+    at once), a growing crop or food on a table rebuilds only that one model, and the HUD writes to the page only what changed.
+    Measure: `npm run perf` (`tests/playtest/perf.mjs`: frame times while flying and building; `PERF_GPU=1` uses the real
+    graphics card, `PERF_CPU=4` slows the processor like a weak laptop; headless numbers are only indicative).
   - Screenshots for comparing graphics: `node tests/playtest/shots.mjs dist <out> [--quality low|medium|high|auto]
     [--perf] [--views all] [--jpeg] [--size WxH] [--timeout s] [--skipdraw]` (fixed views at 1600×900, `--views all` adds golden hour, night, rain, dawn fog and the
     Mark dimension; `--perf` writes ms per frame).
@@ -299,7 +309,25 @@ When you add or change a feature, update this file in the same pull request.
   **workshop** (*Dílna*). ~260 recipes in 12 categories with a recipe book and "only what I can make".
   A **search box** (🔍 *Hledat…*) above the book filters it by item name (accents optional, so *zelezo* finds *Železo*);
   it works for recipes, the creative item list, the campfire, the furnace and the stove cookbook, and is cleared when the window closes.
+- **Second hand** (like Minecraft): one more slot under the armor in the backpack (a shield outline when empty); **F** swaps the
+  item in the hand with the second hand (aiming at a vehicle, F still gets in). Any item can be held there (not the owner's
+  wand or potion) and is shown in the left hand, in first person and to other players (pose `oh`). A **shield** (*Štít*:
+  planks + iron, `PIP / PPP / _P_`) guards while the right button is held, in either hand (in the second hand only while the
+  main hand is empty or holds a sword, axe, pickaxe, shovel or armor): a hit from the front (about ±70°: mobs, the dragon,
+  swords and arrows of other players) is stopped and only pushes a little, the shield wears by 1 (336 blocks); from behind
+  it doesn't help, and the owner's Avada Kedavra goes through. Other players see the raised arm (pose `bl`). Shift + click
+  puts a shield from the backpack into the second hand. A **torch** in either hand lights the area around you. A **block**
+  in the second hand is placed with the right button (with the white outline) while the main hand is empty or holds a tool,
+  weapon or armor. The **bow** takes arrows from the second hand first. On death the second hand drops too; the arena
+  empties it. Saved in the browser and on the server (`off`). Code: `client/src/player/offhand.js`, the left hand in
+  `client/src/render/offhand-view.js`, the shield model `client/src/render/shield-model.js`.
 - **Chest** (*Truhla*, 27 slots).
+- **Safe** (*Trezor*, 27 slots, recipe in the backpack: a chest + 3 stones). The first time it is opened the player
+  makes up a code (4–8 digits, typed twice); after that it opens only with that code (3 wrong tries → a short wait
+  that doubles each time, at most 5 minutes). It can't be mined (also not by magic or in creative); whoever knows the code can take an
+  empty safe back (*Sebrat trezor*). The code is kept only as a fingerprint in the safe's `blockMeta` (bits 0–2
+  rotation, above that the fingerprint), so the save format is unchanged. It is a lock for friends, not a bank (see
+  [KNOWN-ISSUES.md](KNOWN-ISSUES.md)).
 - **Farm traps**: spikes (*Bodce*) hurt mobs; loot of mobs killed on spikes goes to a chest nearby.
 - **Mob spawner** blocks in dungeons and fortresses.
 - **Graphic update (Hytale style)**: every hit while mining makes the block jolt (the crack shell swells for 130 ms), knocks out
@@ -310,7 +338,7 @@ When you add or change a feature, update this file in the same pull request.
 
 *Kód:* torches `shared/world/torch.js` (rules), `client/src/render/torch-model.js` (model), `client/src/render/torch-light.js` (baked light), block textures `client/src/render/textures.js` (helpers `texgen.js`), materials `client/src/render/materials.js`, 3D icons `client/src/render/icon-render.js`, tool rules (durability, mining speed, attack charge, repair) `shared/tools.js`, wear on this screen `client/src/player/durability.js`,
 cracks `client/src/render/crack.js`, chips and crit stars `client/src/render/chips.js`, tool and combat sounds `client/src/audio/tool-sounds.js`,
-mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sound.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
+mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack `client/src/player/inventory.js`, inventory window and crafting `client/src/ui/inventory-ui.js` (safe code `client/src/machines/safe.js` + rules `shared/world/safe.js` + model `safe-model.js`, search box `book-search.js`, tricks `inv-tricks.js`, tooltips `item-tooltip.js`, slots and hotbar `slots.js`, look `client/src/styles/inventory.css`, UI sounds `client/src/audio/ui-sounds.js`), inventory rules `shared/inventory.js`, data `shared/data/` (items, blocks, recipes), dropped items `shared/sim/ground-items.js` + `client/src/world/ground-items.js`, spikes and spawners `shared/sim/mobs.js`.
 
 - **Gold shop**: in the chat (T, now also in single player, where it is only for commands) `/sell` (or `/prodat`) sells
   all gold from the backpack for coins (*Zlaťák*, a normal item: gold ingot 10, gold ore 6, gold block 90, gold wire 1, gold
@@ -318,7 +346,35 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
   16 dmg, red 17; glowing blade in the hand), trident (stabs like a sword, right-click throws it: 14 dmg, stays in the hand),
   wings (right-click = 30 s of flying), flamethrower (hold right-click = stream of fire ~9 m), medkit (full health) and the
   fighter jet (*Stíhačka*, vehicle `jet`: flies like the biplane with a 3.4× stronger engine). Prices and items
+  More special gadgets: golden light saber (18), jetpack (hold right-click = fly up), teleport orb (right-click = jump
+  where you look, up to 40 m, used up), freeze ray (5 damage, slows the mob 4 s), blaster (hold = fast laser fire, 6 each),
+  thunder hammer (13 like a sword, right-click = lightning where you aim, every 3 s), speed potion (30 s 60 % faster),
+  grenade (thrown in an arc, explodes: 14 damage within 4 m), firework (a rocket that bursts in a random colour) and the
+  grappling hook (catches a block or the ground up to 35 m away and pulls you there).
+  Plus 123 normal game items (`SHOP_MORE`: basics, tools, armor, food, farming, building blocks, tech parts, vehicles; no gold,
+  so nobody can buy and sell in a loop); the window has a search box and scrolls. Prices and items
   `shared/data/shop.js`, window `client/src/ui/shop.js`, gadgets `client/src/player/gadgets.js`, jet model `client/src/vehicles/jet-model.js`.
+- **Film music player** (*Přehrávač filmové hudby*, block `jukebox`, 60 coins) and 5 **music discs** (25 coins each:
+  Hrdinský pochod, Hvězdná výprava, Tajemný les, Poslední bitva, Velké finále). Right-click the player with a disc in hand =
+  the disc goes in and plays; right-click again = the disc comes back. Breaking the player drops the disc too. The tracks are
+  our own film-style compositions (march, space, mystery, battle, finale) played by a WebAudio synthesizer (strings, brass,
+  bass, timpani, drums) from the player's place (heard up to 60 m, loud: full volume within 8 m, concert hall echo, uses the
+  *Hudba* volume). *Hvězdná výprava* is a big space opera in the style of film scores (brass fanfare, march drums,
+  cymbals, strings in two octaves); all melodies are our own, none is copied from a film. The disc is kept in `blockMeta`
+  (player key → disc id), so every player nearby hears it. Code `client/src/audio/film-music.js`.
+
+- **Hell** (*Peklo*): a big closed cave of hell rock high in the sky far away (`HELL` in `shared/world/hell.js`: floor,
+  walls and roof can't be mined, so nobody digs out). Inside: lava pools on the floor (glow, burn 6 HP every 0.5 s; the
+  full fire armor set protects), pillars of fire ore (rare: needs an iron pick, gives a fire gem), up to 5 **devils**
+  (*Ďábel*: fast, 28 HP, 11 damage, horns, tail, trident; drop fire balls, rarely a fire gem 8 % and the horror music disc
+  5 %) and the **statue of Marek the almighty god** with a glowing sign *MAREK – BŮH VŠEMOHOUCÍ*. In front of it the
+  **altar**: the only way home. It takes 3 music discs (any), 24 fire gems and a lava bucket (fill an empty bucket at the
+  lava); the items disappear (nobody gets them) and you go home to the spawn. Way in: the **hell portal** block (crafted
+  from 8 obsidian + coal), right-click warns first. From fire gems: fire armor set (*Ohnivá sada*, 4/8/7/4, set bonus:
+  lava doesn't burn) and the fire sword (15 damage). The fire ball (*Ohnivá koule*) is thrown with right-click (10 damage).
+  The hell is built once by whoever holds the world (`ensureHell` in `updateSpawns`). Sending players there as a punishment
+  is **not** built (rule 11: Richard's decision); `sendToHell()` in `client/src/world/hell.js` is ready for him.
+  Code: data `shared/data/hell.js`, place `shared/world/hell.js`, browser `client/src/world/hell.js`, devil model `client/src/mobs/mob-models.js`.
 
 ## 5. Food and cooking
 - **Campfire** (*Táborák*): roast meat and fish, smelt iron, bake sand into glass, clay into tiles.
@@ -348,20 +404,28 @@ mining and placing `client/src/player/interaction.js` + `targeting.js`, backpack
 | Stínožrout (shadow-eater) | 10 | night monster, burns at sunrise, avoids light and the shrine; violet veins and a moonlit rim show its outline at night |
 | Markoman | 26 | Mark dimension, always hostile, good loot |
 | Krystalový golem | 60 | Mark dimension, strong, drops shards and markorite |
-| Obří pavouk (giant spider) | 30 | only in the club server's prison: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka* (the prison item) |
-| Drak Země draka | 500 | guards the dragon cave; bites for 75 before armor, with 0.35 s warning and 1.15 s between attacks; within 3.2 m uses a stronger bite for 90 with 0.2 s warning and 0.9 s between attacks; continuously pursues players throughout the dragon dimension at up to 10 m/s, including during bite warnings, descends and closes to about 1.2 m for melee, and does not despawn when far away |
+| Obří pavouk (giant spider) | 30 | only in the club server's prison maze: fast (6.6 m/s), bites for 12, always hostile; black, 8 legs, 8 glowing red eyes, clicks and hisses; drops *Oko obřího pavouka*; killing 3 is one of the prison tasks |
+| Drak Země draka | 1200 | ranged fireball boss; locks a marked impact circle, charges for 0.75 s, tracks until 0.3 s before launch, then fires up to 48 m away at 42 m/s; blast radius 3.2 m, damage 44 before armor; below half health charges in 0.55 s and deals 55; alternates single shots and a three-ball fan covering both side lanes; after three shots lands for 2.5 seconds without attacking, giving melee fighters an opening |
 
 The dragon has horns, wings, a moving tail, a roar and a health bar. It can be hit with existing weapons and arrows.
-It starts following as soon as a player enters the dragon dimension, including at the return portal and in creative mode.
-Its body and head face its target immediately, even when the player circles behind it; it follows without biting in creative mode. In survival it also attacks at the return portal, including directly underneath its body.
-Its bite reaches players directly underneath it, up to 6 m below its feet; the line of sight follows the downward strike and cannot pass through a solid floor.
-After killing a bitten player it restores all 500 HP. Local kills heal immediately; remote kills count when the player's death arrives within 1 s of the bite, even if the dragon has switched targets. Escaping or surviving a bite does not heal it.
-It does not attack creative players or bite through walls. Defeating it guarantees a complete sky armor set
+Fireballs track during the yellow warning, then lock for the final 0.3 s before launch. Keep moving; fan volleys also cover both side lanes, so dodge along their axis or use cover. Walls intercept shots already in flight. Overlapping balls from the same volley hurt each player only once.
+Within 4.5 m the dragon warns of a radial stomp (0.8 s, or 0.7 s below half HP), dealing 95 / 130 damage and knockback even directly beneath its body. Sprint out of the red circle; walls and solid floors block the strike. No new stomp starts during the 2.5-second landing window.
+The dragon stops only to aim, stomp or rest, keeps roughly 7-12 m distance, chases at up to 18 m/s and retreats at 9 m/s; after launch it keeps moving instead of waiting for the explosion. It descends while resting so a sword can reach it.
+It prioritizes survival players, so a creative bystander cannot shield another fighter. Creative players, dead players and players outside the dragon dimension are safe.
+After a lethal fireball it restores all 1200 HP; surviving or escaping the attack does not heal it. Dead dragons cannot finish an attack.
+Stomps recharge in 1.4 s; between volleys it waits only 0.55 s, or 0.35 s below half health. Heavy armor and sprinting are strongly advised.
+The host synchronizes all three fireball trajectories, stomp warnings, explosions and the landing timer with all clients through an optional extra field of the mob snapshot.
+Defeating it guarantees a complete sky armor set
 (helmet, chestplate, leggings, boots; double jump, slow fall and healing), a markorite sword and pick,
-16 markorite ingots, 16 gold ingots, 12 light shards and 5 Mark apples. Equipment is unworn.
-It marks its cave cleared in the existing `ruinsOpened` set: it stays defeated after saving and reloading.
+128 markorite ingots (two stacks), 32 gold ingots, 24 light shards and 10 Mark apples. Equipment is unworn.
+The player who lands the killing blow gets the reward on every victory, including ranged kills; local backpack overflow drops at the winner's feet.
+A Czech victory message gives the winner **two real minutes to return home through the portal** before the dragon can return.
+It marks its cave explored in `ruinsOpened`, but this no longer prevents another fight. The optional saved field
+`dragonRespawnAt` keeps the return deadline across reloads and server restarts; time offline counts too.
+After that deadline, one dragon with full health spawns in its cave when a player is within 80 m in the dragon dimension.
+Old saves without a deadline can spawn a dragon again, including caves cleared in earlier versions.
 Leaving an undefeated dragon and returning can restore its health, as for other monsters.
-Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`.
+Code: `shared/sim/dragon.js`, `mobs.js`; model `client/src/mobs/dragon-model.js`; effects `client/src/mobs/dragon-fire.js`.
 
 Monsters stay away from the shrine; light blocks keep shadow-eaters away.
 
@@ -524,12 +588,7 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   `/armada [n]` (90 units by default and at most: every fifth a crystal golem, the rest Markomen; never attacks Marek), `/utok <player>`, `/stop`,
   `/palac` (builds a palace 16 m in front of him, 20 blocks/s), `/tezit` (digs a pit 8 m in front, ores and some stone go to
   his backpack), `/rozpustit`, `/svet <name>` (club server only: Marek's browser leaves and joins that world by name or id),
-  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`).
-  `/at <player>` = atomic bomb on that player: everyone sees a missile fall for 2.5 s, then a flash, fireball, mushroom cloud and
-  shock wave; the crater removes about 800 blocks (underground voxels and built blocks, not bedrock) and everyone within 16 m
-  dies (Marek too, if he stands there), mobs there die. `/meteor` = meteor shower: 30 meteors over 14 s within 34 m of Marek,
-  each a small crater and 9 damage within 4.5 m (Marek is spared). Rules `shared/sim/strikes.js`, look `client/src/world/boom.js`
-  (`game.boomFx('nuke', x, y, z, t)` shows it without damage). This destroys other players' builds: the lektor may want it only in some worlds.
+  `/markorit [n]` (n markorite ingots, default 64, max. 640), `/gold [n]` (n gold ingots, default 64, max. 640; sell them in the shop with `/sell`), `/pomoc`. When Marek hits a player (a valid hit, fights on) or a mob, the army goes after that one too (`armyHit`).
   Runs where the world is held (server or browser host); the soldiers are normal mobs
   whose goal comes from `armyPlan`. On the club server the name is protected by the PIN, and the server owner (`OWNER_ID`) can command the army too. Code: `shared/sim/army.js`, owner part `server/army-owner.js`.
 - **Fights by choice (key N)** in every multiplayer world: N switches fights on or off (a badge top right, ⚔ in the name tag).
@@ -585,28 +644,59 @@ drawing, cameras, nitro, the car's driving) `car.js`; models `car-model.js`, `bi
   most every 20 s); anyone else loses it (the server removes it from their saved state, from ground drops and from chests;
   the browser removes it too). It casts like the magic wand (right button, **R** = next spell; the owner's learned spells
   work with it as well) plus two owner spells that the server checks against the logged-in profile:
-  - ***Avada Kedavra*** (green beam, 60 m, 5 mana, 1.5 s): kills a mob anywhere (loot and XP to the owner); kills a player
-    only where fights are on: a `pvp` world, or a `pvp-mark` world with both in Markova dimenze (not in fights by N, not a
-    creative player). Armor and *Ochranný štít* do not save you.
-  - ***Štvanice*** (red beam at a player, 60 m, 5 mana, 3 s): for 60 s (`HUNT.time`) every living mob within 40 m of that player
+  - ***Avada Kedavra*** (green beam, 1000 m, 5 mana, 1.5 s): 1 000 000 damage. Kills a mob anywhere, at any distance
+    the beam reaches (loot and XP to the owner); kills a player only where fights are on: a `pvp` world, or a `pvp-mark`
+    world with both in Markova dimenze (not in fights by N, not a creative player), also far away. Armor, *Ochranný štít*
+    and the donor bonus *obrana* do not save you. A wall stops the beam.
+  - ***Štvanice*** (red beam at a player, 1000 m, 5 mana, 3 s): for 60 s (`HUNT.time`) every living mob within 40 m of that player
     except the dragon and Marek's army (also normally peaceful animals: they bite for 6) gets **red glowing eyes** (everyone
     sees them) and hunts the player; a mob lets go beyond 80 m. Ends after 60 s, when the player falls or leaves the world.
     Mobs do not hurt the player inside a shrine (11 m). Works in every world.
   *Kód:* `server/owner-wand.js` (in `server/world-worker.js`), hunt rules `shared/sim/hunt.js` (used by `shared/sim/mobs.js`),
   browser `client/src/player/owner-wand.js`, item `shared/data/items.js`, spells `shared/data/magic.js`.
-- **Prison** (*Vězení*, every world of the club server; owner power, Richard's): a flat white platform of unbreakable
-  *Vězeňský blok* high in the sky far from everything (x 0, z −24000, y 120; 25×25 with a 3-block wall), with a small copy of
-  the donation statue and its box at the north wall. Only the owner sends players there, by chat: `/vezeni <jméno>` (also a
+- **Owner's XP potion** (*Lektvar nekonečných XP*, club server only; Richard, 18.11.2026): an owner item with the same rules as the
+  owner's wand (`OWNER_ITEMS`: the owner always has exactly one of each, given back when missing; nobody else keeps it; not
+  craftable, not in the creative list, cannot be thrown, dropped at death, put into a chest, machine, car or the crafting grid,
+  or donated). Right button with it in hand = drink: it gives exactly the XP still missing to the next level (`xpToLevelUp`),
+  so every drink is a level-up with the spell pick. It is never used up; holding the button drinks at most once a second.
+  Anyone else, or single player / a browser host, gets a toast that it works only for the server owner.
+  *Kód:* item `shared/data/items.js`, `xpToLevelUp` in `shared/data/magic.js`, drink `client/src/player/owner-wand.js`
+  (`drinkXpPotion`, called from `client/src/player/gadgets.js`), server `server/owner-wand.js`.
+- **Prison** (*Vězení*, every world of the club server; owner power, Richard's): a maze of unbreakable white *Vězeňský blok*
+  high in the sky far from everything (x 0, z −24000, y 120; 9×9 cells, 3-block corridors, 4-block walls, lanterns on some
+  posts; always the same maze). Only the owner sends players there, by chat: `/vezeni <jméno>` (also a
   player who is not online; they go in at their next login), `/propustit <jméno>`, `/vezeni` = who is inside and how far they
   are. The commands are never shown to others; from anyone else they are normal chat. Whoever kills the owner in a player
   fight goes to prison automatically. In prison you can't build, dig, place vehicles, use creative mode or chat commands;
-  leaving (flying, falling, a portal) or dying puts you back. Giant spiders live there and drop *Oko obřího pavouka*; donating
-  `PRISON_RELEASE` eyes (10 for now) to the box in the prison sets you free and puts you back at spawn (other items come back;
-  the eyes go to the owner's box, not to the donors' ledger). Who is in prison and how many eyes they gave is saved with the
-  world (`world.json` → `prison`), so it survives a restart and a new login; it is per world. Single player and the browser host have no prison.
-  *Kód:* building and spider spots `shared/world/prison.js` (from `server/sim.js`), rules `server/prison.js` (in
+  leaving (flying, falling, a portal) puts you back; dying puts you back at the start of the maze (the task progress stays).
+  **Getting out** (Richard, 18.11.2026: fun, about 5 minutes): the maze has a gate (*Brána z vězení*) in the middle of each side.
+  Each time a player is sent in, the server picks **one gate** for them (the compass shows it as ⛓; the others say "Tahle brána tě
+  nepustí") and **one task**: kill 3 giant spiders in the maze, touch 3 different *Runový kámen* in dead ends, or answer 3 math
+  problems / 3 logic riddles at the gate (number sequences, who is tallest, days of the week). Problems and riddles are new every
+  time and checked by the server (a wrong answer shows the right one and the gate waits 3 s). Task done + right click on the own
+  gate = free, back at spawn; the owner is told. The top line shows the progress (*Vězení: runy 1/3*). Who is in prison, their
+  gate, task and progress are saved with the world (`world.json` → `prison`; an old save from the spider-eye prison gets a new
+  task), so it survives a restart and a new login; it is per world. Single player and the browser host have no prison.
+  *Kód:* maze, gates, runes and spider spots `shared/world/prison.js` (from `server/sim.js`), tasks `server/prison-tasks.js`, rules `server/prison.js` (in
   `server/world-worker.js`; owner kill via `room.onKill` in `shared/net/room.js`), spider `shared/sim/mobs.js` + `client/src/mobs/spider-model.js`,
   player side `client/src/player/prison.js`.
+- **Bonuses for donors** (*Bonusy*, club server only; owner power, Richard's): the owner gives players bonuses by chat:
+  `/bonus <jméno> <druh…>` (druh: `syty`, `obrana`, `let`, `teleport` or `vse`; Czech synonyms work, e.g. `duch`, `letani`, `hlad`),
+  `/odebrat <jméno> [druh…]` (no kind = all), `/bonus <jméno>` = what the player has, `/bonus` = everyone with bonuses. A name
+  works without diacritics (`/bonus bara` = Bára) and the player does not have to be online. The commands are never shown to
+  others; from anyone else they are normal chat. Bonuses belong to the profile and work in **every world** of the server,
+  survive a restart, and reach a player at once wherever they play (a toast says what they got and how to use it).
+  They do not work in prison or in an arena (`pvp` world).
+  - ***Bez hladu*** (`syty`): hunger never drops.
+  - ***Velká obrana*** (`obrana`): every hit does a third of its damage (`BONUS_DEFENSE`, after armor).
+  - ***Létání*** (`let`): double Space = fly, like in creative mode (Space up, Shift down, Ctrl faster).
+  - ***Teleport duchem*** (`teleport`): **X** = your ghost leaves the body and flies fast (30 m/s, Ctrl 90 m/s) through
+    blocks and the ground, looking where it flies; a blue veil shows the ghost, and you see your body standing where you left it
+    (others see only the body). **X** again = you teleport there (inside a block or the ground: on top of it). **Shift+X** = back
+    to the body without teleporting. A hit, death or losing the bonus sends the ghost back.
+  *Kód:* bonuses `shared/data/bonus.js`, commands in a world `server/bonus.js` (in `server/world-worker.js`), storage
+  `server/bonuses.js` (main thread, `DATA_DIR/bonuses.json`), player side `client/src/player/bonus.js` (hunger and damage in
+  `survival.js`, flying in `player.js`) and the ghost `client/src/player/ghost.js` (in `client/src/game/loop.js`).
 - **Pause menu** (Esc): code + copy, player list, host can allow creative for one player or everyone, and kick.
 - **Chat** (T), only to players in the same world.
 - Everyone sees other players in **their own suit** (*Můj oblek*, sent in the position as `lk`), with a modern
@@ -657,10 +747,22 @@ A gentle compressor keeps the mix from clipping.
 *Kód:* `client/src/audio/`: `sound.js` (mix, volumes, positional sound, reverb, test renderer `Sound.offline`), `sfx.js`
 (material and game sound recipes), `voices.js` (animals, birds, insects, thunder), `materials.js` (which material is
 under the feet / being mined), `ambience.js` (ambience beds and one-shots), `hums.js` (machines and fires), `music.js`,
-`soundscape.js` (senses the surroundings each frame, other players, remote edits), `ui-sounds.js` (window sounds),
+`soundscape.js` (senses the surroundings each frame, other players, remote edits), `ui-sounds.js` (window and inventory sounds),
 `volume.js` (slider values), `movement.js` (water entry/exit and swimming cadence). Console: `game.Sound.music.start('night')`, `game.soundEnv`, `game.Sound.level()`.
 
 ## 12. Controls (summary)
+- **Body control with a webcam** (Settings → *Ovládání tělem*: *Chůze na místě*, *Náklon* or *Jen rukama (vsedě)*): MediaPipe Pose (Google; the library
+  and the model are downloaded from the internet only when switched on) finds the body in the camera picture; the video stays in
+  the computer. Walk: march on the spot (speed by the pace, fast = run) or lean forward / back; lean to the side = step aside; arm
+  out to the left / right = turn (you keep facing the screen); a small nod = look up / down; right hand above the head = attack /
+  mine, left hand above the head = right button; a jump = jump. First 3 s standing still = calibration (button *Kalibrovat*).
+  Coarse on purpose: only clear gestures count (arm fully out, hand well above the head for 0.2 s, a clear nod or lean) and then
+  move at one steady speed; everything is smoothed, so a shaky camera or small sways do nothing. Without visible knees (a laptop
+  camera) marching is recognised by the shoulders bobbing. Turning speed follows *Citlivost otáčení*; the calm pose adapts slowly.
+  *Jen rukama (vsedě)*: pumping the arms up and down alternately = walk (fast = run), arm out = turn, right / left hand above
+  the head = attack / right button, both hands above the head = jump, a nod = look; no side steps.
+  A small window bottom left shows the camera, the skeleton and what it understood. Gestures: `client/src/player/body-gestures.js`
+  (unit test `tests/unit/body.test.mjs`), camera: `client/src/player/body-control.js`.
 WASD move · Shift run · Space jump · mouse look · left button mine/attack · right button place/use/eat ·
 E inventory · Q / G drop (Ctrl+Q / Shift+G stack) · middle button pick block · C creative · H help · T chat · 1–9 / wheel hotbar · F vehicle (or passenger seat) · L lights · B horn / bell · N nitro · 1/2/3 bike gears · V view (first person / behind / front; vehicle camera in a vehicle) · O suit (*Můj oblek*) · Esc menu.
 In vehicles the touch screen adds *Brzda, Převod, Nitro, Klakson/Zvonek/Houkačka, Světla, Kamera, Vystoupit*; a passenger only gets *Kamera* and *Vystoupit*.

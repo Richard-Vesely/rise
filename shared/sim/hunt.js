@@ -14,7 +14,6 @@ let clock = 0;
 export function startHunt(pid, time = HUNT.time) { hunts.set(pid, clock + time); }
 /** Skončí štvanici (nebo všechny). */
 export function stopHunt(pid) { if (pid == null) hunts.clear(); else hunts.delete(pid); }
-export const isHunted = (pid) => hunts.has(pid);
 
 /**
  * Jednou za krok simulace (shared/sim/mobs.js): ubíhá čas, štvanice končí (oběť padla, odešla, vypršel čas).

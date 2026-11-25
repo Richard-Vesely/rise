@@ -10,8 +10,9 @@ import { pcOpen } from '../pc/computer.js';
 import { docOpen } from '../pc/doc-view.js';
 import { receiveGift } from '../pc/papers-world.js';
 import { startArena } from '../player/arena.js';
+import { askOpen } from '../player/prison.js';
 import { creative, guideOpen, isLocked, player, setCreative } from '../player/player.js';
-import { rebuildBlocks } from '../render/blocks.js';
+import { lastRebuildAt, rebuildBlocks } from '../render/blocks.js';
 import { rebuildForest } from '../render/forest.js';
 import { $ } from '../ui/dom.js';
 import { toast } from '../ui/hud.js';
@@ -22,7 +23,8 @@ import { applyLaterKV, onHostMsg, toHost } from './multiplayer.js';
 
 // ---------- hlavní smyčka sítě (volá ji tick)
 function netUpdate(dt) {
-  if (NET.dirtyBlocks) { NET.dirtyBlocks = false; rebuildBlocks(); }
+  // bloky od ostatních hráčů: celá přestavba nejvýš 5× za sekundu (při stavění v partě jinak běžela skoro každý snímek)
+  if (NET.dirtyBlocks && performance.now() - lastRebuildAt() >= 200) { NET.dirtyBlocks = false; rebuildBlocks(); }
   if (NET.dirtyForest) { NET.dirtyForest = false; rebuildForest(player.pos.x, player.pos.z, true); }
   if (NET.host) updateRoom(dt); // hostitel: změny světa, hráči, tvorové a malé mapy ostatním (shared/net/room.js)
   else {
@@ -69,7 +71,7 @@ if (MP) {
   $('hint').textContent += ' · T chat · N souboje · Esc menu a hráči';
   document.addEventListener('pointerlockchange', () => {
     if (isLocked()) { hidePause(); return; }
-    if (!invOpen && !guideOpen && !chatOpen && !pcOpen && !docOpen && !NET.leaving) showPause();
+    if (!invOpen && !guideOpen && !chatOpen && !askOpen && !pcOpen && !docOpen && !NET.leaving) showPause();
   });
   window.__netOnPeerError = (e) => { if (NET.client && !BOOT.conn?.open) leaveGame('Spojení s hostitelem se přerušilo.'); else console.warn('PeerJS:', e?.type); };
   if (NET.host) {

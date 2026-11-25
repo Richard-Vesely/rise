@@ -7,13 +7,13 @@ import { PRINT_TIME, elecOf, queuePrint } from '../../../shared/sim/power.js';
 import { papers } from '../../../shared/world/state.js';
 import { addStatus, addStrip, builder, techMats } from '../machines/machine-models.js';
 import { slotHTML } from '../ui/inventory-ui.js';
+import { esc } from '../../../shared/util.js';
 
 // ============================================================ dokumenty: textový editor, tiskárna, papíry ve světě, čtení a předání
 // pcDisks: uložené dokumenty každého počítače (klíč bloku -> { docs: [{ id, name, text, day }] }).
 // Tiskárna (power[k]): slots[0] papír, slots[1..3] vytištěné listy, q = fronta úloh { p: id papíru, n: kopií, done }.
 // paperSpots: papíry položené na zemi a na stole, pověšené na zdi, rámečky (id -> { d: id papíru | null, x, y, z, ry, w: na zdi, fr: rámeček }).
 export const DISK_MAX = 30, DOC_TEXT_MAX = 4000;
-export const escH = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 export const kvPend = (m, k) => { if (NET.client) NET.pend.set(m + '|' + k, performance.now() + 1500); }; // vlastní změnu hostitel hned nepřepíše
 export function newPaper(title, text) {
   const id = NET.uid();
@@ -32,8 +32,8 @@ export function printerDev(st) {
   const status = !job ? 'Čeká na tisk. Dokument pošli z textového editoru v počítači, který je ve stejné elektrické síti.'
     : st.slots[0]?.id !== 'paper' ? red('Došel papír – vlož papír do levého políčka.')
     : out >= 3 ? red('Zásobník je plný – vyber vytištěné listy.')
-    : st.pw ? `Tiskne „${escH(title)}“ – kopie ${job.done + 1} / ${job.n}` : red('Málo energie – stojí.');
-  const queue = (st.q || []).map((j, i) => `<div>${i + 1}. ${escH(papers.get(j.p)?.title || '…')} · ${j.done}/${j.n}</div>`).join('');
+    : st.pw ? `Tiskne „${esc(title)}“ – kopie ${job.done + 1} / ${job.n}` : red('Málo energie – stojí.');
+  const queue = (st.q || []).map((j, i) => `<div>${i + 1}. ${esc(papers.get(j.p)?.title || '…')} · ${j.done}/${j.n}</div>`).join('');
   return `<div class="fire-ui">${slotHTML(st.slots[0], 0, '', 'power')}<div class="parrow" style="width:90px"><i style="width:${job && st.pw ? ((st.t || 0) / PRINT_TIME) * 100 : 0}%"></i></div>
     ${[1, 2, 3].map((i) => slotHTML(st.slots[i], i, 'out', 'power')).join('')}</div>
     <div class="mc-note">${status}</div>${queue ? `<div class="mc-note">Fronta tisku:${queue}</div>` : ''}<div class="mc-note">Jeden list = 1 papír a ${PRINT_TIME} s. Příkon ${elecOf('printer').use} W jen při tisku.</div>`;

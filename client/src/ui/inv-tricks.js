@@ -4,10 +4,11 @@
 // náhled receptu při najetí myší. Pravidla políček jsou v shared/inventory.js.
 // Modul nic nespouští při načtení: posluchače zapne installInvTricks() z inventory-ui.js.
 import { BLOCKS, ITEMS, RECIPES } from '../../../shared/data/index.js';
+import { ownerItem } from '../../../shared/data/magic.js';
 import { applySpread, gatherInto, maxOf, pickItem, sortSlots, spreadPlan } from '../../../shared/inventory.js';
 import { blocks, chestOf, vehicles } from '../../../shared/world/state.js';
 import { VOX } from '../../../shared/world/voxels.js';
-import { uiSound } from '../audio/ui-sound.js';
+import { uiSound } from '../audio/ui-sounds.js';
 import { chatOpen } from '../net/mp-ui.js';
 import { pcOpen } from '../pc/computer.js';
 import { QUALITY } from '../game/prefs.js';
@@ -189,7 +190,7 @@ export function swapHot(c, i, h) {
     else { uiSound.deny(); return false; }
   } else {
     const bad = (c === 'armor' && t && ITEMS[t.id].armor?.slot !== i) || (c === 'car' && i === 0 && t && !['car_battery', 'car_battery_empty'].includes(t.id))
-      || (c === 'power' && i === 0 && t && blocks.get(ui.fireKey) === 'printer' && t.id !== 'paper') || (c === 'furnace' && t && furnaceRefuses(i, t.id));
+      || (c === 'power' && i === 0 && t && blocks.get(ui.fireKey) === 'printer' && t.id !== 'paper') || (c === 'furnace' && t && furnaceRefuses(i, t.id)) || (c === 'off' && ownerItem(t?.id));
     if (bad || (!s && !t)) { if (bad) uiSound.deny(); return false; }
     arr[i] = t;
     slots[h] = s;

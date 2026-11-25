@@ -7,7 +7,7 @@ explain what you change, keep changes small, and ask before big ones.
 
 *Říše* (repository *rise*, formerly *louka*) is Marek's survival/building game in the browser (Three.js): endless terrain with
 biomes, a voxel underground, trees, animals and night monsters, crafting (~260 recipes), cooking, farming,
-furnaces, electricity, cars, a bicycle, boats (motor and sail), a biplane and a seaplane, a garage, lakes, a computer with games
+furnaces, electricity, cars, a bicycle, boats (motor and sail), a biplane, a seaplane and a jet, a garage, lakes, a computer with games
 and a printer, and the Mark dimension behind a portal.
 The full feature list is [docs/FEATURES.md](docs/FEATURES.md); read it before adding something.
 
@@ -45,34 +45,38 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 | `shared/data/tech.js` | ores, furnace (`FURNACE_ONLY`, `FUEL`), workshop parts, engines, vehicles, computers, electric devices |
 | `shared/data/costumes.js` | suits for *Můj oblek* (`SUITS`, colours, emblems), `cleanCostume`, the short text `encodeCostume` sent in the pose (`lk`) |
 | `shared/data/index.js` | **import data from here**; finalizes recipes (grid pattern, category) once |
+| `shared/data/shop.js`, `hell.js`, `magic.js`, `bonus.js` | the gold shop (`/shop`, `/sell`); hell blocks, items and fire armor; XP, levels, mana and wand spells (`cleanMagic`, owner items `OWNER_ITEMS`); donor bonus kinds (owner only, rule 11). `shop.js` and `hell.js` come through `index.js`, `magic.js` and `bonus.js` are imported directly |
 | `shared/world/terrain.js` | terrain height, biomes, ponds and lakes (`lakeOf`; `pondOf` returns a lake when near one; its GLSL twin is `client/src/render/glsl.js`, keep them identical) |
 | `shared/world/voxels.js` | the underground (what is where naturally, player edits, `setVox`, `groundHeight`) |
 | `shared/world/state.js` | **the world state**: blocks, chests, fires, stoves, crops, furnaces, power, vehicles, papers… (`SyncMap` sends changes) |
 | `shared/world/save.js` | `loadWorld(save)` / `worldState()` – the save shape used everywhere |
 | `shared/world/nature.js`, `structures.js`, `collision.js`, `torch.js` | trees, rocks, shards, ponds; structures and their builders; what is solid; torches (stand or hang on a wall, kept in `blockMeta`: 1 = stands, 2–5 = on a wall; pop off without support) |
-| `shared/sim/*.js` | simulations: `day.js`, `mobs.js` (AI, spawning, spawners), `ground-items.js`, `machines.js` (campfire, furnace, stove, crops), `power.js` (grid, printer), `weather.js` (rain, storm, fog and the wind `windAt` from the day number and time: the same for every player, never sent) |
+| `shared/world/safe.js`, `papers.js`, `arena.js`, `hell.js`, `dragon-land.js`, `dragon-den.js`, `dragon-cycle.js`, `statue.js`, `prison.js`, `constants.js` | the safe (*Trezor*: a chest opened by a code); printed documents as items (`doc_<id>`); the arena of a `pvp` world; hell high in the sky; the dragon's land far west, its den and when it comes back (`dragonRespawnAt` in the save); the donation statue and the prison maze (owner only, rule 11); game constants |
+| `shared/sim/*.js` | simulations: `day.js`, `mobs.js` (AI, spawning, spawners), `ground-items.js`, `machines.js` (campfire, furnace, stove, crops), `power.js` (grid, printer), `weather.js` (rain, storm, fog and the wind `windAt` from the day number and time: the same for every player, never sent), `dragon.js` (the dragon fight: fireballs, stomp, rest; sent in `['mobs']`), `army.js` (Marek's army, chat commands), `hunt.js` (*Štvanice*, the owner's wand spell, rule 11) |
 | `shared/net/net.js` | the `NET` object the rules talk to (mode, `op()` for world changes, hooks) |
 | `shared/net/ops.js` | applying world changes from others (`applyOp`), small maps diff (`kvDiff`, `applyKV`) |
 | `shared/net/room.js` | **the host**: accepts players, handles their messages, broadcasts (browser host and Node server) |
-| `shared/events.js` | events from rules to the browser (`emit('mobHit', m)` → sparks and sound) |
+| `shared/events.js` | events from rules to the browser (`emit('mobHit', m)` → sparks and sound); the Node server listens only to `mobKilled` (prison, `server/world-worker.js`) |
 | `shared/tools.js` | tools and combat rules: durability and wear, mining speed, attack charge and crits, repair in the crafting grid |
+| `shared/inventory.js`, `util.js`, `vec3.js` | slot rules without a screen (insert, gather, spread, sort, rarity); small helpers (`clamp`, `lerp`, seeded `rng`, `hash2`, HTML `esc`, `segHitsSphere`); a small `Vec3` for the rules (same method names as `THREE.Vector3`) |
 | `client/src/main.js` | entry point: menu, then the game modules |
 | `client/src/menu/` | main menu (world buttons first from `GET /worlds`, then *Hrát sám*, then *Nastavení · Další možnosti*; club password asked once; player name + PIN asked once per device, then "Hraješ jako X · Změnit hráče"; *Další možnosti*: host in the browser / join by code) and settings |
 | `client/src/game/` | boot (`NET` setup), prefs, save/load in the browser, the frame loop `loop.js` (`tick`), `debug.js` (`window.game`) |
-| `client/src/render/` | renderer, sky, textures, icons, ground, grass, forest, blocks, underground meshes, particles, held item + first-person suit hand, day/night colours; `character.js` = the suit model, armor plates and animation (no side effects, the menu uses it too); the graphics look and what each Grafika tier turns on (`look.js`), post-processing (`post.js`), shadows, clouds, water, weather, embers/smoke (`ambient-fx.js`). Grafika Automaticky: `client/src/game/gpu.js` |
-| `client/src/player/` | player movement and collisions, aiming, mining/placing/using, backpack, survival, eating |
-| `client/src/mobs/` | `mob-models.js` creature 3D models; `mobs.js` animation and life (`poseMob`), sounds, sparks (behaviour is in `shared/sim/mobs.js`) |
-| `client/src/audio/` | all sound (WebAudio synthesis): `sound.js` mix + `Sound.at(x, y, z, fn)` positional sound, recipes in `sfx.js` / `voices.js`, materials, ambience, machine hums, music; `soundscape.js` runs it each frame |
-| `client/src/ui/` | HUD, inventory window, touch controls |
-| `client/src/machines/`, `pc/`, `dining/`, `world/` | the browser side of machines (garage block model `garage-model.js`), the computer + Tanks + documents, table manners, shrine/fishing/dropped items |
-| `client/src/vehicles/` | `kinds.js` (data: names, sizes, seats, upgrades per vehicle type), `car.js` (chain module: get in/out, drawing all vehicles, cameras, nitro, car driving), `bike.js`, `boat.js` (motorboat, sailboat, wake), `plane.js` (chain module: biplane + seaplane), models `car-model.js`, `bike-model.js`, `boat-model.js`, `plane-model.js` + their shared look `veh-look.js` (paint, glass, tyres, rims, merging, lights), `garage.js`, `passengers.js`, `vehicle-ui.js` (HUD line, vehicle window) |
+| `client/src/render/` | renderer, sky, textures, icons, ground, grass, forest, blocks, underground meshes, particles, held item + first-person suit hand, day/night colours; `character.js` = the suit model, armor plates and animation (no side effects, the menu uses it too); the graphics look and what each Grafika tier turns on (`look.js`), post-processing (`post.js`), shadows, clouds, water, sea (`ocean.js`), weather, embers/smoke (`ambient-fx.js`); tree shapes (`foliage.js`), mining cracks (`crack.js`), chips and crit stars (`chips.js`), fire light baked into the underground (`torch-light.js`); models without side effects: `bow-model.js`, `shield-model.js`, `torch-model.js`; the second hand in first person (`offhand-view.js`); texture tools (`texgen.js`, `vox-tex.js`), 3D item icons (`icon-render.js`), shader parts (`glsl.js`, `light-glsl.js`). Grafika Automaticky: `client/src/game/gpu.js` |
+| `client/src/player/` | player movement and collisions, aiming, mining/placing/using, backpack, second hand and shield (`offhand.js`; the left hand is drawn by `render/offhand-view.js`), survival, eating; tool and armor wear (`durability.js`), camera feel (`camera-feel.js`), bow and arrows (`bow.js`), player fights (`pvp.js`) and the arena (`arena.js`), the fishing rod on players and mobs (`rod-hook.js`), XP and spells (`xp.js`, `magic.js`), shop gadgets (`gadgets.js`), body control by webcam (`body-control.js` + `body-gestures.js`, everything stays in the browser); owner only (rule 11): `owner-wand.js`, `prison.js`, `bonus.js`, `ghost.js` |
+| `client/src/mobs/` | `mob-models.js` creature 3D models (`buildMobModel`; the dragon in `dragon-model.js`, the prison spider in `spider-model.js`), the dragon's fireballs and stomp drawn from the host's data (`dragon-fire.js`); `mobs.js` animation and life (`poseMob`), sounds, sparks (behaviour is in `shared/sim/mobs.js`) |
+| `client/src/audio/` | all sound (WebAudio synthesis): `sound.js` mix + `Sound.at(x, y, z, fn)` positional sound, recipes in `sfx.js` / `voices.js`, materials, ambience, machine hums, music, the jukebox film music (`film-music.js`), tool sounds (`tool-sounds.js`), window and inventory sounds (`ui-sounds.js`), volume sliders (`volume.js`); `soundscape.js` runs it each frame |
+| `client/src/ui/` | HUD, inventory window (`inventory-ui.js`, slots and hotbar `slots.js`, Minecraft tricks `inv-tricks.js`, tooltips `item-tooltip.js`, recipe search `book-search.js`, icon look `icon-style.js`), touch controls, the gold shop (`shop.js`), the donation box window (`donation-ui.js`, rule 11), `analytics.js` (PostHog, switched off), `dom.js` (`$` = `getElementById`) |
+| `client/src/machines/`, `pc/`, `dining/`, `world/` | the browser side of machines (garage block model `garage-model.js`, electric device look `machine-models.js`, the safe `safe.js` + `safe-model.js`), the computer + Tanks + documents, table manners, shrine/fishing/dropped items, digging masks (`world/dig.js`), hell (`world/hell.js`), the dragon portal model (`world/dragon-portal.js`) |
+| `client/src/vehicles/` | `kinds.js` (data: names, sizes, seats, upgrades per vehicle type), `car.js` (chain module: get in/out, drawing all vehicles, cameras, nitro, car driving), `bike.js`, `boat.js` (motorboat, sailboat, wake), `plane.js` (chain module: biplane + seaplane + the jet from the shop), models `car-model.js`, `bike-model.js`, `boat-model.js`, `plane-model.js`, `jet-model.js` + their shared look `veh-look.js` (paint, glass, tyres, rims, merging, lights), `garage.js`, `passengers.js`, `vehicle-ui.js` (HUD line, vehicle window) |
 | `client/src/net/` | multiplayer in the browser: client side (`multiplayer.js`), avatars (other players, own body + third-person view, name tags), chat + Esc menu, the net loop (`mp-start.js`) |
-| `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js`; owner and donations (Richard's, see rule 11): `owner.js` (`OWNER_ID`, `isOwner`), `donation-box.js` (the box at the statue, in the world thread), `donations.js` (ledger + gifts, `DATA_DIR/donations.json`), `donations-admin.js` (`/admin/dary`), `army-owner.js` (the owner also commands Marek's army), `owner-wand.js` (the owner's wand and its spells, in the world thread; hunt rules `shared/sim/hunt.js`), `prison.js` (the owner's prison: `/vezeni`, `/propustit`, release for spider eyes; the place itself is `shared/world/prison.js`) |
+| `server/` | `index.js` (env config), `worlds.js` (`WORLDS` list, moving old data), `server.js` (HTTP + WebSocket, logs players in, sends each player's messages to their world), `profiles.js` (player profiles: name + PIN, tokens, wrong-PIN throttle, `players.json`), `world-worker.js` (one world in its own thread: room + 20 Hz loop + saving + the players' backpacks), `me.js` (checks a player's state before it is saved), `sim.js` (one world step), `persist.js` (saving + backups), `admin-http.js` (`/admin` page + local admin port), `admin.js` (CLI: `players`, `reset-pin`), `static.js`; owner and donations (Richard's, see rule 11): `owner.js` (`OWNER_ID`, `isOwner`), `donation-box.js` (the box at the statue, in the world thread), `donations.js` (ledger + gifts, `DATA_DIR/donations.json`), `donations-admin.js` (`/admin/dary`), `army-owner.js` (the owner also commands Marek's army), `owner-wand.js` (the owner's wand and its spells, the owner items incl. the XP potion, in the world thread; hunt rules `shared/sim/hunt.js`), `prison.js` (the owner's prison: `/vezeni`, `/propustit`, release for spider eyes; the place itself is `shared/world/prison.js`), `bonus.js` (the owner's bonuses for donors: `/bonus`, `/odebrat`, in the world thread) + `bonuses.js` (who has which bonus, main thread, `DATA_DIR/bonuses.json`; kinds in `shared/data/bonus.js`, player side `client/src/player/bonus.js` and the ghost `ghost.js`) |
 
 ## How it fits together
 
 - **Rules vs. drawing.** Code in `shared/` changes the world and calls `emit('event', …)`; the browser listens with
-  `on('event', …)` (`shared/events.js`) and draws sparks, plays sounds or rebuilds meshes. The server listens to nothing.
+  `on('event', …)` (`shared/events.js`) and draws sparks, plays sounds or rebuilds meshes. The Node server listens only to
+  `mobKilled` (spider kills for the prison task, `server/world-worker.js`).
   Example: `hurtMob()` (shared) emits `mobHit`; `client/src/mobs/mobs.js` makes sparks and a sound.
 - **World changes are sent automatically.** `blocks.set(k, 'planks')` on a `SyncMap` calls `NET.op(['m', 'blocks', k, v])`;
   the net loop sends collected ops. Small maps (chests, machines…) are compared as JSON and changed keys are sent.
@@ -101,13 +105,13 @@ legacy/index.html     Marek's original single file (reference only, do not edit)
 Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/net/room.js`, client = `client/src/net/multiplayer.js`.
 
 - Client → host: `['ops', creative, ops]`, `['kv', changes]` (5×/s), `['pose', pose]` (12×/s; optional fields `lk` = the suit as
-  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on by the key N; the host passes the pose on unchanged), `['pk', gid]` pick up,
+  `suit.colour.light.visor.emblem`, e.g. `'pilot.9.0.1.4'`, and `sn: 1` while sneaking, `pv: 1` with fights switched on by the key N, `oh` = item id in the second hand, `bl: 1|2` while guarding with a shield in the main / second hand; the host passes the pose on unchanged), `['pk', gid]` pick up,
   `['hit', nid, dmg, yaw, kb?]` (kb = knockback 0–2, default 1), `['phit', pid, dmg, yaw, kb, ranged]` hit another player (only in a
   `pvp` or `pvp-mark` world: the host checks reach 7 m / 90 m for arrows, 0.45 s invulnerability, no dead or creative players, then sends the target
   `['dmg', dmg × 2.5, dx, dz]`; in a `pvp-mark` world the host also needs attacker and target in Markova dimenze, `isMark(x)`; `hitPlayer` in `shared/net/room.js`), `['pull', 'p'|'m', pid|nid, x, y, z]` fishing rod pulls a hooked player / mob to x, y, z (must be within 5 m of the one pulling; the player gets `['tp', x, y, z, byName]`), `['mu', nid]` eggs/milk, `['print', key, paperId, copies]`, `['giveTo', pid, docId]`, `['chat', text]`.
 - Host → client: `['welcome', { pid, name, perm, world, spawn, max }]`, `['full']`, `['join'|'leave', name]`, `['ops', ops]`,
-  `['kv', changes]` (2×/s), `['pl', [[pid, name, pose, perm]…]]` (12×/s), `['mobs', dayTime, day, [[nid, type, x, y, z, ry, hp, flash, dead, eggs, milk, hunt]…]]` (5×/s; `hunt` = 1: red eyes, the mob hunts a player, *Štvanice*; an older host leaves it out = 0),
-  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['goto', world]` (only to the player Marek after his `/svet`: the browser leaves and the menu joins that world), `['pvlock', s]` (you were in a fight started by N: fights can't be switched off for s seconds), `['fx', kind, x, y, z, t]` (Marek's `/at` bomb `'nuke'` or `/meteor` `'meteor'`: show it falling, impact in t s; the crater comes as normal ops, the damage as `dmg`; `shared/sim/strikes.js`, `client/src/world/boom.js`), `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`; in a `pvp-mark` world only `kill` with a killer, no `score`), `['gift', docId, from]`,
+  `['kv', changes]` (2×/s), `['pl', [[pid, name, pose, perm]…]]` (12×/s), `['mobs', dayTime, day, [[nid, type, x, y, z, ry, hp, flash, dead, eggs, milk, hunt, dragon?]…]]` (5×/s; `hunt` = 1: red eyes, the mob hunts a player, *Štvanice*; an older host leaves it out = 0; optional `dragon` = `{ cast, stomp?, rest }` only for the dragon, omitted for other mobs and by older hosts: `cast` is null or `{ id, t, from, to, charge, flight, radius, damage, burst?, extra? }`, `extra` optionally holds two more fireballs with the same fields and no further children; optional `stomp` is null or `{ id, t, center, floor, radius, charge, damage, burst? }`; coordinates are `{ x, y, z }`, times are seconds; clients draw and interpolate these effects, only the host applies damage),
+  `['give', id, n, w?]` (w = tool wear), `['swap', from, to]`, `['dmg', n, dx, dz]`, `['perm', bool]`, `['toast', text]`, `['goto', world]` (only to the player Marek after his `/svet`: the browser leaves and the menu joins that world), `['pvlock', s]` (you were in a fight started by N: fights can't be switched off for s seconds), `['chat', name, text]`, `['score', [[name, points, falls]…]]` and `['kill', killer|null, victim]` (arena in a `pvp` world: the host sees a player's pose turn `alive: false` and credits the last hitter within 10 s, `arenaDeath` in `shared/net/room.js`; in a `pvp-mark` world only `kill` with a killer, no `score`), `['gift', docId, from]`,
   `['kick', reason?]` (the browser host sends no reason; the Node server sends `['kick', 'Přihlásil ses jinde.']` when the same player logs in again in that world),
   `['restart']` (Node server only, when it stops, e.g. an automatic update: the browser sends `me` at once, waits
   until a new server answers `/health`, reloads and joins the same world again; `rejoinAfterRestart` in `client/src/net/mp-ui.js`).
@@ -139,9 +143,9 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   connection then closes; the client asks again. The same profile already in that world: the old connection gets
   `['kick', 'Přihlásil ses jinde.']` and is closed. The welcome also has `me`: that player's saved state in this world
   (`null` = first time; added by `server/world-worker.js`). The client sends `['me', { inv, armor, pos, yaw, hp, hunger,
-  crafted, placedAny, creative, flying, flyT, look, magic }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
-  `cleanCostume`; `magic` = `{ xp, learned, sel, picks }`, optional, cleaned by `cleanMagic` in `shared/data/magic.js`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
-  ≤ 64 KB, 36 + 4 slots, known item ids; a slot is `{ id, n, w? }`, `w` = tool wear) and saves it in `world.json` → `players[profile id]`. The browser host ignores `me`.
+  crafted, placedAny, creative, flying, flyT, look, magic, off }]` every 10 s and when leaving (`look` = the suit object, optional, cleaned by
+  `cleanCostume`; `off` = the second-hand slot, optional, checked like the other slots, owner items removed; `magic` = `{ xp, learned, sel, picks }`, optional, cleaned by `cleanMagic` in `shared/data/magic.js`; the newer of server and browser wins by its time `t`); the world thread checks it (`server/me.js`:
+  ≤ 64 KB, 36 + 4 + 1 slots, known item ids; a slot is `{ id, n, w? }`, `w` = tool wear) and saves it in `world.json` → `players[profile id]`. The browser host ignores `me`.
 - **Donation box** (Node server only; the statue `shared/world/statue.js` is built by `server/sim.js`): client → `['dary']` (state),
   `['donate', id, n, w?]` (one slot, already removed from the backpack; the server gives it back with `give` if it refuses),
   `['take', index, id]` (owner only: the server checks the profile against `OWNER_ID` and refuses everyone else with a `toast`
@@ -150,19 +154,31 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
   host ignores them. Ops that touch a statue block (`fixed` in `shared/data/blocks.js`) are dropped and the sender gets the real block back.
 - **Owner's wand** (Node server only, `server/owner-wand.js`, handled in the world thread before the room; the browser host ignores it):
   client → `['ospell', spell, 'm' | 'p', nid | pid]` (`spell` = `'avada'` Avada Kedavra or `'hunt'` Štvanice). The server checks the
-  profile against `OWNER_ID` (anyone else gets a `toast`), the caster's pose and reach (60 m), then kills the mob, or the player
-  through `hitPlayer(…, kill)` in `shared/net/room.js` (only in a `pvp` world or a `pvp-mark` world with both in Markova dimenze:
-  `['dmg', 1000, 0, 0]`), or starts the hunt (`startHunt`, `shared/sim/hunt.js`). Item `owner_wand` (`ownerItem` in
-  `shared/data/magic.js`): the server drops `g` ops and `kv` slots with it, removes it from other players' `me`, and sends the owner
-  `['give', 'owner_wand', 1]` when his saved backpack lacks it.
+  profile against `OWNER_ID` (anyone else gets a `toast`), the caster's pose and reach (`AVADA.range`, 1000 m), then kills the mob, or the player
+  through `hitPlayer(…, kill)` in `shared/net/room.js` (only in a `pvp` world or a `pvp-mark` world with both in Markova dimenze;
+  any distance: `['dmg', 1000000, 0, 0]`), or starts the hunt (`startHunt`, `shared/sim/hunt.js`). Owner items `owner_wand` and
+  `xp_potion` (the XP potion: drunk in the browser, no message; `OWNER_ITEMS` / `ownerItem` in `shared/data/magic.js`): the server
+  drops `g` ops and `kv` slots with them, removes them from other players' `me`, keeps one of each for the owner, and sends the owner
+  `['give', id, 1]` for each one his saved backpack lacks (all missing ones at once, at most every 20 s).
 - **Prison** (Node server only, `server/prison.js`, handled in the world thread before the donation box and the room): chat
   `/vezeni <jméno>`, `/vezeni`, `/propustit <jméno>` from the owner (checked against `OWNER_ID`) is answered only to the owner with
   `['chat', '⛓ Vězení', text]` and never broadcast; from anyone else it is normal chat. Server → player
-  `['vezeni', { on, need, given, item, at: [x, y, z], go? }]` (`go` = move the player to `at` now: into the prison, or back to
-  spawn when `on` is false; sent on the first pose after joining, after each change, and when a prisoner is outside the prison
-  or a free player inside it, at most every 2 s). A prisoner's `['donate', …]` counts only `spider_eye` (anything else comes back
-  with `give`), their ops pass only `g`/`gx` (the rest is undone like the statue guard), and their `/…` chat commands are
-  swallowed. The world thread asks the main thread `{ t: 'who', q, name }` → `{ t: 'who', q, profile, name }` for a player who is not online.
+  `['vezeni', { on, at: [x, y, z], go?, exit: [x, z], ex, kind, need, done, text }]` (`go` = move the player to `at` now: into
+  the maze, or back to spawn when `on` is false; sent on the first pose after joining, after each change, and when a prisoner is
+  outside the prison or a free player inside it, at most every 2 s). The prison is a maze with four gates; each prisoner gets one
+  gate and one task (`server/prison-tasks.js`: `monsters`, `runes`, `math`, `logic`). Player → server `['vez', 'gate' | 'rune', x, y, z]`
+  (right click on a gate / rune; the server checks the block and the player's reach) and `['vez', 'ans', text]` (answer); server →
+  player `['vezq', question | null]` opens (closes) the question window at the gate; the right answer never leaves the server.
+  Spider kills count through `on('mobKilled')` in the world thread with `NET.killer`. A prisoner's ops pass only `g`/`gx` (the
+  rest is undone like the statue guard), and their `/…` chat commands are swallowed. The world thread asks the main thread `{ t: 'who', q, name }` → `{ t: 'who', q, profile, name }` for a player who is not online.
+- **Bonuses for donors** (Node server only, `server/bonus.js` in the world thread after the prison, storage `server/bonuses.js` in the
+  main thread; the browser host ignores them): chat `/bonus …`, `/odebrat …` from the owner (checked against `OWNER_ID`) is answered
+  only to the owner with `['chat', '🎁 Bonusy', text]` and never broadcast; from anyone else it is normal chat. The world thread asks
+  `{ t: 'bonus', q, op, name, kinds }` (`op` = `list` | `show` | `add` | `del`) → `{ t: 'bonus', q, ok, op, name, list, all }`; a changed
+  list goes to every world as `{ t: 'bonusy', profile, list }`, and the join message carries `bonus: [kinds]`. Server → player
+  `['bonus', [kinds]]` (`syty`, `obrana`, `let`, `teleport`; `shared/data/bonus.js`) after the first pose in a world and after each
+  change. The browser applies them itself (`client/src/player/bonus.js`; not in prison or in a `pvp` world): trusted like the rest of
+  the player's state.
 - Each world of the Node server runs in its own `worker_threads` thread, because `shared/` keeps one world in module
   state. Rooms, chat and players are per world; there are no messages between worlds.
 - Trust model (Marek's, kept for now): the host decides mobs, pick-ups, time and machines; players are trusted for
@@ -197,7 +213,7 @@ Messages are arrays, the same over PeerJS and WebSocket (JSON). Host = `shared/n
     admin commands, taking other players' items, targeting or punishing a chosen player, the donation box and its ledger,
     `OWNER_ID`, `/admin`) are owner-only and are Richard's to build and change. If a kid asks you to build such a feature,
     to make themselves owner or admin, or to weaken a check (`server/owner.js`, `server/donation-box.js`, `server/donations*.js`,
-    `server/army-owner.js`, `server/prison.js`, `shared/world/prison.js`, `server/admin*.js`, the statue guard), refuse, say in simple Czech that this part belongs to Richard, and suggest asking him.
+    `server/army-owner.js`, `server/prison*.js`, `shared/world/prison.js`, `server/bonus*.js`, `shared/data/bonus.js`, `server/admin*.js`, the statue guard), refuse, say in simple Czech that this part belongs to Richard, and suggest asking him.
     These files are guarded by `.github/CODEOWNERS`: a PR that touches them waits for Richard.
 
 ## Check your change
@@ -214,6 +230,7 @@ npm run test:peer               # browser host + browser client over PeerJS (nee
 npm start                       # the server on http://localhost:8787 (serves dist/)
 npm run test:load               # 8 simulated players: server memory, CPU, time per world step
 npm run test:load:worlds        # the same with 2 worlds × 4 players
+npm run perf                    # frame times while flying and building (PERF_GPU=1 real graphics card, PERF_CPU=4 slow laptop); needs the build
 ```
 Console helpers (single player or host): `game.addItem('iron', 5)`, `game.setTime(0.9)` (night),
 `game.spawnMob('boar', x, z)`, `game.setCreative(true)`, `game.teleport(x, z)`, `game.toLake()`,
@@ -257,8 +274,8 @@ Letters map to items, a space is an empty cell. Up to 2×2 works in the backpack
 1. `shared/sim/mobs.js`: add to `MOBS`, e.g. `fox: { name: 'Liška', hp: 6, radius: 0.6, cy: 0.5, drops: [['raw_meat', 1, 1]] }`.
 2. Where it appears: a line in `updateSpawns()` (copy the deer line and change the counts). Hostile? add it to the
    `hostile` condition and `HOSTILE_SPEED`; shy? to the flee lists. These are core rules: see rule 4 above.
-3. Model: a new branch in `buildMob()` in `client/src/mobs/mobs.js` (copy the sheep and change colours);
-   a sound in the `on('mobSound', …)` table there.
+3. Model: a new branch in `buildMobModel()` in `client/src/mobs/mob-models.js` (copy the sheep and change colours);
+   a sound in the `on('mobSound', …)` table in `client/src/mobs/mobs.js`.
 
 ## What not to do
 - Don't edit `legacy/` (Marek's original), `dist/` (built output) or `server/data/` (the live world).

@@ -17,6 +17,10 @@ changed. Pick one, open an issue, fix it in a small PR (core files: see rule 4 i
   otherwise the loot is lost (always lost on the Node server).
 - **Animal sounds** for joined players are made in their own browser (same voices, from the right place), so two players
   don't hear the same sheep bleat at the same moment.
+- **The safe (*Trezor*) is a lock for friends, not a bank.** Safe contents sync to every player like any chest, so a
+  modified browser (or the console) can read or empty a safe without the code, and can remove the safe block. The code
+  itself is never sent or saved, only a 24-bit fingerprint in `blockMeta`; with the console that fingerprint can be
+  matched by trying codes, so a short code can be found. The wait after wrong tries is kept in the player's own browser.
 - **Chat is free text** (kept from Marek's version; Richard decides whether it stays).
 
 ## Node server
@@ -49,11 +53,10 @@ changed. Pick one, open an issue, fix it in a small PR (core files: see rule 4 i
 - **Grass cut mask repeats every 128 m** and the **dug-hole mask every 512 m** (shader textures wrap): cut grass or a hole can
   also show up 128/512 m away.
 - Terrain height exists twice (JavaScript `shared/world/terrain.js`, GLSL `client/src/render/glsl.js`); they must be changed together.
-- `ITEMS[x].icon` (emoji) and `TIER_COLOR` are unused leftovers.
+- `ITEMS[x].icon` (emoji) is an unused leftover.
 
 ## Project
-- The VPS setup (`deploy/`) is written but not yet run on a real VPS; the Cloudflare tunnel for a laptop is not tested.
-- GitHub Pages deploy needs v2 merged into `main` and Settings → Pages → Source = GitHub Actions.
+- The Cloudflare tunnel for a laptop (`docs/HOSTING.md`) is not tested; the club VPS (`deploy/`) and GitHub Pages run.
 - `playwright` 1.55.0 (dev only) has an advisory about browser downloads; update it when convenient (`npx playwright install` after).
 - The PeerJS mode depends on the public broker `0.peerjs.com`; its CI test is allowed to fail.
 

@@ -22,11 +22,18 @@ import { creative, player } from './player.js';
 import { magic } from './xp.js';
 import { popGroundItem } from '../../../shared/sim/ground-items.js';
 import { ownerItem } from '../../../shared/data/magic.js';
+import { BONUS_DEFENSE } from '../../../shared/data/bonus.js';
+import { hasPerk } from './bonus.js';
+import { endGhost } from './ghost.js';
+import { shieldBlocks } from './offhand.js';
 
 // ============================================================ přežití
 export function damagePlayer(amount, dx, dz) {
   if (!player.alive || creative) return;
+  if (shieldBlocks(dx, dz)) { player.vel.x += dx * 1.5; player.vel.z += dz * 1.5; player.shake = 0.05; return; } // štít zepředu: jen kousek odhodí (offhand.js)
   if (magic.wardT > 0) amount *= 0.5; // kouzlo Ochranný štít (xp.js)
+  if (hasPerk('obrana')) amount *= BONUS_DEFENSE; // bonus pro dárce Velká obrana (bonus.js)
+  endGhost('Něco tě zranilo: duch je zpátky v těle'); // teleport duchem (ghost.js)
   if (dx || dz) { // brnění tlumí útoky a přitom se opotřebuje
     const raw = amount;
     amount *= 1 - Math.min(0.8, armorPoints() * 0.035);
@@ -51,6 +58,7 @@ function flashHearts() {
   w.classList.add('hit');
 }
 function die() {
+  endGhost();
   if (player.vehicle || player.riding) exitVehicle();
   player.alive = false;
   player.hp = 0;
@@ -71,16 +79,17 @@ function die() {
     toast(jail ? (lost ? 'Jsi zase ve vězení. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Jsi zase ve vězení.') : lost ? 'Svatyně tě přivedla zpět. Tvoje věci leží tam, kde jsi padl (5 minut).' : 'Svatyně tě přivedla zpět');
   }, 2600);
 }
-// Smrt: všechno z batohu, kurzoru a brnění vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
+// Smrt: všechno z batohu, kurzoru, brnění a druhé ruky vypadne na zem tam, kde hráč padl (jako v Minecraftu); za 5 minut to zmizí
 // (shared/sim/ground-items.js DESPAWN). Vrací, kolik políček vypadlo.
 function dropEverything() {
   const { x, y, z } = player.pos;
   let n = 0;
   const drop = (s) => { if (s) { popGroundItem(s.id, s.n, x, y + 0.8, z, s.w || 0); n++; } };
-  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // hůl vlastníka zůstává v batohu
+  inv.slots.forEach((s, i) => { if (ownerItem(s?.id)) return; drop(s); inv.slots[i] = null; }); // předměty vlastníka (hůl, lektvar) zůstávají v batohu
   if (ownerItem(inv.cursor?.id)) { const i = inv.slots.indexOf(null); if (i >= 0) inv.slots[i] = inv.cursor; } else drop(inv.cursor);
   inv.cursor = null;
   armor.forEach((s, i) => { drop(s); armor[i] = null; });
+  drop(inv.off[0]); inv.off[0] = null; // i druhá ruka (předmět vlastníka tam být nemůže, offhand.js)
   refreshUI();
   return n;
 }
@@ -101,7 +110,7 @@ export function updateSurvival(dt) {
     player.hp -= 3 * dt; setVignette(Math.max(vignette, 0.5));
     if (player.hp <= 0) die();
   }
-  player.hunger = Math.max(0, player.hunger - dt * (player.sprinting ? 0.3 : 0.11));
+  player.hunger = hasPerk('syty') ? 100 : Math.max(0, player.hunger - dt * (player.sprinting ? 0.3 : 0.11)); // bonus Bez hladu (bonus.js)
   if (player.hunger < 25 && !hungerWarned) { hungerWarned = true; toast('Máš hlad – sněz něco (pravé tlačítko)'); }
   if (player.hunger > 40) hungerWarned = false;
   if (player.hunger <= 0 && (starveT += dt) > 3) { starveT = 0; damagePlayer(4, 0, 0); }
