@@ -15,6 +15,7 @@
     "playtest:clay": "node tests/playtest/clay-defense.mjs dist",
     "playtest:size": "node tests/playtest/missile-size.mjs dist",
     "playtest:potion": "node tests/playtest/flight-potion.mjs dist",
+    "playtest:atomic": "node tests/playtest/atomic-launcher.mjs dist",
     "playtest:inv": "node tests/playtest/inventory.mjs dist",
     "perf": "node tests/playtest/perf.mjs dist",
     "test:peer": "node tests/playtest/peer.mjs",

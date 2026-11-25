@@ -118,7 +118,7 @@ export function onHostMsg(msg) {
     case 'vezq': applyAsk(msg[1]); break; // otázka u brány z bludiště (player/prison.js)
     case 'score': if (Array.isArray(msg[1])) renderScore(msg[1]); break; // aréna: tabulka bodů
     case 'tp': pulledTo(msg[1], msg[2], msg[3], msg[4]); break; // přitáhl tě někdo prutem
-    case 'fx': boomFx(msg[1], msg[2], msg[3], msg[4], msg[5]); break; // atomovka (shared/sim/strikes.js)
+    case 'fx': boomFx(msg[1], msg[2], msg[3], msg[4], msg[5], msg[6]); break; // atomovka (shared/sim/strikes.js)
     case 'pvlock': pvLock(msg[1]); break; // byl jsi v souboji: souboje 20 s nejdou vypnout
     case 'goto': try { sessionStorage.setItem('rise-goto', String(msg[1] || '').slice(0, 40)); } catch {} leaveGame(); break; // Marek: /svet (menu se samo připojí, menu.js)
     case 'kill': arenaKill(msg[1] == null ? null : String(msg[1]), String(msg[2])); break; // aréna: někdo vypadl; pvp-mark: hráč vyřadil hráče

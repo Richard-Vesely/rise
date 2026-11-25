@@ -34,6 +34,7 @@ add('speed_potion', 'Lektvar rychlosti', { speed: 30, stack: 8 });
 add('grenade', 'Granát', { grenade: { dmg: 14, r: 4 }, stack: 16 });
 add('firework', 'Ohňostroj', { firework: true, stack: 32 });
 add('grapple', 'Hák na laně', { grapple: 35, dur: 400 });
+add('nuke_launcher', 'Atomový odpalovač', { nukeLauncher: true, cat: 'tools', art: ['box', '#65724a', '#ffd34a'] });
 add('nuke_item', 'Atomovka', { nuke: true, stack: 1 }); // hodí se, kam míříš; kráter asi 2000 kostek (shared/sim/strikes.js)
 add('jet', 'Stíhačka', { vehicle: 'jet', art: ['jet', '#5a6470', '#ff5a2a'], cat: 'aircraft' });
 
@@ -43,7 +44,7 @@ export const SHOP = [
   ['saber_blue', 150], ['saber_green', 150], ['saber_purple', 150], ['saber_red', 180], ['jet', 400],
   ['jukebox', 60], ...DISCS.map(([id]) => [id, 25]),
   ['saber_gold', 250], ['jetpack', 120], ['teleport_orb', 20], ['freeze_ray', 90], ['blaster', 110], ['thunder_hammer', 200],
-  ['nuke_item', 3000], ['speed_potion', 15], ['grenade', 12], ['firework', 3], ['grapple', 70],
+  ['nuke_launcher', 15], ['nuke_item', 3000], ['speed_potion', 15], ['grenade', 12], ['firework', 3], ['grapple', 70],
 ];
 /** Další věci ze hry v obchodě (123 kusů): ceny v zlaťácích. Zlato tu není, aby nešlo dokola kupovat a prodávat. */
 export const SHOP_MORE = [

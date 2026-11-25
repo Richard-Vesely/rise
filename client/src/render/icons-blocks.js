@@ -380,6 +380,7 @@ function isoBoxes(top, side, boxes) {
   });
   icon('freeze_ray', gun('#5a7a9a', '#8ae8ff'));
   icon('blaster', gun('#3a3a42', '#ff3a2a'));
+  icon('nuke_launcher', gun('#65724a', '#ffd34a'));
   icon('thunder_hammer', face((x, y) => {
     if (y >= 2 && y <= 6 && x >= 3 && x <= 12) return y === 2 ? '#d8dce2' : (x + y) % 4 ? '#8a96a4' : '#5a646e'; // hlava
     if (x >= 7 && x <= 8 && y > 6 && y <= 14) return y % 3 ? '#7a5a36' : '#c8a040'; // násada

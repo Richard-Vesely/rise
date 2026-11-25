@@ -15,7 +15,7 @@ import { NUKE, addNuke, strikeHooks } from '../sim/strikes.js';
 
 // Atomovka z obchodu (sim/strikes.js): efekt vidí všichni; hráče zraní jen tam, kde se smí bojovat (stejně jako hitPlayer).
 strikeHooks({
-  fx: (kind, x, y, z, t) => { broadcast(['fx', kind, x, y, z, t]); NET.onFx?.(kind, x, y, z, t); },
+  fx: (kind, x, y, z, t, origin) => { broadcast(['fx', kind, x, y, z, t,...(origin?[origin]:[])]); NET.onFx?.(kind, x, y, z, t, origin); },
   canHurt: (from, to) => {
     if (from === to || NET.pvp || (NET.pvpMark && NET.pvpAll)) return true;
     const a = playerOf(from)?.pose, t = playerOf(to)?.pose;
@@ -24,11 +24,16 @@ strikeHooks({
   },
 });
 /** Hráč from hodil atomovku na (x, y, z): nejdál NUKE.range od sebe, ne u svatyní. Vrací true, když letí. */
-export function nukeAt(from, x, y, z) {
+export function nukeAt(from, x, y, z, origin) {
   x = Number(x); y = Number(y); z = Number(z);
   const me = playerOf(from)?.pose;
   if (me && Math.hypot(me.x - x, me.y - y, me.z - z) > NUKE.range + 5) return false;
-  return addNuke(from, x, y, z);
+  if(origin){
+    if(!Array.isArray(origin)||origin.length!==3||!origin.every(Number.isFinite))return false;
+    if(!me&&NET.mode!=='sp')return false;
+    if(me&&Math.hypot(origin[0]-me.x,origin[1]-me.y,origin[2]-me.z)>3)return false;
+  }
+  return addNuke(from, x, y, z, origin);
 }
 import { queuePrint } from '../sim/power.js';
 import { clamp } from '../util.js';
@@ -169,7 +174,7 @@ function onClientMsg(P, msg) {
       break;
     }
     case 'pull': pullTarget(P.pid, String(msg[1]), msg[1] === 'm' ? msg[2] : String(msg[2]), msg[3], msg[4], msg[5]); break; // prut: přitáhnout hráče / tvora
-    case 'nuke': nukeAt(P.pid, msg[1], msg[2], msg[3]); break; // atomovka z obchodu (sim/strikes.js)
+    case 'nuke': nukeAt(P.pid, msg[1], msg[2], msg[3], msg[4]); break; // atomovka z obchodu (sim/strikes.js)
     case 'ogre': { // Zlobří roh: přivolat svého zlobra (nejvýš jednou za 30 s)
       const now = performance.now() / 1000;
       if (now < (P.ogreT || 0)) return;

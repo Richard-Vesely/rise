@@ -488,6 +488,12 @@ attack and meter `client/src/player/interaction.js`; camera kick, hurt tilt, hit
   Fire aura, flapping bat wings, a golden crown, a health bar at the top with what it is doing; a big explosion when it
   dies. Drops the **legendary fire armor** (*Legendární ohnivá zbroj*, 6/11/9/6, the strongest; full set: lava doesn't burn
   and you heal 1.5 HP/s), the **ogre horn**, 16–24 fire gems and 32–64 gold ingots.
+- **Atomic launcher** (*Atomový odpalovač*, 15 coins in /shop): reusable handheld weapon with its own 3D model and icon.
+  Right-click shoots a bomb at the aimed surface (90 m); unlimited free bombs are built into the launcher. No separate ammo is required or consumed, and shooting does not charge coins. Reload remains 2.5 s.
+  A visible bomb travels from the muzzle at 40 m/s and detonates with the existing nuke crater, damage and effects.
+  Server validates the muzzle position near the firing player. Optional origin is appended to existing nuke/fx messages;
+  messages without it retain the original falling-bomb behavior. Spawn/fixed-block/PvP checks remain in shared/sim/strikes.js
+  and shared/net/room.js. Available in solo, browser host and server; prison prevents use.
 - **Atomic bomb from the shop** (*Atomovka*, 3000 coins, `nuke_item`): right-click throws it where you aim (up to 90 m).
   Everyone sees the missile fall for 2.5 s, then flash, fireball, mushroom cloud and shock wave; the crater removes about
   2000 blocks (underground and built blocks). Safety: never the unbreakable blocks (statue, prison, hell: `fixed`) or

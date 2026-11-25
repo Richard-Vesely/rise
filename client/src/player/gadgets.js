@@ -33,7 +33,7 @@ export function updateGadgets(dt, special) {
   prevRmb = input.rmb;
   cd -= dt;
   const id = heldStack()?.id, d = ITEMS[id];
-  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion || d.ogre || d.infiniteFlight || d.nuke) || special) return false;
+  if (!d || !(d.throw || d.wings || d.flame || d.medkit || d.fireball || d.jetpack || d.teleport || d.ray || d.hammer || d.speed || d.grenade || d.firework || d.grapple || d.xpPotion || d.ogre || d.infiniteFlight || d.nuke || d.nukeLauncher) || special) return false;
   if (d.throw && fresh && cd <= 0) { // trojzubec
     cd = d.throw.cd;
     shot({ color: 0x38c8e8, size: 0.8, speed: 42, ttl: 1.6, dmg: d.throw.dmg, trail: 1 });
@@ -116,6 +116,17 @@ export function updateGadgets(dt, special) {
   } else if (d.xpPotion && input.rmb && cd <= 0) { // lektvar nekonečných XP: držíš = pije se nejvýš jednou za sekundu
     cd = 1;
     drinkXpPotion();
+  } else if(d.nukeLauncher&&fresh&&cd<=0){
+    if(NET.jail){toast('Ve vězení se odpalovač použít nedá');return true;}
+    const target=pickTarget(NUKE.range);
+    if(!target?.point){toast('Namiř odpalovač na zem nebo blok do 90 m');return true;}
+    const [x,y,z]=target.point;
+    if(!nukeAllowedAt(x,z)){toast('U svatyně a spawnu se atomovka odpálit nedá');return true;}
+    const dir=camera.getWorldDirection(new THREE.Vector3()),origin=[player.pos.x+dir.x*.7,player.pos.y+1.3+dir.y*.7,player.pos.z+dir.z*.7];
+    if(NET.client)NET.req(['nuke',x,y,z,origin]);else if(!nukeAt('host',x,y,z,origin))return true;
+    cd=NUKE.reload;
+    Sound.burst({dur:.35,f0:1700,f1:120,vol:.24,type:'lowpass'});
+    toast('☢ Výstřel! Atomovky jsou součástí odpalovače zdarma.');
   } else if (d.nuke && fresh) { // atomovka: hodí se tam, kam míříš (shared/sim/strikes.js)
     const t = pickTarget(NUKE.range);
     if (!t?.point) { toast(`Namiř atomovku na zem nebo blok (do ${NUKE.range} m)`); return true; }

@@ -12,7 +12,7 @@ import { V, getVox, setVox } from '../world/voxels.js';
 import { killMob } from './mobs.js';
 
 /** Atomovka: kráter (poloměr, střed pod místem dopadu ≈ 2000 kostek v zemi), dosah zranění, zranění, pád (s), dohoz (m), bezpečí kolem svatyní (m). */
-export const NUKE = { crater: 8.5, sink: 3.5, reach: 14, dmg: 999, fall: 2.5, range: 90, safe: 45 };
+export const NUKE = { crater: 8.5, sink: 3.5, reach: 14, dmg: 999, fall: 2.5, range: 90, safe: 45, shotSpeed: 40, reload: 2.5 };
 const queue = []; // { x, y, z, at, sent, from }
 let hooks = { fx: null, canHurt: () => true };
 /** Kam posílat efekt a kdo smí být zraněn (nastaví shared/net/room.js). */
@@ -27,9 +27,11 @@ export function craterSize() {
 }
 
 /** Naplánuje atomovku hráče from na (x, y, z). Vrací false, když to tu nejde. */
-export function addNuke(from, x, y, z) {
+export function addNuke(from, x, y, z, origin) {
   if (![x, y, z].every(Number.isFinite) || !nukeAllowedAt(x, z)) return false;
-  queue.push({ x, y, z, at: NUKE.fall, sent: false, from });
+  if(origin&&(!Array.isArray(origin)||origin.length!==3||!origin.every(Number.isFinite)))return false;
+  const at=origin?Math.max(.3,Math.min(NUKE.fall,Math.hypot(x-origin[0],y-origin[1],z-origin[2])/NUKE.shotSpeed)):NUKE.fall;
+  queue.push({ x, y, z, at, sent: false, from, ...(origin?{origin:origin.slice()}: {}) });
   return true;
 }
 
@@ -55,7 +57,7 @@ export function updateStrikes(dt, mobs) {
   for (let i = queue.length - 1; i >= 0; i--) {
     const s = queue[i];
     s.at -= dt;
-    if (!s.sent) { s.sent = true; hooks.fx?.('nuke', s.x, s.y, s.z, Math.max(0, s.at)); }
+    if (!s.sent) { s.sent = true; hooks.fx?.(s.origin?'nuke-shot':'nuke', s.x, s.y, s.z, Math.max(0, s.at),s.origin); }
     if (s.at > 0) continue;
     queue.splice(i, 1);
     blast(s.x, s.y - NUKE.sink, s.z, NUKE.crater);

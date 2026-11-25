@@ -94,7 +94,17 @@ const heldCache = {};
 export function buildHeld(id) { // používají ho i postavičky ostatních hráčů (net/avatars.js)
   const d = ITEMS[id], g = new THREE.Group();
   const mesh = (geo, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  if (d.saber) { // světelný meč (obchod za zlato): kovová rukojeť a svítící čepel s bílým jádrem a září
+  if(d.nukeLauncher){
+    g.name='atomic-launcher';
+    const olive=new THREE.MeshStandardMaterial({color:0x65724a,roughness:.5,metalness:.6});
+    const warning=new THREE.MeshStandardMaterial({color:0xffd34a,roughness:.45,metalness:.3});
+    mesh(new THREE.CylinderGeometry(.1,.11,1.1,12),olive,0,.25);
+    mesh(new THREE.CylinderGeometry(.075,.075,.06,12),graphite,0,.82);
+    for(const y of [-.2,.62])mesh(new THREE.CylinderGeometry(.114,.114,.07,12),warning,0,y);
+    mesh(new THREE.BoxGeometry(.07,.2,.08),gripMat,0,-.1,.1);
+    mesh(new THREE.BoxGeometry(.12,.12,.28),graphite,.12,.3,0);
+    mesh(new THREE.BoxGeometry(.035,.06,.03),warning,.12,.3,.15);
+  } else if (d.saber) { // světelný meč (obchod za zlato): kovová rukojeť a svítící čepel s bílým jádrem a září
     const steel = new THREE.MeshStandardMaterial({ color: 0x9aa2ac, metalness: 0.9, roughness: 0.3 }), black = new THREE.MeshStandardMaterial({ color: 0x1a1a1e, roughness: 0.6 });
     mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.24, 12), steel, 0, -0.08);
     for (const y of [-0.15, -0.1, -0.05]) mesh(new THREE.CylinderGeometry(0.029, 0.029, 0.018, 12), black, 0, y);

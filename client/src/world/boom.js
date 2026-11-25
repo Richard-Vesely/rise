@@ -32,8 +32,8 @@ function flash(k) {
 /** Padající těleso (raketa nebo meteor): z výšky do (x, y, z) za fall sekund, pak onHit(). */
 function falling(obj, from, to, fall, trail, onHit) {
   scene.add(obj);
-  const dir = to.clone().sub(from).normalize();
-  obj.lookAt(obj.position.copy(from).add(dir));
+  obj.position.copy(from);
+  obj.lookAt(to);
   add({ t: 0, upd: (t) => {
     const k = Math.min(1, t / Math.max(0.01, fall));
     obj.position.lerpVectors(from, to, k * k * 0.4 + k * 0.6); // trochu zrychluje
@@ -54,7 +54,7 @@ function missile() {
   flame.position.y = -3.6; flame.rotation.x = Math.PI;
   g.add(flame);
   const w = new THREE.Group(); // lookAt míří osou z, raketa je podél osy y
-  g.rotation.x = -Math.PI / 2;
+  g.rotation.x = Math.PI / 2;
   w.add(g);
   return w;
 }
@@ -109,11 +109,15 @@ function meteorBlast(x, y, z) {
 }
 
 /** Efekt úderu: druh 'nuke' | 'meteor', místo dopadu, t = za kolik sekund dopadne. */
-export function boomFx(kind, x, y, z, t = 0) {
+export function boomFx(kind, x, y, z, t = 0, origin) {
   x = +x; y = +y; z = +z; t = Math.max(0, +t || 0);
   if (![x, y, z].every(Number.isFinite)) return;
   const to = new THREE.Vector3(x, y, z);
-  if (kind === 'nuke') {
+  if(kind==='nuke-shot'){
+    if(!Array.isArray(origin)||origin.length!==3||!origin.every(Number.isFinite))return;
+    const obj=missile();obj.name='atomic-projectile';obj.scale.setScalar(.25);
+    falling(obj,new THREE.Vector3(...origin),to,t,[1,.8,.2],()=>nukeBlast(x,y,z));
+  } else if (kind === 'nuke') {
     Sound.at(x, y + 60, z, function () { this.tone(900, Math.max(0.5, t), 0.25, 'sawtooth', 0, 300); }, { ref: 20, max: 600, keep: 4 }); // hvízdání
     falling(missile(), new THREE.Vector3(x + 8, y + 140, z + 6), to, t, [1, 0.7, 0.3], () => nukeBlast(x, y, z));
   } else if (kind === 'meteor') {
