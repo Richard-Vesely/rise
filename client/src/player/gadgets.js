@@ -44,8 +44,9 @@ export function updateGadgets(dt, special) {
     shot({ color: 0xff7a2a, size: 0.9, speed: 30, ttl: 2, dmg: d.fireball.dmg, trail: 1 });
     removeItem(id, 1);
     toolSound('whoosh', 1);
+  } else if (NET.jail && (d.infiniteFlight || d.wings || d.jetpack || d.teleport || d.grapple)) { // vězení: žádný let ani skok přes zdi
+    if (fresh) toast('Ve vězení se létat ani teleportovat nedá');
   } else if(d.infiniteFlight&&fresh){
-    if(NET.jail){toast('Ve vězení se létat nedá');return true;}
     player.flyT=INFINITE_FLIGHT;removeItem(id,1);renderHotbar();toolSound('whoosh',1);
     toast('Nekonečné létání! Mezerník = nahoru, Shift = dolů');
   } else if (d.wings && fresh) {

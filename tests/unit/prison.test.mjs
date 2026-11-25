@@ -299,6 +299,13 @@ test('prison: positions are enforced and the state (gate, task, progress) surviv
   assert.equal(n(), k + 1, 'not while dead (the respawn puts them back)');
   P.handle('c-b', 'kid', ['pose', at(PRISON_SPOT[0], PRISON_SPOT[2])]);
   assert.equal(n(), k + 1, 'inside: nothing');
+  t.now = 11000;
+  P.handle('c-b', 'kid', ['pose', { ...at(PRISON_SPOT[0], PRISON_SPOT[2]), y: Y + 6 }]);
+  assert.equal(n(), k + 2, 'flying above the maze walls: back to the start');
+  assert.equal(to('c-b', 'vezeni').at(-1)[1].go, 1);
+  t.now = 14000;
+  P.handle('c-b', 'kid', ['pose', { ...at(PRISON_SPOT[0], PRISON_SPOT[2]), y: Y + 2.2 }]);
+  assert.equal(n(), k + 2, 'a jump is fine');
   P.handle('c-c', 'cyril', ['pose', at(PRISON_SPOT[0], PRISON_SPOT[2])]);
   assert.deepEqual(to('c-c', 'vezeni').at(-1)[1], { on: false, at: SPAWN_SPOT, go: 1 }, 'a free player in the prison (released while away) goes to spawn');
   P.handle('c-boss', 'boss', ['pose', at(PRISON_SPOT[0], PRISON_SPOT[2])]);

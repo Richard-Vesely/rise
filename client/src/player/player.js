@@ -233,6 +233,7 @@ export function updatePlayer(dt) {
   if (keys.has('KeyA') || keys.has('ArrowLeft')) s -= 1;
   if (input.joy) { f -= input.joy.y; s += input.joy.x; } // dotykový joystick
   const len = Math.max(1, Math.hypot(f, s));
+  if (NET.jail) { player.flyT = 0; player.flying = false; } // ve vězení se nelétá (player/prison.js, server/prison.js)
   if (player.flyT > 0) player.flyT = flightTime(player.flyT,dt);
   const set = fullSet();
   const flying = ((creative || hasPerk('let')) && player.flying) || player.flyT > 0;
