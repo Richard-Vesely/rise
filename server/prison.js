@@ -149,7 +149,8 @@ export function createPrison({ ownerId, ownerName = '', saved, send, conns, look
     if (now() < (waits.get(cid) ?? 0)) { toast(cid, 'Chvilku počkej, brána přemýšlí…'); return; }
     const q = question(p.kind, rnd);
     asks.set(cid, { a: q.a });
-    send(cid, ['vezq', `${p.done + 1}/${p.need} · ${q.q}`]);
+    // Pořadí na vlastním řádku a slovy: „1/3 · 5 × 6 + 3“ děti četly jako ⅓ krát… (· je ve škole násobení)
+    send(cid, ['vezq', `${p.kind === 'math' ? 'Příklad' : 'Hádanka'} ${p.done + 1} ze ${p.need}\n${q.q}`]);
   }
   // Pravé tlačítko na bránu.
   function gate(cid, profile, p, x, y, z) {

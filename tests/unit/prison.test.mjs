@@ -232,10 +232,10 @@ test('prison tasks "math" and "logic": questions at the own gate; a wrong answer
   assert.equal(P.list()[0][1].done, 0, 'no open question: an answer does nothing');
   P.handle('c-b', 'kid', ['pose', gatePose(3)]);
   P.handle('c-b', 'kid', ['vez', 'gate', ...gateCell(3)]);
-  assert.deepEqual(to('c-b', 'vezq').at(-1), ['vezq', '1/3 · math 1: 2 + 1 = ?'], 'the gate asks; the answer is never sent');
+  assert.deepEqual(to('c-b', 'vezq').at(-1), ['vezq', 'Příklad 1 ze 3\nmath 1: 2 + 1 = ?'], 'the gate asks; the answer is never sent');
   P.handle('c-b', 'kid', ['vez', 'ans', ' 3 ']);
   assert.equal(to('c-b', 'toast').at(-1)[1], 'Správně! 1/3');
-  assert.deepEqual(to('c-b', 'vezq').at(-1), ['vezq', '2/3 · math 2: 2 + 2 = ?'], 'the next question comes right away');
+  assert.deepEqual(to('c-b', 'vezq').at(-1), ['vezq', 'Příklad 2 ze 3\nmath 2: 2 + 2 = ?'], 'the next question comes right away');
   P.handle('c-b', 'kid', ['vez', 'ans', '5']);
   assert.deepEqual(to('c-b', 'vezq').at(-1), ['vezq', null], 'wrong: the window closes');
   assert.match(to('c-b', 'toast').at(-1)[1], /Špatně, správně bylo 4/);
@@ -255,7 +255,7 @@ test('prison tasks "math" and "logic": questions at the own gate; a wrong answer
   L.P.handle('c-boss', 'boss', ['chat', '/vezeni Bára']);
   L.P.handle('c-b', 'kid', ['pose', gatePose(1)]);
   L.P.handle('c-b', 'kid', ['vez', 'gate', ...gateCell(1)]);
-  assert.deepEqual(L.to('c-b', 'vezq').at(-1), ['vezq', '1/3 · logic']);
+  assert.deepEqual(L.to('c-b', 'vezq').at(-1), ['vezq', 'Hádanka 1 ze 3\nlogic']);
   for (let i = 0; i < 3; i++) L.P.handle('c-b', 'kid', ['vez', 'ans', 'ema']);
   assert.ok(!L.P.isPrisoner('kid'), 'logic: names without capitals count');
 });

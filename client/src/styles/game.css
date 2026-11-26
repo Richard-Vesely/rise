@@ -232,7 +232,7 @@ body.mp #effects { top: 92px; }
 #chatInput { position: fixed; left: 18px; bottom: 56px; width: min(460px, calc(100vw - 36px)); box-sizing: border-box; display: none; z-index: 6; }
 /* Otázka u brány z bludiště vězení (player/prison.js). */
 #jailAsk { position: fixed; left: 50%; top: 36%; transform: translateX(-50%); width: min(420px, calc(100vw - 32px)); box-sizing: border-box; display: none; flex-wrap: wrap; gap: 8px; padding: 12px 14px; background: #241b18ee; border: 2px solid #b8862b; z-index: 7; }
-#jailAsk b { width: 100%; font: 18px 'Pixelify Sans', monospace; color: #fff; }
+#jailAsk b { width: 100%; font: 18px 'Pixelify Sans', monospace; color: #fff; white-space: pre-line; } /* 1. řádek pořadí, 2. otázka */
 #jailAsk input { flex: 1; min-width: 0; font: 18px 'Pixelify Sans', monospace; color: #fff; padding: 7px 9px; background: #1e1e24; border: 2px solid #000; }
 #jailAsk input:focus { border-color: var(--gold); }
 #feed div.chat { animation-duration: 9s; max-width: 440px; white-space: normal; }
